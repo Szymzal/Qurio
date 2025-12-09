@@ -1,9 +1,4 @@
-use std::{
-    io::Cursor,
-    mem::MaybeUninit,
-    sync::{Arc, mpsc::Receiver},
-    time::Duration,
-};
+use std::{io::Cursor, sync::Arc, time::Duration};
 
 use anyhow::anyhow;
 use axum::{
