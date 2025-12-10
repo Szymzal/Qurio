@@ -96,6 +96,6 @@ impl TryInto<UserName> for UncheckedUserName {
             return Err(UserNameConstructError::IllegalCharacters);
         };
 
-        UserName::new(string)
+        UserName::new(string.trim())
     }
 }

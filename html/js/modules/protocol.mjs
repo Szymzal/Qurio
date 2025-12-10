@@ -88,6 +88,8 @@ export const initializeHandshakePacket = (
    * Client to Server Packet
    * Used to initialize connection though WebSocket
    *
+   * AWARE: Username should not be longer than 255 characters, that would cause username to be send wrong and interpreted wrong, but it will be rejected anyways?
+   *
    * Binary layout:
    * - 3 bytes (Magic)
    * - 1 byte  (Packet ID)

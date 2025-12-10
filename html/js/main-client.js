@@ -33,7 +33,7 @@ if (join_btn !== null && username !== null && error_box !== null) {
 
     websocket.onopen = function() {
       console.log("connection opened");
-      websocket.send(initializeHandshakePacket(username.value));
+      websocket.send(initializeHandshakePacket(username.value.trim()));
     };
 
     const btn = this;
