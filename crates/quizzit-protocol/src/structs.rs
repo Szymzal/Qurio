@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use binrw::BinWrite;
+use binrw::{BinRead, BinWrite};
 
 use crate::error::UserNameConstructError;
 
@@ -9,8 +9,24 @@ use crate::error::UserNameConstructError;
 #[derive(Debug, Clone, Copy, PartialEq, BinWrite)]
 pub struct UserId(u8);
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct UserName(String);
+#[derive(Debug, Clone, PartialEq, BinWrite)]
+pub struct UserName {
+    len: u8,
+    data: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, BinRead)]
+pub struct UncheckedUserName {
+    len: u8,
+    #[br(count = len)]
+    data: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, BinWrite)]
+pub struct User {
+    pub id: UserId,
+    pub username: UserName,
+}
 
 #[derive(Debug, Clone, PartialEq, BinWrite)]
 pub enum HandshakeRejectionReason {
@@ -22,12 +38,16 @@ pub enum HandshakeRejectionReason {
     UsernameTaken,
     /// Magic value are imported from UserNameConstructError and are continuation from above
     UsernameRequirementsNotMet(UserNameConstructError),
+    #[bw(magic = 6u8)]
+    HostIsTaken,
 }
 
 // ======= STRUCT IMPLEMENTATIONS =======
 
 impl UserId {
-    pub fn new(value: u8) -> Self {
+    pub const HOST: UserId = UserId::new(u8::MAX);
+
+    pub const fn new(value: u8) -> Self {
         Self(value)
     }
 
@@ -38,7 +58,11 @@ impl UserId {
 
 impl Display for UserName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        let Ok(string) = str::from_utf8(&self.data) else {
+            return Err(std::fmt::Error);
+        };
+
+        f.write_str(string)
     }
 }
 
@@ -55,6 +79,23 @@ impl UserName {
             return Err(UserNameConstructError::TooLong(username.len() as u32));
         }
 
-        Ok(Self(username.to_owned()))
+        let bytes = username.as_bytes();
+
+        Ok(Self {
+            len: bytes.len() as u8,
+            data: bytes.to_vec(),
+        })
+    }
+}
+
+impl TryInto<UserName> for UncheckedUserName {
+    type Error = UserNameConstructError;
+
+    fn try_into(self) -> Result<UserName, Self::Error> {
+        let Ok(string) = str::from_utf8(&self.data) else {
+            return Err(UserNameConstructError::IllegalCharacters);
+        };
+
+        UserName::new(string)
     }
 }

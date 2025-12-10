@@ -19,6 +19,7 @@ export const HandshakeRejectionReason = {
   USERNAME_TOO_SHORT: 3,
   USERNAME_TOO_LONG: 4,
   USERNAME_ILLEGAL_CHARACTERS: 5,
+  HOST_IS_TAKEN: 6,
 };
 
 /**
@@ -30,6 +31,7 @@ export const HandshakeRejectionReason = {
 export const S2CPacketID = {
   HandshakeAccepted: 0,
   HandshakeRejected: 1,
+  HostHandshakeAccepted: 2,
 };
 
 const writeMagic = (
@@ -86,24 +88,17 @@ export const initializeHandshakePacket = (
    * Client to Server Packet
    * Used to initialize connection though WebSocket
    *
-   * AWARE: Be sure that username does not have null termination characters because 
-   * it will cause username to fragment by the backend and not use whole username
-   *
    * Binary layout:
    * - 3 bytes (Magic)
    * - 1 byte  (Packet ID)
    * - 2 bytes (Protocol version)
+   * - 1 byte  (Length of the username)
    * - x bytes (Username)
-   * - 1 byte  (String null termination)
    *
    * @param {string} username 
    * @returns {ArrayBuffer}
    */
   (username) => {
-    // TODO: Probably I should check bounds of the username
-    // Because I think there is a possibility of overflowing this
-    // Or worse using \0 character as escape... 
-    // Or maybe this is not as bad as I think it is
     const encoder = new TextEncoder();
     const username_encoded = encoder.encode(username);
 
@@ -113,18 +108,46 @@ export const initializeHandshakePacket = (
     // Offset from start of the buffer
     let offset = writeMagic(dataView);
     dataView.setUint8(offset, INITIALIZE_HANDSHAKE_PACKET_ID);
+    offset++;
 
-    dataView.setUint16(offset + 1, PROTOCOL_VERSION);
+    dataView.setUint16(offset, PROTOCOL_VERSION);
+    offset += 2;
 
-    offset += 3;
+    dataView.setUint8(offset, username_encoded.byteLength);
+    offset++;
 
     username_encoded.forEach((x) => {
       dataView.setUint8(offset, x);
       offset++;
     });
 
-    const nullTermination = encoder.encode('\0');
-    dataView.setUint8(offset, nullTermination[0]);
+    return buffer;
+  }
+);
+
+const INITIALIZE_HOST_HANDSHAKE_PACKET_ID = 1;
+export const initializeHostHandshakePacket = (
+  /** 
+   * Client to Server Packet
+   * Used to initialize connection though WebSocket as a host
+   *
+   * Binary layout:
+   * - 3 bytes (Magic)
+   * - 1 byte  (Packet ID)
+   * - 2 bytes (Protocol version)
+   *
+   * @param {string} username 
+   * @returns {ArrayBuffer}
+   */
+  () => {
+    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH + 2);
+    const dataView = new DataView(buffer, 0, buffer.byteLength);
+
+    // Offset from start of the buffer
+    let offset = writeMagic(dataView);
+    dataView.setUint8(offset, INITIALIZE_HOST_HANDSHAKE_PACKET_ID);
+
+    dataView.setUint16(offset + 1, PROTOCOL_VERSION);
 
     return buffer;
   }
@@ -138,7 +161,7 @@ export const readPacket = (
    *
    * @typedef {Object} S2CPacket
    * @property {S2CPacketID} packetID - indicates what specific packet is inside a value variable
-   * @property {HandshakeAcceptedPacket|HandshakeRejectedPacket} value - value of the packet
+   * @property {HandshakeAcceptedPacket|HandshakeRejectedPacket|HostHandshakeAcceptedPacket} value - value of the packet
    */
 
   /** 
@@ -167,6 +190,8 @@ export const readPacket = (
       returnValue.value = handshakeAcceptedPacket(dataView, offset);
     } else if (packetID === S2CPacketID.HandshakeRejected) {
       returnValue.value = handshakeRejectedPacket(dataView, offset);
+    } else if (packetID === S2CPacketID.HostHandshakeAccepted) {
+      returnValue.value = hostHandshakeAcceptedPacket(dataView, offset);
     }
 
     if (returnValue.value !== null) {
@@ -248,5 +273,64 @@ const handshakeRejectedPacket = (
 
     console.error("Couldn't read rejection reason");
     return {};
+  }
+);
+
+const hostHandshakeAcceptedPacket = (
+  /**
+   * Host Handshake Accepted Packet
+   * A Server to Client Packet
+   *
+   * @typedef {Object} HostHandshakeAcceptedPacket
+   * @property {[User]} users - users
+   */
+
+  /**
+   * User
+   *
+   * @typedef {Object} User
+   * @property {number} userID - ID of the user
+   * @property {string} username - username of the user
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {HostHandshakeAcceptedPacket}
+   */
+  (dataView, offset) => {
+    const userCount = dataView.getUint8(offset);
+    offset++;
+    
+    const users = [];
+    for (let userI = 0; userI < userCount; userI++) {
+      const userID = dataView.getUint8(offset);
+      offset++;
+
+      const usernameLength = dataView.getUint8(offset);
+      offset++;
+
+      const usernameBytes = [];
+      for (let i = 0; i < usernameLength; i++) {
+        usernameBytes.push(dataView.getUint8(offset));
+        offset++;
+      }
+
+      const usernameBuffer = new Uint8Array(usernameBytes);
+      const decoder = new TextDecoder();
+      const username = decoder.decode(usernameBuffer);
+
+      users.push({
+        userID: userID,
+        username: username
+      });
+    }
+
+    return {
+      users: users
+    };
   }
 );

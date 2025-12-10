@@ -4,26 +4,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quizzit</title>
+  <title>Quizzit Host</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
   <div class="container">
-    <label for="username">
-      Username:
-      <input id="username">
-    </label>
-    <button id="join" type="button">
-      Join
-    </button>
-
-    <div id="errorBox">
-
+    <div id="playerBoard">
     </div>
   </div>
 
-  <script src="main.js"></script>
+  <script type="module" src="modules/protocol.mjs"></script>
+  <script type="module" src="main-host.js"></script>
 </body>
 
 </html>

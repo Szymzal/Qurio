@@ -1,4 +1,11 @@
-use std::{io::Cursor, sync::Arc, time::Duration};
+use std::{
+    io::Cursor,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 use anyhow::anyhow;
 use axum::{
@@ -7,7 +14,7 @@ use axum::{
         Path, State, WebSocketUpgrade,
         ws::{Message, WebSocket},
     },
-    http::{StatusCode, Uri, header},
+    http::{StatusCode, header},
     response::{Html, IntoResponse},
     routing::get,
 };
@@ -20,14 +27,15 @@ use quizzit_protocol::{
     error::UserNameConstructError,
     packets::{
         c2s::C2SPackets,
-        s2c::{HandshakeAcceptedPacket, HandshakeRejectedPacket, S2CPackets},
+        s2c::{
+            HandshakeAcceptedPacket, HandshakeRejectedPacket, HostHandshakeAcceptedPacket,
+            S2CPackets,
+        },
     },
-    structs::{HandshakeRejectionReason, UserId, UserName},
+    structs::{HandshakeRejectionReason, User, UserId, UserName},
 };
 use thiserror::Error;
 use tokio::{
-    fs::File,
-    io::AsyncReadExt,
     net::TcpListener,
     signal,
     sync::{Mutex, broadcast},
@@ -37,13 +45,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 struct AppState {
     users: Mutex<Vec<User>>,
+    host_joined: AtomicBool,
     tx: broadcast::Sender<S2CPackets>,
-}
-
-#[derive(Debug, Clone)]
-struct User {
-    id: UserId,
-    username: UserName,
 }
 
 #[tokio::main]
@@ -64,14 +67,17 @@ async fn main() {
     let (tx, _rx) = broadcast::channel(100);
     let app_state = Arc::new(AppState {
         users: Mutex::new(Vec::new()),
+        host_joined: AtomicBool::new(false),
         tx,
     });
 
     let app = Router::new()
         .route("/", get(index))
+        .route("/host", get(index_host))
         .route("/modules/{module_path}", get(js_module))
         .route("/style.css", get(css))
         .route("/main-client.js", get(js))
+        .route("/main-host.js", get(js_host))
         .route("/ws", get(websocket_handler))
         .with_state(app_state)
         .layer((
@@ -160,6 +166,9 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                 S2CPackets::HandshakeAccepted(..) => {
                     tracing::warn!("HandshakeAccepted was send through channel!");
                 }
+                S2CPackets::HostHandshakeAccepted(..) => {
+                    tracing::warn!("HostHandshakeAccepted was send through channel!");
+                }
                 S2CPackets::HandshakeRejected(..) => {
                     tracing::warn!("HandshakeRejected was send through channel!");
                 }
@@ -182,8 +191,13 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
         _ = &mut recv_task => send_task.abort(),
     };
 
-    tracing::info!("User {} left", user_id.get_inner_value());
+    if user_id == UserId::HOST {
+        tracing::info!("Host left");
+        state.host_joined.store(false, Ordering::Relaxed);
+        return;
+    }
 
+    tracing::info!("User {} left", user_id.get_inner_value());
     state.users.lock().await.retain(|x| x.id != user_id);
 }
 
@@ -197,6 +211,8 @@ pub enum HandshakeInitializationError {
     UsernameRequirementsNotMet(UserNameConstructError),
     #[error("Chosen username is taken")]
     UsernameTaken,
+    #[error("Host is already logged on")]
+    HostIsTaken,
     #[error("Got into illegal state")]
     IllegalState,
 }
@@ -257,25 +273,7 @@ async fn initialize_handshake(
                         ));
                     }
 
-                    let proposed_username: String = match packet.proposed_username.try_into() {
-                        Ok(username) => username,
-                        Err(_) => {
-                            send_packet(
-                                HandshakeRejectedPacket {
-                                    reason: HandshakeRejectionReason::UsernameRequirementsNotMet(
-                                        UserNameConstructError::IllegalCharacters,
-                                    ),
-                                },
-                                sender,
-                            )
-                            .await;
-
-                            return Err(HandshakeInitializationError::UsernameRequirementsNotMet(
-                                UserNameConstructError::IllegalCharacters,
-                            ));
-                        }
-                    };
-                    let username = match UserName::new(&proposed_username) {
+                    let username: UserName = match packet.proposed_username.try_into() {
                         Ok(username) => username,
                         Err(err) => {
                             send_packet(
@@ -338,6 +336,58 @@ async fn initialize_handshake(
 
                     return Ok(id);
                 }
+                C2SPackets::InitializeHostHandshake(packet) => {
+                    // Checks
+                    if packet.protocol_version != PROTOCOL_VERSION {
+                        tracing::warn!(
+                            "Protocol versions does not match! Expected: '{}', got: '{}'",
+                            PROTOCOL_VERSION,
+                            packet.protocol_version
+                        );
+
+                        send_packet(
+                            HandshakeRejectedPacket {
+                                reason: HandshakeRejectionReason::IncorrectProtocolVersion,
+                            },
+                            sender,
+                        )
+                        .await;
+
+                        return Err(HandshakeInitializationError::InvalidProtocolVersion(
+                            packet.protocol_version,
+                        ));
+                    }
+
+                    if state.host_joined.load(Ordering::Relaxed) {
+                        tracing::warn!(
+                            "Someone tried to connect as host when host is already there!"
+                        );
+
+                        send_packet(
+                            HandshakeRejectedPacket {
+                                reason: HandshakeRejectionReason::HostIsTaken,
+                            },
+                            sender,
+                        )
+                        .await;
+
+                        return Err(HandshakeInitializationError::HostIsTaken);
+                    }
+
+                    state.host_joined.store(true, Ordering::Relaxed);
+                    let users = state.users.lock().await.clone();
+
+                    send_packet(
+                        HostHandshakeAcceptedPacket {
+                            users_count: users.len() as u8,
+                            users,
+                        },
+                        sender,
+                    )
+                    .await;
+
+                    return Ok(UserId::HOST);
+                }
                 _ => {
                     tracing::warn!("Received invalid handshake!");
 
@@ -362,6 +412,10 @@ async fn index() -> Html<&'static str> {
     Html(include_str!("../../../html/client/index.html"))
 }
 
+async fn index_host() -> Html<&'static str> {
+    Html(include_str!("../../../html/host/index.html"))
+}
+
 async fn css() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/css")],
@@ -373,6 +427,13 @@ async fn js() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/javascript")],
         include_str!("../../../html/js/main-client.js"),
+    )
+}
+
+async fn js_host() -> impl IntoResponse {
+    (
+        [(header::CONTENT_TYPE, "text/javascript")],
+        include_str!("../../../html/js/main-host.js"),
     )
 }
 
