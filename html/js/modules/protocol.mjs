@@ -1,30 +1,36 @@
-// @ts-check
-
-// ====== IMPORTS FROM DOCUMENT ======
-
-/** @type HTMLInputElement | null */
-const username = document.querySelector("#username");
-/** @type HTMLButtonElement | null */
-const join_btn = document.querySelector("#join");
-/** @type HTMLDivElement | null */
-const error_box = document.querySelector("#errorBox");
-
 // ====== CONSTS ======
-
 const PROTOCOL_VERSION = 0;
 const PROTOCOL_MAGIC = "Qiz";
 const PROTOCOL_MAGIC_LENGTH = PROTOCOL_MAGIC.length + 1; // Adding one more byte for packet id
-let user_id = -1;
 
 // ====== PACKETS ======
 // ======== UTILS ========
 
-const HANDSHAKE_REJECTION_INCORRECT_PROTOCOL_VERSION = 0;
-const HANDSHAKE_REJECTION_INVALID_HANDSHAKE = 1;
-const HANDSHAKE_REJECTION_USERNAME_TAKEN = 2;
-const HANDSHAKE_REJECTION_USERNAME_TOO_SHORT = 3;
-const HANDSHAKE_REJECTION_USERNAME_TOO_LONG = 4;
-const HANDSHAKE_REJECTION_USERNAME_ILLEGAL_CHARACTERS = 5;
+/**
+ * Provides easy to use enum to decode reason ID
+ *
+ * @readonly
+ * @enum {number}
+ */
+export const HandshakeRejectionReason = {
+  INCORRECT_PROTOCOL_VERSION: 0,
+  INVALID_HANDSHAKE: 1,
+  USERNAME_TAKEN: 2,
+  USERNAME_TOO_SHORT: 3,
+  USERNAME_TOO_LONG: 4,
+  USERNAME_ILLEGAL_CHARACTERS: 5,
+};
+
+/**
+ * All available packets IDs for S2C Packets
+ *
+ * @readonly
+ * @enum {number}
+ */
+export const S2CPacketID = {
+  HandshakeAccepted: 0,
+  HandshakeRejected: 1,
+};
 
 const writeMagic = (
   /** @param {DataView} dataView
@@ -75,7 +81,7 @@ const readMagic = (
 // ======== C2S ========
 
 const INITIALIZE_HANDSHAKE_PACKET_ID = 0;
-const initializeHandshakePacket = (
+export const initializeHandshakePacket = (
   /** 
    * Client to Server Packet
    * Used to initialize connection though WebSocket
@@ -126,10 +132,18 @@ const initializeHandshakePacket = (
 
 // ======== S2C ========
 
-const readPacket = (
+export const readPacket = (
+  /**
+   * A Server to Client Packet
+   *
+   * @typedef {Object} S2CPacket
+   * @property {S2CPacketID} packetID - indicates what specific packet is inside a value variable
+   * @property {HandshakeAcceptedPacket|HandshakeRejectedPacket} value - value of the packet
+   */
+
   /** 
    * @param {ArrayBuffer} buffer 
-   * @returns {Object}
+   * @returns {S2CPacket}
    */
   (buffer) => {
     const dataView = new DataView(buffer, 0, buffer.byteLength);
@@ -144,10 +158,19 @@ const readPacket = (
     const packetID = dataView.getUint8(offset);
     offset++;
 
-    if (packetID === HANDSHAKE_ACCEPTED_PACKET_ID) {
-      return handshakeAcceptedPacket(dataView, offset);
-    } else if (packetID === HANDSHAKE_REJECTED_PACKET_ID) {
-      return handshakeRejectedPacket(dataView, offset);
+    let returnValue = {
+      packetID: packetID,
+      value: null,
+    };
+
+    if (packetID === S2CPacketID.HandshakeAccepted) {
+      returnValue.value = handshakeAcceptedPacket(dataView, offset);
+    } else if (packetID === S2CPacketID.HandshakeRejected) {
+      returnValue.value = handshakeRejectedPacket(dataView, offset);
+    }
+
+    if (returnValue.value !== null) {
+      return returnValue;
     }
 
     // If no packet was matched return
@@ -156,63 +179,70 @@ const readPacket = (
   }
 );
 
-const HANDSHAKE_ACCEPTED_PACKET_ID = 0;
 const handshakeAcceptedPacket = (
+  /**
+   * Handshake Accepted Packet
+   * A Server to Client Packet
+   *
+   * @typedef {Object} HandshakeAcceptedPacket
+   * @property {number} userID - provides ID of the newly created user
+   */
+
   /** AWARE: You should not use this function directly only with conjuction with readPacket.
    * This function handles only specfific to this packet values from the packet.
    * There is no check for magic value or even packet ID.
    *
    * @param {number} offset
    * @param {DataView} dataView
-   * @returns {Object}
+   * @returns {HandshakeAcceptedPacket}
    */
   (dataView, offset) => {
     const userID = dataView.getUint8(offset);
     return {
-      packet: "handshakeAccepted",
-      value: {
-        userID: userID
-      }
+      userID: userID
     };
   }
 );
 
-const HANDSHAKE_REJECTED_PACKET_ID = 1;
 const handshakeRejectedPacket = (
+  /**
+   * Handshake Rejected Packet
+   * A Server to Client Packet
+   *
+   * @typedef {Object} HandshakeRejectedPacket
+   * @property {HandshakeRejectionReason} reason - provides reason ID
+   * @property {number?} got - if reason is that username is too long or too short you also got how many characters did server get
+   */
+
   /** AWARE: You should not use this function directly only with conjuction with readPacket.
    * This function handles only specfific to this packet values from the packet.
    * There is no check for magic value or even packet ID.
    *
    * @param {number} offset
    * @param {DataView} dataView
-   * @returns {Object}
+   * @returns {HandshakeRejectedPacket}
    */
   (dataView, offset) => {
     const reason = dataView.getUint8(offset);
 
     if (
-      reason === HANDSHAKE_REJECTION_USERNAME_TOO_SHORT || 
-      reason === HANDSHAKE_REJECTION_USERNAME_TOO_LONG
+      reason === HandshakeRejectionReason.USERNAME_TOO_SHORT || 
+      reason === HandshakeRejectionReason.USERNAME_TOO_LONG
     ) {
       const gotCharacters = dataView.getUint32(offset + 1);
       return {
-        packet: "handshakeRejected",
-        value: {
-          reason: reason,
-          got: gotCharacters
-        }
+        reason: reason,
+        got: gotCharacters
       };
     } else if (
-      reason === HANDSHAKE_REJECTION_INCORRECT_PROTOCOL_VERSION ||
-      reason === HANDSHAKE_REJECTION_INVALID_HANDSHAKE ||
-      reason === HANDSHAKE_REJECTION_USERNAME_TAKEN ||
-      reason === HANDSHAKE_REJECTION_USERNAME_ILLEGAL_CHARACTERS
+      reason === HandshakeRejectionReason.INCORRECT_PROTOCOL_VERSION ||
+      reason === HandshakeRejectionReason.INVALID_HANDSHAKE ||
+      reason === HandshakeRejectionReason.USERNAME_TAKEN ||
+      reason === HandshakeRejectionReason.USERNAME_ILLEGAL_CHARACTERS
     ) {
       return {
-        packet: "handshakeRejected",
-        value: {
-          reason: reason
-        }
+        reason: reason,
+        got: null
       };
     }
 
@@ -220,55 +250,3 @@ const handshakeRejectedPacket = (
     return {};
   }
 );
-
-// ====== END PACKETS ======
-
-// ====== WEBSOCKET CONNECTION ======
-if (join_btn !== null && username !== null && error_box !== null) {
-  join_btn.addEventListener("click", function(e) {
-    e.preventDefault();
-    this.disabled = true;
-
-    // TODO: Make connection using address which user connected to the website
-    const websocket = new WebSocket("ws://127.0.0.1:3000/ws");
-    websocket.binaryType = "arraybuffer";
-
-    websocket.onopen = function() {
-      console.log("connection opened");
-      websocket.send(initializeHandshakePacket(username.value));
-    };
-
-    const btn = this;
-
-    websocket.onclose = function() {
-      console.log("connection closed");
-      btn.disabled = false;
-    };
-
-    websocket.onmessage = function(e) {
-      if (e.data instanceof ArrayBuffer) {
-        handlePackets(e.data);
-      } else {
-        console.warn("Data are not in Blob");
-      }
-    };
-  });
-} else {
-  console.error("Missing join button or username input or error box element!");
-}
-
-// ====== FUNCTIONS ======
-
-/**
- * @param {ArrayBuffer} data
- */
-function handlePackets(data) {
-  const packet = readPacket(data);
-
-  if (Object.values(packet).length === 0) {
-    console.error("Failed to parse packet!");
-    return;
-  }
-
-  console.debug("Received: ", packet.packet);
-}

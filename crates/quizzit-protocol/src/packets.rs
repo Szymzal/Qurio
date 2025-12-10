@@ -19,7 +19,6 @@ pub mod s2c {
     }
 
     #[derive(BinWrite, Clone, Debug)]
-    #[bw(big, magic = 1u16)]
     pub struct HandshakeRejectedPacket {
         pub reason: HandshakeRejectionReason,
     }
@@ -28,7 +27,11 @@ pub mod s2c {
         pub fn write_as_binary(self) -> Result<Vec<u8>, binrw::Error> {
             let mut writer = Cursor::new(Vec::new());
             self.write(&mut writer)?;
-            Ok(writer.into_inner())
+            let bytes = writer.into_inner();
+
+            tracing::trace!("Bytes of the packet: {:?}", bytes);
+
+            Ok(bytes)
         }
     }
 

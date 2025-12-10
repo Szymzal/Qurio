@@ -4,10 +4,10 @@ use anyhow::anyhow;
 use axum::{
     Router,
     extract::{
-        State, WebSocketUpgrade,
+        Path, State, WebSocketUpgrade,
         ws::{Message, WebSocket},
     },
-    http::{StatusCode, header},
+    http::{StatusCode, Uri, header},
     response::{Html, IntoResponse},
     routing::get,
 };
@@ -26,6 +26,8 @@ use quizzit_protocol::{
 };
 use thiserror::Error;
 use tokio::{
+    fs::File,
+    io::AsyncReadExt,
     net::TcpListener,
     signal,
     sync::{Mutex, broadcast},
@@ -50,7 +52,7 @@ async fn main() {
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
                 format!(
-                    "{}=debug,tower_http=debug,axum=trace",
+                    "{}=debug,quizzit_protocol=trace,tower_http=debug,axum=trace",
                     env!("CARGO_CRATE_NAME")
                 )
                 .into()
@@ -67,8 +69,9 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(index))
+        .route("/modules/{module_path}", get(js_module))
         .route("/style.css", get(css))
-        .route("/main.js", get(js))
+        .route("/main-client.js", get(js))
         .route("/ws", get(websocket_handler))
         .with_state(app_state)
         .layer((
@@ -356,19 +359,31 @@ async fn initialize_handshake(
 }
 
 async fn index() -> Html<&'static str> {
-    Html(include_str!("../../../html/index.html"))
+    Html(include_str!("../../../html/client/index.html"))
 }
 
 async fn css() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/css")],
-        include_str!("../../../html/style.css"),
+        include_str!("../../../html/client/style.css"),
     )
 }
 
 async fn js() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/javascript")],
-        include_str!("../../../html/main.js"),
+        include_str!("../../../html/js/main-client.js"),
     )
+}
+
+async fn js_module(Path(module_path): Path<String>) -> impl IntoResponse {
+    if module_path == "protocol.mjs" {
+        return (
+            [(header::CONTENT_TYPE, "text/javascript")],
+            include_str!("../../../html/js/modules/protocol.mjs"),
+        )
+            .into_response();
+    }
+
+    (StatusCode::NOT_FOUND, "Module not found").into_response()
 }
