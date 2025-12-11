@@ -381,7 +381,7 @@ const userJoinedPacket = (
 
 const userLeftPacket = (
   /**
-   * New user joined. Information to the host to add to their state.
+   * User left. Information to the host to remove from their state.
    * A Server to Client Packet
    *
    * @typedef {Object} UserLeftPacket
