@@ -29,7 +29,7 @@ use quizzit_protocol::{
         c2s::C2SPackets,
         s2c::{
             HandshakeAcceptedPacket, HandshakeRejectedPacket, HostHandshakeAcceptedPacket,
-            S2CPackets,
+            S2CPackets, UserJoinedPacket, UserLeftPacket,
         },
     },
     structs::{HandshakeRejectionReason, User, UserId, UserName},
@@ -130,7 +130,7 @@ async fn websocket_handler(
 }
 
 async fn try_send_packet(
-    mut ws: SplitSink<WebSocket, Message>,
+    ws: &mut SplitSink<WebSocket, Message>,
     packet: S2CPackets,
 ) -> anyhow::Result<()> {
     ws.send(Message::Binary(packet.write_as_binary()?.into()))
@@ -138,7 +138,7 @@ async fn try_send_packet(
         .map_err(|err| anyhow!(err))
 }
 
-async fn send_packet<P>(packet: P, ws: SplitSink<WebSocket, Message>)
+async fn send_packet<P>(packet: P, ws: &mut SplitSink<WebSocket, Message>)
 where
     P: Into<S2CPackets>,
 {
@@ -148,15 +148,37 @@ where
 }
 
 async fn websocket(stream: WebSocket, state: Arc<AppState>) {
-    let (sender, mut receiver) = stream.split();
+    let (mut sender, mut receiver) = stream.split();
 
-    let user_id = match initialize_handshake(sender, &mut receiver, &state).await {
+    let user_id = match initialize_handshake(&mut sender, &mut receiver, &state).await {
         Ok(index) => index,
         Err(err) => {
             tracing::warn!("Failed to initialize new connection: {}", err);
             return;
         }
     };
+
+    let is_host = user_id == UserId::HOST;
+    if !is_host {
+        let users_iter = state.users.lock().await;
+        let user = users_iter.iter().find(|&x| x.id == user_id);
+
+        match user {
+            Some(user) => {
+                let _ = state
+                    .tx
+                    .send(UserJoinedPacket { user: user.clone() }.as_packet());
+            }
+            None => {
+                tracing::error!(
+                    "User wasn't created, but it was believed so. Terminating connection..."
+                );
+
+                let _ = sender.close().await;
+                return;
+            }
+        }
+    }
 
     let mut rx = state.tx.subscribe();
 
@@ -171,6 +193,20 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                 }
                 S2CPackets::HandshakeRejected(..) => {
                     tracing::warn!("HandshakeRejected was send through channel!");
+                }
+                S2CPackets::UserJoined(user_joined_packet) => {
+                    if !is_host {
+                        continue;
+                    }
+
+                    send_packet(user_joined_packet, &mut sender).await;
+                }
+                S2CPackets::UserLeft(user_left_packet) => {
+                    if !is_host {
+                        continue;
+                    }
+
+                    send_packet(user_left_packet, &mut sender).await;
                 }
             }
         }
@@ -199,6 +235,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
     tracing::info!("User {} left", user_id.get_inner_value());
     state.users.lock().await.retain(|x| x.id != user_id);
+    let _ = state.tx.send(UserLeftPacket { user_id }.as_packet());
 }
 
 #[derive(Debug, Clone, Error)]
@@ -222,7 +259,7 @@ pub enum HandshakeInitializationError {
 ///
 /// Returns user id of the new user created
 async fn initialize_handshake(
-    sender: SplitSink<WebSocket, Message>,
+    sender: &mut SplitSink<WebSocket, Message>,
     receiver: &mut SplitStream<WebSocket>,
     state: &Arc<AppState>,
 ) -> Result<UserId, HandshakeInitializationError> {
@@ -374,6 +411,7 @@ async fn initialize_handshake(
                         return Err(HandshakeInitializationError::HostIsTaken);
                     }
 
+                    tracing::info!("Host joined");
                     state.host_joined.store(true, Ordering::Relaxed);
                     let users = state.users.lock().await.clone();
 

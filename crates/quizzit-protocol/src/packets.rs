@@ -13,6 +13,10 @@ pub mod s2c {
         HandshakeRejected(HandshakeRejectedPacket),
         #[bw(magic = 2u8)]
         HostHandshakeAccepted(HostHandshakeAcceptedPacket),
+        #[bw(magic = 3u8)]
+        UserJoined(UserJoinedPacket),
+        #[bw(magic = 4u8)]
+        UserLeft(UserLeftPacket),
     }
 
     #[derive(BinWrite, Clone, Debug)]
@@ -29,6 +33,16 @@ pub mod s2c {
     pub struct HostHandshakeAcceptedPacket {
         pub users_count: u8,
         pub users: Vec<User>,
+    }
+
+    #[derive(BinWrite, Clone, Debug)]
+    pub struct UserJoinedPacket {
+        pub user: User,
+    }
+
+    #[derive(BinWrite, Clone, Debug)]
+    pub struct UserLeftPacket {
+        pub user_id: UserId,
     }
 
     impl S2CPackets {
@@ -61,6 +75,18 @@ pub mod s2c {
         }
     }
 
+    impl From<UserJoinedPacket> for S2CPackets {
+        fn from(val: UserJoinedPacket) -> Self {
+            S2CPackets::UserJoined(val)
+        }
+    }
+
+    impl From<UserLeftPacket> for S2CPackets {
+        fn from(val: UserLeftPacket) -> Self {
+            S2CPackets::UserLeft(val)
+        }
+    }
+
     impl HandshakeAcceptedPacket {
         pub fn as_packet(self) -> S2CPackets {
             S2CPackets::HandshakeAccepted(self)
@@ -76,6 +102,18 @@ pub mod s2c {
     impl HostHandshakeAcceptedPacket {
         pub fn as_packet(self) -> S2CPackets {
             S2CPackets::HostHandshakeAccepted(self)
+        }
+    }
+
+    impl UserJoinedPacket {
+        pub fn as_packet(self) -> S2CPackets {
+            S2CPackets::UserJoined(self)
+        }
+    }
+
+    impl UserLeftPacket {
+        pub fn as_packet(self) -> S2CPackets {
+            S2CPackets::UserLeft(self)
         }
     }
 }

@@ -7,6 +7,14 @@ const PROTOCOL_MAGIC_LENGTH = PROTOCOL_MAGIC.length + 1; // Adding one more byte
 // ======== UTILS ========
 
 /**
+ * User
+ *
+ * @typedef {Object} User
+ * @property {number} userID - ID of the user
+ * @property {string} username - username of the user
+ */
+
+/**
  * Provides easy to use enum to decode reason ID
  *
  * @readonly
@@ -32,7 +40,39 @@ export const S2CPacketID = {
   HandshakeAccepted: 0,
   HandshakeRejected: 1,
   HostHandshakeAccepted: 2,
+  UserJoined: 3,
+  UserLeft: 4,
 };
+
+const readUser = (
+  /** 
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {User}
+   */
+  (dataView, offset) => {
+    const userID = dataView.getUint8(offset);
+    offset++;
+
+    const usernameLength = dataView.getUint8(offset);
+    offset++;
+
+    const usernameBytes = [];
+    for (let i = 0; i < usernameLength; i++) {
+      usernameBytes.push(dataView.getUint8(offset));
+      offset++;
+    }
+
+    const usernameBuffer = new Uint8Array(usernameBytes);
+    const decoder = new TextDecoder();
+    const username = decoder.decode(usernameBuffer);
+
+    return {
+      userID: userID,
+      username: username
+    };
+  }
+);
 
 const writeMagic = (
   /** @param {DataView} dataView
@@ -163,7 +203,7 @@ export const readPacket = (
    *
    * @typedef {Object} S2CPacket
    * @property {S2CPacketID} packetID - indicates what specific packet is inside a value variable
-   * @property {HandshakeAcceptedPacket|HandshakeRejectedPacket|HostHandshakeAcceptedPacket} value - value of the packet
+   * @property {HandshakeAcceptedPacket|HandshakeRejectedPacket|HostHandshakeAcceptedPacket|UserJoinedPacket|UserLeftPacket} value - value of the packet
    */
 
   /** 
@@ -194,6 +234,10 @@ export const readPacket = (
       returnValue.value = handshakeRejectedPacket(dataView, offset);
     } else if (packetID === S2CPacketID.HostHandshakeAccepted) {
       returnValue.value = hostHandshakeAcceptedPacket(dataView, offset);
+    } else if (packetID === S2CPacketID.UserJoined) {
+      returnValue.value = userJoinedPacket(dataView, offset);
+    } else if (packetID === S2CPacketID.UserLeft) {
+      returnValue.value = userLeftPacket(dataView, offset);
     }
 
     if (returnValue.value !== null) {
@@ -287,14 +331,6 @@ const hostHandshakeAcceptedPacket = (
    * @property {[User]} users - users
    */
 
-  /**
-   * User
-   *
-   * @typedef {Object} User
-   * @property {number} userID - ID of the user
-   * @property {string} username - username of the user
-   */
-
   /** AWARE: You should not use this function directly only with conjuction with readPacket.
    * This function handles only specfific to this packet values from the packet.
    * There is no check for magic value or even packet ID.
@@ -309,30 +345,61 @@ const hostHandshakeAcceptedPacket = (
     
     const users = [];
     for (let userI = 0; userI < userCount; userI++) {
-      const userID = dataView.getUint8(offset);
-      offset++;
-
-      const usernameLength = dataView.getUint8(offset);
-      offset++;
-
-      const usernameBytes = [];
-      for (let i = 0; i < usernameLength; i++) {
-        usernameBytes.push(dataView.getUint8(offset));
-        offset++;
-      }
-
-      const usernameBuffer = new Uint8Array(usernameBytes);
-      const decoder = new TextDecoder();
-      const username = decoder.decode(usernameBuffer);
-
-      users.push({
-        userID: userID,
-        username: username
-      });
+      users.push(readUser(dataView, offset));
     }
 
     return {
       users: users
+    };
+  }
+);
+
+const userJoinedPacket = (
+  /**
+   * New user joined. Information to the host to add to their state.
+   * A Server to Client Packet
+   *
+   * @typedef {Object} UserJoinedPacket
+   * @property {User} user - information about user that joined
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {UserJoinedPacket}
+   */
+  (dataView, offset) => {
+    const user = readUser(dataView, offset);
+    return {
+      user: user
+    };
+  }
+);
+
+const userLeftPacket = (
+  /**
+   * New user joined. Information to the host to add to their state.
+   * A Server to Client Packet
+   *
+   * @typedef {Object} UserLeftPacket
+   * @property {number} userID - the ID of the user that left
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {UserLeftPacket}
+   */
+  (dataView, offset) => {
+    const userID = dataView.getUint8(offset);
+    return {
+      userID: userID
     };
   }
 );

@@ -9,6 +9,13 @@ import { initializeHostHandshakePacket, readPacket, S2CPacketID } from "./module
 /** @type HTMLInputElement | null */
 const playerBoard = document.querySelector("#playerBoard");
 
+// ====== VARIABLES ====== 
+
+/**
+ * @type {import("./modules/protocol.mjs").User[]}
+ */
+const users = [];
+
 // ====== WEBSOCKET CONNECTION ======
 if (playerBoard !== null) {
   // TODO: Make connection using address which user connected to the website
@@ -51,9 +58,32 @@ function handlePackets(data) {
   console.debug("Received packet ID: ", packet.packetID);
   if (packet.packetID === S2CPacketID.HostHandshakeAccepted) {
     const packetValue = /** @type {import("./modules/protocol.mjs").HostHandshakeAcceptedPacket} */ (packet.value);
-    console.dir(packetValue.users);
+
+    packetValue.users.forEach((user) => {
+      users.push(user);
+    });
+
+    console.dir(users);
   } else if (packet.packetID === S2CPacketID.HandshakeRejected) {
     const packetValue = /** @type {import("./modules/protocol.mjs").HandshakeRejectedPacket} */ (packet.value);
     console.error("Handshake was rejected! {}", packetValue.reason);
+  } else if (packet.packetID === S2CPacketID.UserJoined) {
+    const packetValue = /** @type {import("./modules/protocol.mjs").UserJoinedPacket} */ (packet.value);
+    console.log(`User ${packetValue.user.username} joined!`);
+
+    users.push(packetValue.user);
+  } else if (packet.packetID === S2CPacketID.UserLeft) {
+    const packetValue = /** @type {import("./modules/protocol.mjs").UserLeftPacket} */ (packet.value);
+    const userIndex = users.findIndex((value) => value.userID === packetValue.userID);
+
+    if (userIndex < 0) {
+      console.warn(`User ${packetValue.userID} left, but it didn't joined anyways!`);
+      return;
+    }
+
+    const user = users[userIndex];
+    console.log(`User ${user.username} left!`);
+
+    users.splice(userIndex, 1);
   }
 }
