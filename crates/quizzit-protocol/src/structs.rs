@@ -2,14 +2,14 @@ use std::fmt::Display;
 
 use binrw::{BinRead, BinWrite};
 
-use crate::error::UserNameConstructError;
+use crate::error::{BinStringError, UserNameConstructError};
 
 // ======= STRUCT DEFINITIONS =======
 
-#[derive(Debug, Clone, Copy, PartialEq, BinWrite)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, BinWrite)]
 pub struct UserId(u8);
 
-#[derive(Debug, Clone, PartialEq, BinWrite)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, BinWrite)]
 pub struct UserName {
     len: u8,
     data: Vec<u8>,
@@ -22,10 +22,29 @@ pub struct UncheckedUserName {
     data: Vec<u8>,
 }
 
+#[derive(Debug, Clone, PartialEq, BinRead, BinWrite)]
+/// NOTE: BinString have a limit of `u16::MAX - 1` characters
+pub struct BinString {
+    len: u16,
+    #[br(count = len)]
+    data: Vec<u8>,
+}
+
 #[derive(Debug, Clone, PartialEq, BinWrite)]
 pub struct User {
     pub id: UserId,
     pub username: UserName,
+}
+
+#[derive(Debug, Clone, PartialEq, BinWrite)]
+pub struct Leaderboard {
+    pub users: Vec<UserStat>,
+}
+
+#[derive(Debug, Clone, PartialEq, BinWrite)]
+pub struct UserStat {
+    pub id: UserId,
+    pub points: u16,
 }
 
 #[derive(Debug, Clone, PartialEq, BinWrite)]
@@ -97,5 +116,41 @@ impl TryInto<UserName> for UncheckedUserName {
         };
 
         UserName::new(string.trim())
+    }
+}
+
+impl BinString {
+    pub fn new(string: Vec<u8>) -> Result<Self, BinStringError> {
+        if string.len() > (u16::MAX - 1) as usize {
+            return Err(BinStringError::TooLong(string.len()));
+        }
+
+        match str::from_utf8(&string) {
+            Ok(_) => (),
+            Err(err) => return Err(BinStringError::Utf8Error(err)),
+        };
+
+        Ok(Self {
+            len: string.len() as u16,
+            data: string,
+        })
+    }
+}
+
+impl TryInto<BinString> for String {
+    type Error = BinStringError;
+
+    fn try_into(self) -> Result<BinString, Self::Error> {
+        let vec = self.as_bytes().to_vec();
+        BinString::new(vec)
+    }
+}
+
+impl TryInto<BinString> for &str {
+    type Error = BinStringError;
+
+    fn try_into(self) -> Result<BinString, Self::Error> {
+        let vec = self.as_bytes().to_vec();
+        BinString::new(vec)
     }
 }

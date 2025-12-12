@@ -42,6 +42,18 @@ export const S2CPacketID = {
   HostHandshakeAccepted: 2,
   UserJoined: 3,
   UserLeft: 4,
+  QuestionInfo: 5,
+  QuestionStats: 6,
+  GameStats: 7,
+  GameIsStarting: 8,
+  NextQuestion: 9,
+  AnswerDetails: 10,
+  PlayerStats: 11,
+  GameEnded: 12,
+  PlayerOverallStats: 13,
+  ReturnToLobby: 14,
+  GameDetails: 15,
+  StartAnswering: 16,
 };
 
 const readUser = (
@@ -71,6 +83,30 @@ const readUser = (
       userID: userID,
       username: username
     };
+  }
+);
+
+const readBinString = (
+  /** 
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {string}
+   */
+  (dataView, offset) => {
+    const stringLength = dataView.getUint16(offset);
+    offset += 2;
+
+    const stringBytes = [];
+    for (let i = 0; i < stringLength; i++) {
+      stringBytes.push(dataView.getUint8(offset));
+      offset++;
+    }
+
+    const stringBuffer = new Uint8Array(stringBytes);
+    const decoder = new TextDecoder();
+    const string = decoder.decode(stringBuffer);
+
+    return string;
   }
 );
 
@@ -170,7 +206,7 @@ export const initializeHandshakePacket = (
 const INITIALIZE_HOST_HANDSHAKE_PACKET_ID = 1;
 export const initializeHostHandshakePacket = (
   /** 
-   * Client to Server Packet
+   * Host to Server Packet
    * Used to initialize connection though WebSocket as a host
    *
    * Binary layout:
@@ -178,7 +214,6 @@ export const initializeHostHandshakePacket = (
    * - 1 byte  (Packet ID)
    * - 2 bytes (Protocol version)
    *
-   * @param {string} username 
    * @returns {ArrayBuffer}
    */
   () => {
@@ -195,6 +230,130 @@ export const initializeHostHandshakePacket = (
   }
 );
 
+const START_GAME_PACKET_ID = 2;
+export const startGamePacket = (
+  /** 
+   * Host to Server Packet
+   * Starts game
+   *
+   * Binary layout:
+   * - 3 bytes (Magic)
+   * - 1 byte  (Packet ID)
+   *
+   * @returns {ArrayBuffer}
+   */
+  () => {
+    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH);
+    const dataView = new DataView(buffer, 0, buffer.byteLength);
+
+    // Offset from start of the buffer
+    let offset = writeMagic(dataView);
+    dataView.setUint8(offset, START_GAME_PACKET_ID);
+
+    return buffer;
+  }
+);
+
+const NEXT_QUESTION_PACKET_ID = 3;
+export const nextQuestionPacket = (
+  /** 
+   * Host to Server Packet
+   * Indicates to the server that host is ready for next question
+   *
+   * Binary layout:
+   * - 3 bytes (Magic)
+   * - 1 byte  (Packet ID)
+   *
+   * @returns {ArrayBuffer}
+   */
+  () => {
+    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH);
+    const dataView = new DataView(buffer, 0, buffer.byteLength);
+
+    // Offset from start of the buffer
+    let offset = writeMagic(dataView);
+    dataView.setUint8(offset, NEXT_QUESTION_PACKET_ID);
+
+    return buffer;
+  }
+);
+
+const FINISH_STATS_PACKET_ID = 4;
+export const finishStatsPacket = (
+  /** 
+   * Host to Server Packet
+   * Indicates to the server that host is ready for next question
+   *
+   * Binary layout:
+   * - 3 bytes (Magic)
+   * - 1 byte  (Packet ID)
+   *
+   * @returns {ArrayBuffer}
+   */
+  () => {
+    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH);
+    const dataView = new DataView(buffer, 0, buffer.byteLength);
+
+    // Offset from start of the buffer
+    let offset = writeMagic(dataView);
+    dataView.setUint8(offset, FINISH_STATS_PACKET_ID);
+
+    return buffer;
+  }
+);
+
+const RETURN_TO_LOBBY_PACKET_ID = 5;
+export const returnToLobbyPacket = (
+  /** 
+   * Host to Server Packet
+   * Indicates to the server that host wants to end the game by returning to the lobby
+   *
+   * Binary layout:
+   * - 3 bytes (Magic)
+   * - 1 byte  (Packet ID)
+   *
+   * @returns {ArrayBuffer}
+   */
+  () => {
+    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH);
+    const dataView = new DataView(buffer, 0, buffer.byteLength);
+
+    // Offset from start of the buffer
+    let offset = writeMagic(dataView);
+    dataView.setUint8(offset, RETURN_TO_LOBBY_PACKET_ID);
+
+    return buffer;
+  }
+);
+
+const ANSWER_PACKET_ID = 6;
+export const answerPacket = (
+  /** 
+   * Client to Server Packet
+   * Selects answer to the question. If the packet is send too late the packet and the answer will be ignored
+   *
+   * Binary layout:
+   * - 3 bytes (Magic)
+   * - 1 byte  (Packet ID)
+   *
+   * @param {number} answer_index
+   * @returns {ArrayBuffer}
+   */
+  (answer_index) => {
+    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH);
+    const dataView = new DataView(buffer, 0, buffer.byteLength);
+
+    // Offset from start of the buffer
+    let offset = writeMagic(dataView);
+    dataView.setUint8(offset, ANSWER_PACKET_ID);
+    offset++;
+
+    dataView.setUint8(offset, answer_index);
+
+    return buffer;
+  }
+);
+
 // ======== S2C ========
 
 export const readPacket = (
@@ -203,7 +362,11 @@ export const readPacket = (
    *
    * @typedef {Object} S2CPacket
    * @property {S2CPacketID} packetID - indicates what specific packet is inside a value variable
-   * @property {HandshakeAcceptedPacket|HandshakeRejectedPacket|HostHandshakeAcceptedPacket|UserJoinedPacket|UserLeftPacket} value - value of the packet
+   * @property {HandshakeAcceptedPacket|
+   *            HandshakeRejectedPacket|
+   *            HostHandshakeAcceptedPacket|
+   *            UserJoinedPacket|
+   *            UserLeftPacket} value - value of the packet
    */
 
   /** 
@@ -278,7 +441,7 @@ const handshakeAcceptedPacket = (
 const handshakeRejectedPacket = (
   /**
    * Handshake Rejected Packet
-   * A Server to Client Packet
+   * A Server to Client/Host Packet
    *
    * @typedef {Object} HandshakeRejectedPacket
    * @property {HandshakeRejectionReason} reason - provides reason ID
@@ -325,7 +488,7 @@ const handshakeRejectedPacket = (
 const hostHandshakeAcceptedPacket = (
   /**
    * Host Handshake Accepted Packet
-   * A Server to Client Packet
+   * A Server to Host Packet
    *
    * @typedef {Object} HostHandshakeAcceptedPacket
    * @property {[User]} users - users
@@ -357,7 +520,7 @@ const hostHandshakeAcceptedPacket = (
 const userJoinedPacket = (
   /**
    * New user joined. Information to the host to add to their state.
-   * A Server to Client Packet
+   * A Server to Host Packet
    *
    * @typedef {Object} UserJoinedPacket
    * @property {User} user - information about user that joined
@@ -382,7 +545,7 @@ const userJoinedPacket = (
 const userLeftPacket = (
   /**
    * User left. Information to the host to remove from their state.
-   * A Server to Client Packet
+   * A Server to Host Packet
    *
    * @typedef {Object} UserLeftPacket
    * @property {number} userID - the ID of the user that left
@@ -400,6 +563,47 @@ const userLeftPacket = (
     const userID = dataView.getUint8(offset);
     return {
       userID: userID
+    };
+  }
+);
+
+const questionInfoPacket = (
+  /**
+   * Information about question to display
+   * A Server to Client Packet
+   *
+   * @typedef {Object} QuestionInfoPacket
+   * @property {number} questionIndex - index/number of the question from all questions
+   * @property {string} question - actual question or statement
+   * @property {string[]} answers - answers to select
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {UserLeftPacket}
+   */
+  (dataView, offset) => {
+    const questionIndex = dataView.getUint8(offset);
+    offset++;
+
+    const question = readBinString(dataView, offset);
+
+    const numOfAnswers = dataView.getUint8(offset);
+    offset++;
+
+    const answers = [];
+    for (let i = 0; i < numOfAnswers; i++) {
+      answers.push(readBinString(dataView, offset));
+    }
+
+    return {
+      questionIndex: questionIndex,
+      question: question,
+      answers: answers,
     };
   }
 );

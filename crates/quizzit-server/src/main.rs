@@ -1,8 +1,9 @@
 use std::{
+    collections::HashMap,
     io::Cursor,
     sync::{
         Arc,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU8, Ordering},
     },
     time::Duration,
 };
@@ -28,24 +29,47 @@ use quizzit_protocol::{
     packets::{
         c2s::C2SPackets,
         s2c::{
-            HandshakeAcceptedPacket, HandshakeRejectedPacket, HostHandshakeAcceptedPacket,
-            S2CPackets, UserJoinedPacket, UserLeftPacket,
+            GameDetailsPacket, HandshakeAcceptedPacket, HandshakeRejectedPacket,
+            HostHandshakeAcceptedPacket, PlayerStatsPacket, QuestionInfoPacket,
+            QuestionStatsPacket, S2CPackets, UserJoinedPacket, UserLeftPacket,
         },
     },
-    structs::{HandshakeRejectionReason, User, UserId, UserName},
+    structs::{BinString, HandshakeRejectionReason, Leaderboard, User, UserId, UserName, UserStat},
 };
 use thiserror::Error;
 use tokio::{
     net::TcpListener,
     signal,
-    sync::{Mutex, broadcast},
+    sync::{Mutex, RwLock, broadcast},
+    time::sleep,
 };
 use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+struct Question {
+    pub question: BinString,
+    pub num_of_answers: u8,
+    pub answers: Vec<BinString>,
+    pub correct_answer_index: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum GameState {
+    Lobby,
+    Question,
+    Answering,
+    Stats,
+    EndGame,
+}
+
 struct AppState {
-    users: Mutex<Vec<User>>,
+    users: RwLock<HashMap<UserId, UserName>>,
     host_joined: AtomicBool,
+    game_state: RwLock<GameState>,
+    player_points: RwLock<HashMap<UserId, u16>>,
+    questions: Arc<[Question]>,
+    question_index: AtomicU8,
+    answers: Mutex<[u8; 4]>,
     tx: broadcast::Sender<S2CPackets>,
 }
 
@@ -66,8 +90,44 @@ async fn main() {
 
     let (tx, _rx) = broadcast::channel(100);
     let app_state = Arc::new(AppState {
-        users: Mutex::new(Vec::new()),
+        users: RwLock::new(HashMap::new()),
         host_joined: AtomicBool::new(false),
+        game_state: RwLock::new(GameState::Lobby),
+        player_points: RwLock::new(HashMap::new()),
+        questions: Arc::new([
+            Question {
+                question: "Is this better than Kahoot?"
+                    .try_into()
+                    .expect("BinString to be created"),
+                num_of_answers: 4,
+                answers: vec![
+                    "Yes".try_into().expect("BinString to be created"),
+                    "No".try_into().expect("BinString to be created"),
+                    "Maybe".try_into().expect("BinString to be created"),
+                    "Well, can we play something else?"
+                        .try_into()
+                        .expect("BinString to be created"),
+                ],
+                correct_answer_index: 0,
+            },
+            Question {
+                question: "Is this worse than Kahoot?"
+                    .try_into()
+                    .expect("BinString to be created"),
+                num_of_answers: 4,
+                answers: vec![
+                    "Maybe".try_into().expect("BinString to be created"),
+                    "No".try_into().expect("BinString to be created"),
+                    "Well, can we play something else?"
+                        .try_into()
+                        .expect("BinString to be created"),
+                    "Yes".try_into().expect("BinString to be created"),
+                ],
+                correct_answer_index: 3,
+            },
+        ]),
+        question_index: AtomicU8::new(0),
+        answers: Mutex::new([0u8; 4]),
         tx,
     });
 
@@ -160,14 +220,19 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
     let is_host = user_id == UserId::HOST;
     if !is_host {
-        let users_iter = state.users.lock().await;
-        let user = users_iter.iter().find(|&x| x.id == user_id);
+        let users = state.users.read().await;
 
-        match user {
-            Some(user) => {
-                let _ = state
-                    .tx
-                    .send(UserJoinedPacket { user: user.clone() }.as_packet());
+        match users.get(&user_id) {
+            Some(username) => {
+                let _ = state.tx.send(
+                    UserJoinedPacket {
+                        user: User {
+                            id: user_id,
+                            username: username.clone(),
+                        },
+                    }
+                    .as_packet(),
+                );
             }
             None => {
                 tracing::error!(
@@ -182,6 +247,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
     let mut rx = state.tx.subscribe();
 
+    let send_state = state.clone();
     let mut send_task = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
             match msg {
@@ -208,17 +274,282 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                     send_packet(user_left_packet, &mut sender).await;
                 }
+                S2CPackets::GameDetails(game_details_packet) => {
+                    if !is_host {
+                        continue;
+                    }
+
+                    send_packet(game_details_packet, &mut sender).await;
+                }
+                S2CPackets::GameIsStaring => {
+                    if is_host {
+                        continue;
+                    }
+
+                    send_packet(S2CPackets::GameIsStaring, &mut sender).await;
+                }
+                S2CPackets::QuestionInfo(question_info_packet) => {
+                    if !is_host {
+                        continue;
+                    }
+
+                    send_packet(question_info_packet, &mut sender).await;
+                }
+                S2CPackets::AnswerDetails(answer_details_packet) => {
+                    if is_host {
+                        continue;
+                    }
+
+                    send_packet(answer_details_packet, &mut sender).await;
+                }
+                S2CPackets::StartAnswering => {
+                    send_packet(S2CPackets::StartAnswering, &mut sender).await;
+                }
+                S2CPackets::QuestionStats(question_stats_packet) => {
+                    if !is_host {
+                        // Send player stats instead of QuestionStats, because you are a player not
+                        // the host
+
+                        let points = match send_state.player_points.read().await.get(&user_id) {
+                            Some(value) => *value,
+                            None => {
+                                send_state.player_points.write().await.insert(user_id, 0);
+                                0
+                            }
+                        };
+
+                        let mut position = send_state
+                            .player_points
+                            .read()
+                            .await
+                            .iter()
+                            .map(|(id, points)| (*id, *points))
+                            .collect::<Vec<_>>();
+                        position.sort_by_key(|(_, points)| *points);
+                        position.reverse();
+                        let index = position
+                            .iter()
+                            .position(|(id, _)| *id == user_id)
+                            .expect("You got inserted few lines before. HOW DID YOU DISAPREAR?");
+
+                        let player_stats = PlayerStatsPacket {
+                            position: (index + 1) as u8,
+                            points,
+                        };
+
+                        send_packet(player_stats, &mut sender).await;
+
+                        continue;
+                    }
+
+                    send_packet(question_stats_packet, &mut sender).await;
+                }
+                S2CPackets::PlayerStats(_) => {
+                    tracing::warn!("How did you get here?");
+                }
+                S2CPackets::NextQuestion => {
+                    if is_host {
+                        continue;
+                    }
+
+                    send_packet(S2CPackets::NextQuestion, &mut sender).await;
+                }
+                S2CPackets::GameEnded => {
+                    if is_host {
+                        continue;
+                    }
+
+                    send_packet(S2CPackets::GameEnded, &mut sender).await;
+                }
+                S2CPackets::GameStats(game_stats_packet) => {
+                    if !is_host {
+                        continue;
+                    }
+
+                    send_packet(game_stats_packet, &mut sender).await;
+                }
+                S2CPackets::PlayerOverallStats(player_overall_stats_packet) => {
+                    if is_host {
+                        continue;
+                    }
+
+                    send_packet(player_overall_stats_packet, &mut sender).await;
+                }
+                S2CPackets::ReturnToLobby => {
+                    if is_host {
+                        continue;
+                    }
+
+                    send_packet(S2CPackets::ReturnToLobby, &mut sender).await;
+                }
             }
         }
     });
 
+    let recv_state = state.clone();
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Binary(bytes))) = receiver.next().await {
             let mut cursor: Cursor<&[u8]> = Cursor::new(&bytes);
-            let packet = C2SPackets::read_from_binary(&mut cursor) else {
+            let Ok(packet) = C2SPackets::read_from_binary(&mut cursor) else {
                 tracing::error!("Failed to decode packet! Terminating connection...");
                 break;
             };
+
+            match packet {
+                C2SPackets::InitializeHandshake(_) => {
+                    tracing::warn!("Client send handshake again. Terminating connection...");
+                    break;
+                }
+                C2SPackets::InitializeHostHandshake(_) => {
+                    tracing::warn!("Client send HOST handshake. Terminating connection...");
+                    break;
+                }
+                C2SPackets::StartGame => {
+                    if !is_host {
+                        tracing::warn!("Client send host packet StartGame. Why it that?");
+                        continue;
+                    }
+
+                    let mut game_state = recv_state.game_state.write().await;
+                    if *game_state != GameState::Lobby {
+                        tracing::warn!("Starting game, but already in game. Ignoring");
+                        continue;
+                    }
+
+                    *game_state = GameState::Question;
+
+                    if let Err(err) = recv_state.tx.send(
+                        GameDetailsPacket {
+                            title: "Test Quiz".try_into().expect("BinString to be created"),
+                            num_of_questions: 2,
+                        }
+                        .as_packet(),
+                    ) {
+                        tracing::error!("Failed to send through channel: {}. Closing", err);
+                        return;
+                    }
+
+                    if let Err(err) = recv_state.tx.send(S2CPackets::GameIsStaring) {
+                        tracing::error!("Failed to send through channel: {}. Closing", err);
+                        return;
+                    }
+
+                    let question_index = recv_state.question_index.load(Ordering::Relaxed);
+                    let question = &recv_state.questions[question_index as usize];
+                    if let Err(err) = recv_state.tx.send(
+                        QuestionInfoPacket {
+                            question_index,
+                            question: question.question.clone(),
+                            num_of_answers: question.num_of_answers,
+                            answers: question.answers.clone(),
+                        }
+                        .as_packet(),
+                    ) {
+                        tracing::error!("Failed to send through channel: {}. Closing", err);
+                        return;
+                    }
+
+                    let background_recv_state = recv_state.clone();
+                    tokio::spawn(async move {
+                        // TODO: Configure wait time
+                        sleep(Duration::from_secs(6)).await;
+
+                        *background_recv_state.game_state.write().await = GameState::Answering;
+                        if let Err(err) = background_recv_state.tx.send(S2CPackets::StartAnswering)
+                        {
+                            tracing::error!("Failed to send through channel: {}. Closing", err);
+                        }
+
+                        tokio::spawn(async move {
+                            // TODO: Configure wait time
+                            sleep(Duration::from_secs(10)).await;
+
+                            *background_recv_state.game_state.write().await = GameState::Stats;
+
+                            let mut vec = Vec::new();
+                            let answers = background_recv_state.answers.lock().await;
+                            answers.iter().for_each(|&x| vec.push(x));
+
+                            let mut list: Vec<UserStat> = background_recv_state
+                                .player_points
+                                .read()
+                                .await
+                                .iter()
+                                .map(|(id, points)| UserStat {
+                                    id: *id,
+                                    points: *points,
+                                })
+                                .collect();
+                            list.sort_by_key(|stats| stats.points);
+                            list.reverse();
+                            let leaderboard = Leaderboard { users: list };
+
+                            let question_index =
+                                background_recv_state.question_index.load(Ordering::Relaxed);
+                            let question =
+                                &background_recv_state.questions[question_index as usize];
+                            let stats = QuestionStatsPacket {
+                                num_of_answers: question.num_of_answers,
+                                answers_answered: vec,
+                                leaderboard,
+                                correct_answer_index: question.correct_answer_index,
+                            };
+
+                            // NOTE: Sending QuestionStatsPacket makes senders individually send
+                            // PlayerStats to clients
+                            if let Err(err) = background_recv_state.tx.send(stats.as_packet()) {
+                                tracing::error!("Failed to send through channel: {}. Closing", err);
+                            }
+                        });
+                    });
+                }
+                C2SPackets::Answer(answer_packet) => {
+                    if is_host {
+                        continue;
+                    }
+
+                    if *recv_state.game_state.read().await != GameState::Answering {
+                        tracing::debug!("Answer came too late. Ignoring");
+                        continue;
+                    }
+
+                    let question_index = recv_state.question_index.load(Ordering::Relaxed);
+                    let question = &recv_state.questions[question_index as usize];
+
+                    if answer_packet.index > question.num_of_answers - 1 {
+                        tracing::warn!(
+                            "User tried to answer outside of answers: got: {}, expected below: {}",
+                            answer_packet.index,
+                            question.num_of_answers
+                        );
+                        continue;
+                    }
+
+                    *recv_state
+                        .answers
+                        .lock()
+                        .await
+                        .get_mut(answer_packet.index as usize)
+                        .expect("Answers to be populated") += 1;
+
+                    let points_to_add = if question.correct_answer_index == answer_packet.index {
+                        1
+                    } else {
+                        0
+                    };
+
+                    let mut player_points = recv_state.player_points.write().await;
+                    match player_points.get_mut(&user_id) {
+                        Some(points) => *points += points_to_add,
+                        None => {
+                            player_points.insert(user_id, points_to_add);
+                        }
+                    }
+                }
+                C2SPackets::NextQuestion => todo!(),
+                C2SPackets::FinishStats => todo!(),
+                C2SPackets::ReturnToLobby => todo!(),
+            }
         }
     });
 
@@ -234,7 +565,8 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     }
 
     tracing::info!("User {} left", user_id.get_inner_value());
-    state.users.lock().await.retain(|x| x.id != user_id);
+    state.users.write().await.remove(&user_id);
+    state.player_points.write().await.remove(&user_id);
     let _ = state.tx.send(UserLeftPacket { user_id }.as_packet());
 }
 
@@ -329,9 +661,9 @@ async fn initialize_handshake(
                         }
                     };
 
-                    let mut users = state.users.lock().await;
+                    let mut users = state.users.write().await;
 
-                    if users.iter().any(|x| x.username == username) {
+                    if users.values().any(|x| *x == username) {
                         send_packet(
                             HandshakeRejectedPacket {
                                 reason: HandshakeRejectionReason::UsernameTaken,
@@ -343,14 +675,23 @@ async fn initialize_handshake(
                         return Err(HandshakeInitializationError::UsernameTaken);
                     }
 
+                    if *state.game_state.read().await != GameState::Lobby {
+                        // TODO:
+                        tracing::info!("Player trying to join during the game. TO be implemented!");
+                        return Err(HandshakeInitializationError::IllegalState);
+                    }
+
                     // Checks were passed
                     // Now get new id and add to users
 
+                    // TODO: Make UserID manager
                     let user_id = UserId::new(
                         users
                             .iter()
-                            .max_by(|a, b| a.id.get_inner_value().cmp(&b.id.get_inner_value()))
-                            .map(|x| x.id.get_inner_value())
+                            .max_by(|(a_id, _), (b_id, _)| {
+                                a_id.get_inner_value().cmp(&b_id.get_inner_value())
+                            })
+                            .map(|(x_id, _)| x_id.get_inner_value())
                             .unwrap_or(0)
                             + 1,
                     );
@@ -368,10 +709,12 @@ async fn initialize_handshake(
 
                     send_packet(HandshakeAcceptedPacket { id: user_id }, sender).await;
 
-                    let id = user.id;
-                    users.push(user);
+                    users.insert(user.id, user.username);
 
-                    return Ok(id);
+                    let mut player_points = state.player_points.write().await;
+                    player_points.insert(user.id, 0);
+
+                    return Ok(user.id);
                 }
                 C2SPackets::InitializeHostHandshake(packet) => {
                     // Checks
@@ -413,12 +756,20 @@ async fn initialize_handshake(
 
                     tracing::info!("Host joined");
                     state.host_joined.store(true, Ordering::Relaxed);
-                    let users = state.users.lock().await.clone();
+                    let users = state.users.read().await.clone();
+
+                    let users_vec = users
+                        .iter()
+                        .map(|(id, username)| User {
+                            id: *id,
+                            username: username.clone(),
+                        })
+                        .collect::<Vec<_>>();
 
                     send_packet(
                         HostHandshakeAcceptedPacket {
                             users_count: users.len() as u8,
-                            users,
+                            users: users_vec,
                         },
                         sender,
                     )

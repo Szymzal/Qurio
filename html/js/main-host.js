@@ -18,8 +18,7 @@ const users = [];
 
 // ====== WEBSOCKET CONNECTION ======
 if (playerBoard !== null) {
-  // TODO: Make connection using address which user connected to the website
-  const websocket = new WebSocket("ws://127.0.0.1:3000/ws");
+  const websocket = new WebSocket(`ws://${window.location.host}/ws`);
   websocket.binaryType = "arraybuffer";
 
   websocket.onopen = function() {
