@@ -6,7 +6,7 @@ import { initializeHostHandshakePacket, readPacket, S2CPacketID } from "./module
 
 // ====== IMPORTS FROM DOCUMENT ======
 
-/** @type HTMLInputElement | null */
+/** @type HTMLDivElement | null */
 const playerBoard = document.querySelector("#playerBoard");
 
 // ====== VARIABLES ====== 
@@ -64,6 +64,8 @@ function handlePackets(data) {
     });
 
     console.dir(users);
+
+    updatePlayerBoard();
   } else if (packet.packetID === S2CPacketID.HandshakeRejected) {
     const packetValue = /** @type {import("./modules/protocol.mjs").HandshakeRejectedPacket} */ (packet.value);
     console.error("Handshake was rejected! {}", packetValue.reason);
@@ -72,6 +74,8 @@ function handlePackets(data) {
     console.log(`User ${packetValue.user.username} joined!`);
 
     users.push(packetValue.user);
+
+    updatePlayerBoard();
   } else if (packet.packetID === S2CPacketID.UserLeft) {
     const packetValue = /** @type {import("./modules/protocol.mjs").UserLeftPacket} */ (packet.value);
     const userIndex = users.findIndex((value) => value.userID === packetValue.userID);
@@ -85,5 +89,52 @@ function handlePackets(data) {
     console.log(`User ${user.username} left!`);
 
     users.splice(userIndex, 1);
+
+    updatePlayerBoard();
   }
+}
+
+/**
+ * Utility function to remove all children of the element without removing the element itself
+ * @param {Element} element
+ */
+function removeAllChilds(element) {
+  while (element.firstChild && element.firstChild.nodeType === Node.ELEMENT_NODE) {
+    element.removeChild(element.firstChild);
+  }
+}
+
+function updatePlayerBoard() {
+  if (playerBoard === null) {
+    console.error("No player board!");
+    return;
+  }
+
+
+  /** @type {Element[]} */
+  const players = [];
+
+  for (let user of users) {
+    players.push(createPlayer(user.username));
+  }
+
+  removeAllChilds(playerBoard);
+
+  players.forEach((playerElement) => {
+    playerBoard.append(playerElement);
+  });
+}
+
+/**
+ * Creates player HTML element and returns it
+ *
+ * @param {string} username 
+ * @returns {Element}
+ */
+function createPlayer(username) {
+  const element = document.createElement("div");
+
+  element.textContent = username;
+
+  return element;
 }
