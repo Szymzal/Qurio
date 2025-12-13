@@ -38,6 +38,7 @@ pub struct User {
 
 #[derive(Debug, Clone, PartialEq, BinWrite)]
 pub struct Leaderboard {
+    pub num_users: u8,
     pub users: Vec<UserStat>,
 }
 

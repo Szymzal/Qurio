@@ -3,6 +3,7 @@
 // ====== IMPORTS ======
 
 import {
+  answerPacket,
   initializeHandshakePacket,
   readPacket,
   S2CPacketID,
@@ -16,13 +17,84 @@ const username = document.querySelector("#username");
 const join_btn = document.querySelector("#join");
 /** @type HTMLDivElement | null */
 const error_box = document.querySelector("#errorBox");
+/** @type HTMLDivElement | null */
+const loginPage = document.querySelector("#login");
+/** @type HTMLDivElement | null */
+const waitForHost = document.querySelector("#waitForHost");
+
+/** @type HTMLDivElement | null */
+const lobby = document.querySelector("#lobby");
+
+/** @type HTMLDivElement | null */
+const waitForQuestion = document.querySelector("#waitingForQuestion");
+
+/** @type HTMLDivElement | null */
+const answer = document.querySelector("#answer");
+/** @type HTMLButtonElement | null */
+const answer0 = document.querySelector("#answer0");
+/** @type HTMLButtonElement | null */
+const answer1 = document.querySelector("#answer1");
+/** @type HTMLButtonElement | null */
+const answer2 = document.querySelector("#answer2");
+/** @type HTMLButtonElement | null */
+const answer3 = document.querySelector("#answer3");
+
+/** @type HTMLDivElement | null */
+const waitingForAnswers = document.querySelector("#waitingForAnswers");
+
+/** @type HTMLDivElement | null */
+const questionableResults = document.querySelector("#qestionableResults");
+/** @type HTMLHeadingElement | null */
+const playerPosition = document.querySelector("#playerPosition");
+/** @type HTMLHeadingElement | null */
+const playerPoints = document.querySelector("#playerPoints");
+
+/** @type HTMLDivElement | null */
+const gameResults = document.querySelector("#gameResults");
+/** @type HTMLHeadingElement | null */
+const overallPlayerPosition = document.querySelector("#overallPlayerPosition");
+/** @type HTMLHeadingElement | null */
+const overallPlayerPoints = document.querySelector("#overallPlayerPoints");
 
 // ====== VARIABLES ======
 
+/**
+ * Provides easy to use enum to decode reason ID
+ *
+ * @readonly
+ * @enum {number}
+ */
+const PagesID = {
+  LOGIN: 0,
+  WAIT_FOR_HOST: 1,
+  LOBBY: 2,
+  ANSWER: 3,
+  WAITING_FOR_ANSWERS: 4,
+  QUESTIONABLE_RESULTS: 5,
+  GAME_RESULTS: 6,
+  WAIT_FOR_QUESTION: 7,
+};
+
+/**
+ * @readonly
+ */
+const pages = [
+  loginPage,
+  waitForHost,
+  lobby,
+  answer,
+  waitingForAnswers,
+  questionableResults,
+  gameResults,
+  waitForQuestion,
+];
+
+let currentPage = PagesID.LOGIN;
+let numberOfAnswers = 0;
 let user_id = -1;
 
 // ====== WEBSOCKET CONNECTION ======
-if (join_btn !== null && username !== null && error_box !== null) {
+if (join_btn && username && error_box) {
   join_btn.addEventListener("click", function(e) {
     e.preventDefault();
     this.disabled = true;
@@ -49,6 +121,26 @@ if (join_btn !== null && username !== null && error_box !== null) {
         console.warn("Data are not in Blob");
       }
     };
+
+    if (answer0 && answer1 && answer2 && answer3) {
+      const answers = [answer0, answer1, answer2, answer3];
+      for (let i = 0; i < answers.length; i++) {
+        const answer = answers[i];
+        answer.addEventListener("click", (event) => {
+          event.preventDefault();
+          
+          answers.forEach((answer) => {
+            answer.disabled = true;
+          });
+
+          websocket.send(answerPacket(i));
+
+          switchPages(PagesID.WAITING_FOR_ANSWERS);
+        });
+      }
+    } else {
+      console.error("No buttons!");
+    }
   });
 } else {
   console.error("Missing join button or username input or error box element!");
@@ -68,11 +160,116 @@ function handlePackets(data) {
   }
 
   console.debug("Received packet ID: ", packet.packetID);
-  if (packet.packetID === S2CPacketID.HandshakeAccepted) {
-    const packetValue = /** @type {import("./modules/protocol.mjs").HandshakeAcceptedPacket} */ (packet.value);
-    user_id = packetValue.userID;
-  } else if (packet.packetID === S2CPacketID.HandshakeRejected) {
-    const packetValue = /** @type {import("./modules/protocol.mjs").HandshakeRejectedPacket} */ (packet.value);
-    console.error("Handshake was rejected! {}", packetValue.reason);
+  switch (packet.packetID) {
+    case S2CPacketID.HandshakeAccepted:
+      const handshakeAcceptedPacket = /** @type {import("./modules/protocol.mjs").HandshakeAcceptedPacket} */ (packet.value);
+      user_id = handshakeAcceptedPacket.userID;
+      switchPages(PagesID.WAIT_FOR_HOST);
+      break;
+    case S2CPacketID.HandshakeRejected:
+      const handshakeRejectedPacket = /** @type {import("./modules/protocol.mjs").HandshakeRejectedPacket} */ (packet.value);
+      console.error("Handshake was rejected! {}", handshakeRejectedPacket.reason);
+      break;
+    case S2CPacketID.GameIsStarting:
+      switchPages(PagesID.WAIT_FOR_QUESTION);
+      break;
+    case S2CPacketID.AnswerDetails:
+      const answerDetailsPacket = /** @type {import("./modules/protocol.mjs").AnswerDetailsPacket} */ (packet.value);
+      numberOfAnswers = answerDetailsPacket.numOfAnswers;
+
+      if (answer0 && answer1 && answer2 && answer3) {
+        const answers = [answer0, answer1, answer2, answer3];
+        answers.forEach((answer) => {
+          answer.disabled = false;
+        });
+
+        switch (numberOfAnswers) {
+          case 1:
+            answer0.style.display = "";
+            answer1.style.display = "none";
+            answer2.style.display = "none";
+            answer3.style.display = "none";
+            break;
+          case 2:
+            answer0.style.display = "";
+            answer1.style.display = "";
+            answer2.style.display = "none";
+            answer3.style.display = "none";
+            break;
+          case 3:
+            answer0.style.display = "";
+            answer1.style.display = "";
+            answer2.style.display = "";
+            answer3.style.display = "none";
+            break;
+          case 4:
+            answer0.style.display = "";
+            answer1.style.display = "";
+            answer2.style.display = "";
+            answer3.style.display = "";
+            break;
+          default:
+            console.error("More than 4?");
+            break;
+        }
+      } else {
+        console.error("No buttons!");
+      }
+
+      break;
+    case S2CPacketID.StartAnswering:
+      switchPages(PagesID.ANSWER);
+      break;
+    case S2CPacketID.PlayerStats:
+      const playerStatsPacket = /** @type {import("./modules/protocol.mjs").PlayerStatsPacket} */ (packet.value);
+      switchPages(PagesID.QUESTIONABLE_RESULTS);
+
+      if (playerPosition && playerPoints) {
+        playerPosition.textContent = `${playerStatsPacket.position}`;
+        playerPoints.textContent = `${playerStatsPacket.points}`;
+      }
+      break;
+    case S2CPacketID.NextQuestion:
+      switchPages(PagesID.WAIT_FOR_QUESTION);
+      break;
+    case S2CPacketID.GameEnded:
+      switchPages(PagesID.WAIT_FOR_QUESTION);
+      break;
+    case S2CPacketID.PlayerOverallStats:
+      const playerOverallStats = /** @type {import("./modules/protocol.mjs").PlayerOverallStatsPacket} */ (packet.value);
+      switchPages(PagesID.GAME_RESULTS);
+
+      if (overallPlayerPosition && overallPlayerPoints) {
+        overallPlayerPosition.textContent = `${playerOverallStats.position}`;
+        overallPlayerPoints.textContent = `${playerOverallStats.points}`;
+      }
+      break;
+    case S2CPacketID.ReturnToLobby:
+      switchPages(PagesID.LOBBY);
+      break;
+    case S2CPacketID.HostJoined:
+      switchPages(PagesID.LOBBY);
+      break;
+    case S2CPacketID.HostLeft:
+      switchPages(PagesID.WAIT_FOR_HOST);
+      break;
+    default:
   }
+}
+
+/**
+ * @param {PagesID} to
+ */
+function switchPages(to) {
+  const currentPageElement = pages[currentPage];
+  if (currentPageElement) {
+    currentPageElement.style.display = "none";
+  }
+
+  const nextPageElement = pages[to];
+  if (nextPageElement) {
+    nextPageElement.style.display = "";
+  }
+
+  currentPage = to;
 }

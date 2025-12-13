@@ -10,16 +10,48 @@
 
 <body>
   <div class="container">
-    <label for="username">
-      Username:
-      <input id="username">
-    </label>
-    <button id="join" type="button">
-      Join
-    </button>
+    <div id="login">
+      <label for="username">
+        Username:
+        <input id="username">
+      </label>
+      <button id="join" type="button">
+        Join
+      </button>
 
-    <div id="errorBox">
+      <div id="errorBox">
 
+      </div>
+    </div>
+    <div id="waitForHost" style="display: none;">
+      <h1>Waiting for host to join...</h1>
+    </div>
+    <div id="lobby" style="display: none;">
+      <h1>Do you see yourself on the screen?</h1>
+    </div>
+    <div id="waitingForQuestion" style="display: none;">
+      <h1>Look at the screen</h1>
+    </div>
+    <div id="answer" style="display: none;">
+      <button id="answer0" type="button">1</button>
+      <button id="answer1" type="button">2</button>
+      <button id="answer2" type="button">3</button>
+      <button id="answer3" type="button">4</button>
+    </div>
+    <div id="waitingForAnswers" style="display: none;">
+      <h1>Waiting for answers...</h1>
+    </div>
+    <div id="questionableResults" style="display: none;">
+      <h3>Position: </h3>
+      <h2 id="playerPosition"></h2>
+      <h3>Points: </h3>
+      <h2 id="playerPoints"></h2>
+    </div>
+    <div id="gameResults" style="display: none;">
+      <h3>Overall position: </h3>
+      <h2 id="overallPlayerPosition"></h2>
+      <h3>Overall points: </h3>
+      <h2 id="overallPlayerPoints"></h2>
     </div>
   </div>
 

@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io::Cursor,
     sync::{
         Arc,
@@ -70,6 +70,7 @@ struct AppState {
     questions: Arc<[Question]>,
     question_index: AtomicU8,
     answers: Mutex<[u8; 4]>,
+    answered: Mutex<HashSet<UserId>>,
     tx: broadcast::Sender<S2CPackets>,
 }
 
@@ -128,6 +129,7 @@ async fn main() {
         ]),
         question_index: AtomicU8::new(0),
         answers: Mutex::new([0u8; 4]),
+        answered: Mutex::new(HashSet::new()),
         tx,
     });
 
@@ -382,6 +384,20 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                     send_packet(S2CPackets::ReturnToLobby, &mut sender).await;
                 }
+                S2CPackets::HostJoined => {
+                    if is_host {
+                        continue;
+                    }
+
+                    send_packet(S2CPackets::HostJoined, &mut sender).await;
+                }
+                S2CPackets::HostLeft => {
+                    if is_host {
+                        continue;
+                    }
+
+                    send_packet(S2CPackets::HostLeft, &mut sender).await;
+                }
             }
         }
     });
@@ -482,7 +498,10 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                                 .collect();
                             list.sort_by_key(|stats| stats.points);
                             list.reverse();
-                            let leaderboard = Leaderboard { users: list };
+                            let leaderboard = Leaderboard {
+                                num_users: list.len() as u8,
+                                users: list,
+                            };
 
                             let question_index =
                                 background_recv_state.question_index.load(Ordering::Relaxed);
@@ -525,6 +544,15 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         continue;
                     }
 
+                    let mut answered_set = recv_state.answered.lock().await;
+
+                    if answered_set.contains(&user_id) {
+                        tracing::warn!("User trying to answer again. Ignoring...");
+                        continue;
+                    }
+
+                    answered_set.insert(user_id);
+
                     *recv_state
                         .answers
                         .lock()
@@ -561,6 +589,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     if user_id == UserId::HOST {
         tracing::info!("Host left");
         state.host_joined.store(false, Ordering::Relaxed);
+        let _ = state.tx.send(S2CPackets::HostLeft);
         return;
     }
 
@@ -708,8 +737,11 @@ async fn initialize_handshake(
                     );
 
                     send_packet(HandshakeAcceptedPacket { id: user_id }, sender).await;
-
                     users.insert(user.id, user.username);
+
+                    if state.host_joined.load(Ordering::Relaxed) {
+                        send_packet(S2CPackets::HostJoined, sender).await;
+                    }
 
                     let mut player_points = state.player_points.write().await;
                     player_points.insert(user.id, 0);
@@ -755,8 +787,9 @@ async fn initialize_handshake(
                     }
 
                     tracing::info!("Host joined");
-                    state.host_joined.store(true, Ordering::Relaxed);
                     let users = state.users.read().await.clone();
+                    state.host_joined.store(true, Ordering::Relaxed);
+                    let _ = state.tx.send(S2CPackets::HostJoined);
 
                     let users_vec = users
                         .iter()

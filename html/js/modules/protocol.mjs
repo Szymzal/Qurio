@@ -15,6 +15,21 @@ const PROTOCOL_MAGIC_LENGTH = PROTOCOL_MAGIC.length + 1; // Adding one more byte
  */
 
 /**
+ * UserStat
+ *
+ * @typedef {Object} UserStat
+ * @property {number} userID - ID of the user
+ * @property {number} points - how many points does user have
+ */
+
+/**
+ * Leaderboard
+ *
+ * @typedef {Object} Leaderboard
+ * @param {UserStat[]} users
+ */
+
+/**
  * Provides easy to use enum to decode reason ID
  *
  * @readonly
@@ -54,7 +69,39 @@ export const S2CPacketID = {
   ReturnToLobby: 14,
   GameDetails: 15,
   StartAnswering: 16,
+  HostJoined: 17,
+  HostLeft: 18,
 };
+
+const readLeaderboards = (
+  /** 
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {Leaderboard}
+   */
+  (dataView, offset) => {
+    const numOfUsers = dataView.getUint8(offset);
+    offset++;
+
+    const leaderboard = {
+      users: []
+    };
+    for (let i = 0; i < numOfUsers; i++) {
+      const id = dataView.getUint8(offset);
+      offset++;
+
+      const points = dataView.getUint16(offset);
+      offset += 2;
+
+      leaderboard.users.push({
+        id: id,
+        points: points,
+      });
+    }
+
+    return leaderboard;
+  }
+);
 
 const readUser = (
   /** 
@@ -366,7 +413,21 @@ export const readPacket = (
    *            HandshakeRejectedPacket|
    *            HostHandshakeAcceptedPacket|
    *            UserJoinedPacket|
-   *            UserLeftPacket} value - value of the packet
+   *            UserLeftPacket|
+   *            QuestionInfoPacket|
+   *            QuestionStatsPacket|
+   *            GameStatsPacket|
+   *            GameIsStartingPacket|
+   *            NextQuestionPacket|
+   *            AnswerDetailsPacket|
+   *            PlayerStatsPacket|
+   *            GameEndedPacket|
+   *            PlayerOverallStatsPacket|
+   *            ReturnToLobbyPacket|
+   *            GameStatsPacket|
+   *            StartAnsweringPacket|
+   *            HostJoinedPacket|
+   *            HostLeftPacket} value - value of the packet
    */
 
   /** 
@@ -391,25 +452,68 @@ export const readPacket = (
       value: null,
     };
 
-    if (packetID === S2CPacketID.HandshakeAccepted) {
-      returnValue.value = handshakeAcceptedPacket(dataView, offset);
-    } else if (packetID === S2CPacketID.HandshakeRejected) {
-      returnValue.value = handshakeRejectedPacket(dataView, offset);
-    } else if (packetID === S2CPacketID.HostHandshakeAccepted) {
-      returnValue.value = hostHandshakeAcceptedPacket(dataView, offset);
-    } else if (packetID === S2CPacketID.UserJoined) {
-      returnValue.value = userJoinedPacket(dataView, offset);
-    } else if (packetID === S2CPacketID.UserLeft) {
-      returnValue.value = userLeftPacket(dataView, offset);
+    switch (packetID) {
+      case S2CPacketID.HandshakeAccepted:
+        returnValue.value = handshakeAcceptedPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.HandshakeRejected:
+        returnValue.value = handshakeRejectedPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.HostHandshakeAccepted:
+        returnValue.value = hostHandshakeAcceptedPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.UserJoined:
+        returnValue.value = userJoinedPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.UserLeft:
+        returnValue.value = userLeftPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.QuestionInfo:
+        returnValue.value = questionInfoPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.QuestionStats:
+        returnValue.value = questionStatsPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.GameStats:
+        returnValue.value = gameStatsPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.GameIsStarting:
+        returnValue.value = {};
+        return returnValue;
+      case S2CPacketID.NextQuestion:
+        returnValue.value = {};
+        return returnValue;
+      case S2CPacketID.AnswerDetails:
+        returnValue.value = answerDetailsPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.PlayerStats:
+        returnValue.value = playerStatsPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.GameEnded:
+        returnValue.value = {};
+        return returnValue;
+      case S2CPacketID.PlayerOverallStats:
+        returnValue.value = playerOverallStatsPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.ReturnToLobby:
+        returnValue.value = {};
+        return returnValue;
+      case S2CPacketID.GameDetails:
+        returnValue.value = gameDetailsPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.StartAnswering:
+        returnValue.value = {};
+        return returnValue;
+      case S2CPacketID.HostJoined:
+        returnValue.value = {};
+        return returnValue;
+      case S2CPacketID.HostLeft:
+        returnValue.value = {};
+        return returnValue;
+      default:
+        console.error("Packet ID not matched");
+        return {};
     }
-
-    if (returnValue.value !== null) {
-      return returnValue;
-    }
-
-    // If no packet was matched return
-    console.error("Packet ID not matched");
-    return {};
   }
 );
 
@@ -570,7 +674,7 @@ const userLeftPacket = (
 const questionInfoPacket = (
   /**
    * Information about question to display
-   * A Server to Client Packet
+   * A Server to Host Packet
    *
    * @typedef {Object} QuestionInfoPacket
    * @property {number} questionIndex - index/number of the question from all questions
@@ -584,7 +688,7 @@ const questionInfoPacket = (
    *
    * @param {number} offset
    * @param {DataView} dataView
-   * @returns {UserLeftPacket}
+   * @returns {QuestionInfoPacket}
    */
   (dataView, offset) => {
     const questionIndex = dataView.getUint8(offset);
@@ -607,3 +711,239 @@ const questionInfoPacket = (
     };
   }
 );
+
+const questionStatsPacket = (
+  /**
+   * Statistics about question
+   * A Server to Host Packet
+   *
+   * @typedef {Object} QuestionStatsPacket
+   * @property {number[]} numOfAnswers - how many players choose answers
+   * @property {Leaderboard} leaderboard - leaderboards
+   * @property {number} correctAnswer - index of the correct answer
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {QuestionStatsPacket}
+   */
+  (dataView, offset) => {
+    const numOfNumOfAnswers = dataView.getUint8(offset);
+    offset++;
+
+    const numOfAnswers = [];
+    for (let i = 0; i < numOfNumOfAnswers; i++) {
+      const numOfAnswer = dataView.getUint8(offset);
+      numOfAnswers.push(numOfAnswer);
+
+      offset++;
+    }
+
+    const leaderboard = readLeaderboards(dataView, offset);
+
+    const correctAnswer = dataView.getUint8(offset);
+
+    return {
+      numOfAnswers: numOfAnswers,
+      leaderboard: leaderboard,
+      correctAnswer: correctAnswer,
+    };
+  }
+);
+
+const gameStatsPacket = (
+  /**
+   * Statistics about the whole game
+   * A Server to Host Packet
+   *
+   * @typedef {Object} GameStatsPacket
+   * @property {Leaderboard} leaderboard - leaderboards
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {GameStatsPacket}
+   */
+  (dataView, offset) => {
+    const leaderboard = readLeaderboards(dataView, offset);
+
+    return {
+      leaderboard: leaderboard,
+    };
+  }
+);
+
+/**
+ * Indication that the game is starting
+ * A Server to Client Packet
+ *
+ * @typedef {Object} GameIsStartingPacket
+ */
+
+/**
+ * Indication that host is going to the next question
+ * A Server to Client Packet
+ *
+ * @typedef {Object} NextQuestionPacket
+ */
+
+const answerDetailsPacket = (
+  /**
+   * Details about answer
+   * A Server to Client Packet
+   *
+   * @typedef {Object} AnswerDetailsPacket
+   * @property {number} numOfAnswers - how many answers are there
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {AnswerDetailsPacket}
+   */
+  (dataView, offset) => {
+    const numOfAnswers = dataView.getUint8(offset);
+
+    return {
+      numOfAnswers: numOfAnswers,
+    };
+  }
+);
+
+const playerStatsPacket = (
+  /**
+   * Statistics about single player
+   * A Server to Client Packet
+   *
+   * @typedef {Object} PlayerStatsPacket
+   * @property {number} position - in which position is the player
+   * @property {number} points - how many points does have the player
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {PlayerStatsPacket}
+   */
+  (dataView, offset) => {
+    const position = dataView.getUint8(offset);
+    offset++;
+
+    const points = dataView.getUint16(offset);
+
+    return {
+      position: position,
+      points: points,
+    };
+  }
+);
+
+/**
+ * Indication that the game ended
+ * A Server to Client Packet
+ *
+ * @typedef {Object} GameEndedPacket
+ */
+
+const playerOverallStatsPacket = (
+  /**
+   * Statistics about single player
+   * A Server to Client Packet
+   *
+   * @typedef {Object} PlayerOverallStatsPacket
+   * @property {number} position - in which position is the player
+   * @property {number} points - how many points does have the player
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {PlayerOverallStatsPacket}
+   */
+  (dataView, offset) => {
+    const position = dataView.getUint8(offset);
+    offset++;
+
+    const points = dataView.getUint16(offset);
+
+    return {
+      position: position,
+      points: points,
+    };
+  }
+);
+
+/**
+ * Now everyone is returning to the lobby
+ * A Server to Client Packet
+ *
+ * @typedef {Object} ReturnToLobbyPacket
+ */
+
+const gameDetailsPacket = (
+  /**
+   * Details about game
+   * A Server to Host Packet
+   *
+   * @typedef {Object} GameDetailsPacket
+   * @property {string} title - title of the quiz
+   * @property {number} numOfQuestions - how many questions does the game have
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {GameDetailsPacket}
+   */
+  (dataView, offset) => {
+    const title = readBinString(dataView, offset);
+
+    const numOfQuestions = dataView.getUint8(offset);
+
+    return {
+      title: title,
+      numOfQuestions: numOfQuestions,
+    };
+  }
+);
+
+/**
+ * Indication that now is the moment to answer
+ * A Server to Client Packet
+ *
+ * @typedef {Object} StartAnsweringPacket
+ */
+
+/**
+ * Indication host have joined
+ * A Server to Client Packet
+ *
+ * @typedef {Object} HostJoinedPacket
+ */
+
+/**
+ * Indication host have left
+ * A Server to Client Packet
+ *
+ * @typedef {Object} HostLeftPacket
+ */

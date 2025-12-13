@@ -58,6 +58,10 @@ pub mod s2c {
         #[bw(magic = 16u8)]
         /// Client/Host Packet
         StartAnswering,
+        #[bw(magic = 17u8)]
+        HostJoined,
+        #[bw(magic = 18u8)]
+        HostLeft,
     }
 
     #[derive(BinWrite, Clone, Debug)]
