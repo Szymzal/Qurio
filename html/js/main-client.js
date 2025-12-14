@@ -43,7 +43,7 @@ const answer3 = document.querySelector("#answer3");
 const waitingForAnswers = document.querySelector("#waitingForAnswers");
 
 /** @type HTMLDivElement | null */
-const questionableResults = document.querySelector("#qestionableResults");
+const questionableResults = document.querySelector("#questionableResults");
 /** @type HTMLHeadingElement | null */
 const playerPosition = document.querySelector("#playerPosition");
 /** @type HTMLHeadingElement | null */
@@ -227,6 +227,8 @@ function handlePackets(data) {
       if (playerPosition && playerPoints) {
         playerPosition.textContent = `${playerStatsPacket.position}`;
         playerPoints.textContent = `${playerStatsPacket.points}`;
+      } else {
+        console.error("No player position & points");
       }
       break;
     case S2CPacketID.NextQuestion:
@@ -242,7 +244,10 @@ function handlePackets(data) {
       if (overallPlayerPosition && overallPlayerPoints) {
         overallPlayerPosition.textContent = `${playerOverallStats.position}`;
         overallPlayerPoints.textContent = `${playerOverallStats.points}`;
+      } else {
+        console.error("No overall player position & points");
       }
+
       break;
     case S2CPacketID.ReturnToLobby:
       switchPages(PagesID.LOBBY);
