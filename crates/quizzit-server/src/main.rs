@@ -29,9 +29,10 @@ use quizzit_protocol::{
     packets::{
         c2s::C2SPackets,
         s2c::{
-            GameDetailsPacket, HandshakeAcceptedPacket, HandshakeRejectedPacket,
-            HostHandshakeAcceptedPacket, PlayerStatsPacket, QuestionInfoPacket,
-            QuestionStatsPacket, S2CPackets, UserJoinedPacket, UserLeftPacket,
+            AnswerDetailsPacket, GameDetailsPacket, GameStatsPacket, HandshakeAcceptedPacket,
+            HandshakeRejectedPacket, HostHandshakeAcceptedPacket, PlayerOverallStatsPacket,
+            PlayerStatsPacket, QuestionInfoPacket, QuestionStatsPacket, S2CPackets,
+            UserJoinedPacket, UserLeftPacket,
         },
     },
     structs::{BinString, HandshakeRejectionReason, Leaderboard, User, UserId, UserName, UserStat},
@@ -320,22 +321,8 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                             }
                         };
 
-                        let mut position = send_state
-                            .player_points
-                            .read()
-                            .await
-                            .iter()
-                            .map(|(id, points)| (*id, *points))
-                            .collect::<Vec<_>>();
-                        position.sort_by_key(|(_, points)| *points);
-                        position.reverse();
-                        let index = position
-                            .iter()
-                            .position(|(id, _)| *id == user_id)
-                            .expect("You got inserted few lines before. HOW DID YOU DISAPREAR?");
-
                         let player_stats = PlayerStatsPacket {
-                            position: (index + 1) as u8,
+                            position: get_position_of_player(send_state.clone(), user_id).await,
                             points,
                         };
 
@@ -370,12 +357,28 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                     send_packet(game_stats_packet, &mut sender).await;
                 }
-                S2CPackets::PlayerOverallStats(player_overall_stats_packet) => {
+                S2CPackets::PlayerOverallStats(_) => {
                     if is_host {
                         continue;
                     }
 
-                    send_packet(player_overall_stats_packet, &mut sender).await;
+                    let points = match send_state.player_points.read().await.get(&user_id) {
+                        Some(value) => *value,
+                        None => {
+                            send_state.player_points.write().await.insert(user_id, 0);
+                            0
+                        }
+                    };
+
+                    send_packet(
+                        PlayerOverallStatsPacket {
+                            position: get_position_of_player(send_state.clone(), user_id).await,
+                            points,
+                        }
+                        .as_packet(),
+                        &mut sender,
+                    )
+                    .await;
                 }
                 S2CPackets::ReturnToLobby => {
                     if is_host {
@@ -433,6 +436,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     }
 
                     *game_state = GameState::Question;
+                    drop(game_state);
 
                     if let Err(err) = recv_state.tx.send(
                         GameDetailsPacket {
@@ -450,77 +454,10 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         return;
                     }
 
-                    let question_index = recv_state.question_index.load(Ordering::Relaxed);
-                    let question = &recv_state.questions[question_index as usize];
-                    if let Err(err) = recv_state.tx.send(
-                        QuestionInfoPacket {
-                            question_index,
-                            question: question.question.clone(),
-                            num_of_answers: question.num_of_answers,
-                            answers: question.answers.clone(),
-                        }
-                        .as_packet(),
-                    ) {
-                        tracing::error!("Failed to send through channel: {}. Closing", err);
+                    let background_recv_state = recv_state.clone();
+                    if question(background_recv_state.clone()).await {
                         return;
                     }
-
-                    let background_recv_state = recv_state.clone();
-                    tokio::spawn(async move {
-                        // TODO: Configure wait time
-                        sleep(Duration::from_secs(6)).await;
-
-                        *background_recv_state.game_state.write().await = GameState::Answering;
-                        if let Err(err) = background_recv_state.tx.send(S2CPackets::StartAnswering)
-                        {
-                            tracing::error!("Failed to send through channel: {}. Closing", err);
-                        }
-
-                        tokio::spawn(async move {
-                            // TODO: Configure wait time
-                            sleep(Duration::from_secs(10)).await;
-
-                            *background_recv_state.game_state.write().await = GameState::Stats;
-
-                            let mut vec = Vec::new();
-                            let answers = background_recv_state.answers.lock().await;
-                            answers.iter().for_each(|&x| vec.push(x));
-
-                            let mut list: Vec<UserStat> = background_recv_state
-                                .player_points
-                                .read()
-                                .await
-                                .iter()
-                                .map(|(id, points)| UserStat {
-                                    id: *id,
-                                    points: *points,
-                                })
-                                .collect();
-                            list.sort_by_key(|stats| stats.points);
-                            list.reverse();
-                            let leaderboard = Leaderboard {
-                                num_users: list.len() as u8,
-                                users: list,
-                            };
-
-                            let question_index =
-                                background_recv_state.question_index.load(Ordering::Relaxed);
-                            let question =
-                                &background_recv_state.questions[question_index as usize];
-                            let stats = QuestionStatsPacket {
-                                num_of_answers: question.num_of_answers,
-                                answers_answered: vec,
-                                leaderboard,
-                                correct_answer_index: question.correct_answer_index,
-                            };
-
-                            // NOTE: Sending QuestionStatsPacket makes senders individually send
-                            // PlayerStats to clients
-                            if let Err(err) = background_recv_state.tx.send(stats.as_packet()) {
-                                tracing::error!("Failed to send through channel: {}. Closing", err);
-                            }
-                        });
-                    });
                 }
                 C2SPackets::Answer(answer_packet) => {
                     if is_host {
@@ -574,9 +511,44 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         }
                     }
                 }
-                C2SPackets::NextQuestion => todo!(),
-                C2SPackets::FinishStats => todo!(),
-                C2SPackets::ReturnToLobby => todo!(),
+                C2SPackets::NextQuestion => {
+                    let question_index = recv_state.question_index.load(Ordering::Relaxed);
+                    recv_state
+                        .question_index
+                        .store(question_index + 1, Ordering::Relaxed);
+                    let question_length = recv_state.questions.len();
+
+                    if (question_index + 1) >= question_length as u8 {
+                        *recv_state.game_state.write().await = GameState::EndGame;
+                        let _ = recv_state.tx.send(S2CPackets::GameEnded);
+                        let _ = recv_state.tx.send(
+                            GameStatsPacket {
+                                leaderboard: create_leaderboard(recv_state.clone()).await,
+                            }
+                            .as_packet(),
+                        );
+
+                        continue;
+                    }
+
+                    let _ = recv_state.tx.send(S2CPackets::NextQuestion);
+                    if question(recv_state.clone()).await {
+                        return;
+                    }
+                }
+                C2SPackets::FinishStats => {
+                    let _ = recv_state.tx.send(
+                        PlayerOverallStatsPacket {
+                            position: 0,
+                            points: 0,
+                        }
+                        .as_packet(),
+                    );
+                }
+                C2SPackets::ReturnToLobby => {
+                    let _ = recv_state.tx.send(S2CPackets::ReturnToLobby);
+                    *recv_state.game_state.write().await = GameState::Lobby;
+                }
             }
         }
     });
@@ -869,4 +841,116 @@ async fn js_module(Path(module_path): Path<String>) -> impl IntoResponse {
     }
 
     (StatusCode::NOT_FOUND, "Module not found").into_response()
+}
+
+async fn question(recv_state: Arc<AppState>) -> bool {
+    *recv_state.game_state.write().await = GameState::Question;
+
+    let mut answers = recv_state.answers.lock().await;
+    answers.iter_mut().for_each(|x| *x = 0);
+    recv_state.answered.lock().await.clear();
+
+    let question_index = recv_state.question_index.load(Ordering::Relaxed);
+    let question = &recv_state.questions[question_index as usize];
+    if let Err(err) = recv_state.tx.send(
+        QuestionInfoPacket {
+            question_index,
+            question: question.question.clone(),
+            num_of_answers: question.num_of_answers,
+            answers: question.answers.clone(),
+        }
+        .as_packet(),
+    ) {
+        tracing::error!("Failed to send through channel: {}. Closing", err);
+        return true;
+    }
+
+    if let Err(err) = recv_state.tx.send(
+        AnswerDetailsPacket {
+            num_of_answers: question.num_of_answers,
+        }
+        .as_packet(),
+    ) {
+        tracing::error!("Failed to send through channel: {}. Closing", err);
+        return true;
+    }
+
+    let background_recv_state = recv_state.clone();
+    tokio::spawn(async move {
+        // TODO: Configure wait time
+        sleep(Duration::from_secs(6)).await;
+
+        *background_recv_state.game_state.write().await = GameState::Answering;
+        if let Err(err) = background_recv_state.tx.send(S2CPackets::StartAnswering) {
+            tracing::error!("Failed to send through channel: {}. Closing", err);
+        }
+
+        tokio::spawn(async move {
+            // TODO: Configure wait time
+            sleep(Duration::from_secs(10)).await;
+
+            *background_recv_state.game_state.write().await = GameState::Stats;
+
+            let mut vec = Vec::new();
+            let answers = background_recv_state.answers.lock().await;
+            answers.iter().for_each(|&x| vec.push(x));
+
+            let leaderboard = create_leaderboard(background_recv_state.clone()).await;
+
+            let question_index = background_recv_state.question_index.load(Ordering::Relaxed);
+            let question = &background_recv_state.questions[question_index as usize];
+            let stats = QuestionStatsPacket {
+                num_of_answers: question.num_of_answers,
+                answers_answered: vec,
+                leaderboard,
+                correct_answer_index: question.correct_answer_index,
+            };
+
+            // NOTE: Sending QuestionStatsPacket makes senders individually send
+            // PlayerStats to clients
+            if let Err(err) = background_recv_state.tx.send(stats.as_packet()) {
+                tracing::error!("Failed to send through channel: {}. Closing", err);
+            }
+        });
+    });
+
+    false
+}
+
+async fn create_leaderboard(state: Arc<AppState>) -> Leaderboard {
+    let mut list: Vec<UserStat> = state
+        .player_points
+        .read()
+        .await
+        .iter()
+        .map(|(id, points)| UserStat {
+            id: *id,
+            points: *points,
+        })
+        .collect();
+    list.sort_by_key(|stats| stats.points);
+    list.reverse();
+
+    Leaderboard {
+        num_users: list.len() as u8,
+        users: list,
+    }
+}
+
+async fn get_position_of_player(state: Arc<AppState>, user_id: UserId) -> u8 {
+    let mut position = state
+        .player_points
+        .read()
+        .await
+        .iter()
+        .map(|(id, points)| (*id, *points))
+        .collect::<Vec<_>>();
+    position.sort_by_key(|(_, points)| *points);
+    position.reverse();
+    let index = position
+        .iter()
+        .position(|(id, _)| *id == user_id)
+        .expect("You got inserted few lines before. HOW DID YOU DISAPREAR?");
+
+    (index + 1) as u8
 }

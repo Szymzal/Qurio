@@ -10,7 +10,58 @@
 
 <body>
   <div class="container">
-    <div id="playerBoard"></div>
+    <div id="lobby">
+      <div id="playerBoard"></div>
+      <button id="startGame">Start Game</button>
+    </div>
+    <div id="questionInProgress" style="display: none;">
+      <h1 id="quizTitle"></h1>
+      <h1 class="question"></h1>
+      <div id="wellIDontReallyKnowHowToNameThis">
+        Question nr: <h3 id="questionNum"></h3>/<h3 id="numOfQuestions"></h3>
+      </div>
+    </div>
+    <div id="answers" style="display: none;">
+      <h1 class="question"></h1>
+      <div>
+        <p id="answer0"></p>
+        <p id="answer1"></p>
+        <p id="answer2"></p>
+        <p id="answer3"></p>
+      </div>
+    </div>
+    <div id="questionStats" style="display: none;">
+      <h1 class="question"></h1>
+      <div id="stats0">
+        <h3>Answer 1:</h3>
+        <p id="numOfAnswers0"></p>
+        <h4 id="stats0correct">Correct Answer!</h4>
+      </div>
+      <div id="stats1">
+        <h3>Answer 2:</h3>
+        <p id="numOfAnswers1"></p>
+        <h4 id="stats1correct">Correct Answer!</h4>
+      </div>
+      <div id="stats2">
+        <h3>Answer 3:</h3>
+        <p id="numOfAnswers2"></p>
+        <h4 id="stats2correct">Correct Answer!</h4>
+      </div>
+      <div id="stats3">
+        <h3>Answer 4:</h3>
+        <p id="numOfAnswers3"></p>
+        <h4 id="stats3correct">Correct Answer!</h4>
+      </div>
+      <button id="toLeaderboards">Next</button>
+    </div>
+    <div id="leaderboardPage" style="display: none;">
+      <div id="leaderboard"></div>
+      <button id="nextQuestion">Next Question</button>
+    </div>
+    <div id="endGame" style="display: none;">
+      <div id="gameLeaderboard"></div>
+      <button id="toTheLobby">End</button>
+    </div>
   </div>
 
   <script type="module" src="modules/protocol.mjs"></script>

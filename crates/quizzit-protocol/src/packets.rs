@@ -125,7 +125,7 @@ pub mod s2c {
     #[derive(BinWrite, Clone, Debug)]
     pub struct PlayerOverallStatsPacket {
         pub position: u8,
-        pub points: u8,
+        pub points: u16,
     }
 
     #[derive(BinWrite, Clone, Debug)]

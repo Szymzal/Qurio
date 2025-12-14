@@ -80,6 +80,7 @@ const readLeaderboards = (
    * @returns {Leaderboard}
    */
   (dataView, offset) => {
+    const oldOffset = offset;
     const numOfUsers = dataView.getUint8(offset);
     offset++;
 
@@ -94,12 +95,12 @@ const readLeaderboards = (
       offset += 2;
 
       leaderboard.users.push({
-        id: id,
+        userID: id,
         points: points,
       });
     }
 
-    return leaderboard;
+    return [leaderboard, offset - oldOffset];
   }
 );
 
@@ -110,6 +111,7 @@ const readUser = (
    * @returns {User}
    */
   (dataView, offset) => {
+    const oldOffset = offset;
     const userID = dataView.getUint8(offset);
     offset++;
 
@@ -126,10 +128,10 @@ const readUser = (
     const decoder = new TextDecoder();
     const username = decoder.decode(usernameBuffer);
 
-    return {
+    return [{
       userID: userID,
       username: username
-    };
+    }, offset - oldOffset];
   }
 );
 
@@ -140,6 +142,7 @@ const readBinString = (
    * @returns {string}
    */
   (dataView, offset) => {
+    const oldOffset = offset;
     const stringLength = dataView.getUint16(offset);
     offset += 2;
 
@@ -153,7 +156,7 @@ const readBinString = (
     const decoder = new TextDecoder();
     const string = decoder.decode(stringBuffer);
 
-    return string;
+    return [string, offset - oldOffset];
   }
 );
 
@@ -382,12 +385,13 @@ export const answerPacket = (
    * Binary layout:
    * - 3 bytes (Magic)
    * - 1 byte  (Packet ID)
+   * - 1 byte  (Answer Index)
    *
    * @param {number} answer_index
    * @returns {ArrayBuffer}
    */
   (answer_index) => {
-    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH);
+    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH + 1);
     const dataView = new DataView(buffer, 0, buffer.byteLength);
 
     // Offset from start of the buffer
@@ -612,7 +616,9 @@ const hostHandshakeAcceptedPacket = (
     
     const users = [];
     for (let userI = 0; userI < userCount; userI++) {
-      users.push(readUser(dataView, offset));
+      const [user, newOffset] = readUser(dataView, offset);
+      offset += newOffset;
+      users.push(user);
     }
 
     return {
@@ -639,7 +645,7 @@ const userJoinedPacket = (
    * @returns {UserJoinedPacket}
    */
   (dataView, offset) => {
-    const user = readUser(dataView, offset);
+    const [user, _] = readUser(dataView, offset);
     return {
       user: user
     };
@@ -694,14 +700,17 @@ const questionInfoPacket = (
     const questionIndex = dataView.getUint8(offset);
     offset++;
 
-    const question = readBinString(dataView, offset);
+    let [question, newOffset] = readBinString(dataView, offset);
+    offset += newOffset;
 
     const numOfAnswers = dataView.getUint8(offset);
     offset++;
 
     const answers = [];
     for (let i = 0; i < numOfAnswers; i++) {
-      answers.push(readBinString(dataView, offset));
+      const [string, newOffset] = readBinString(dataView, offset);
+      offset += newOffset;
+      answers.push(string);
     }
 
     return {
@@ -743,7 +752,8 @@ const questionStatsPacket = (
       offset++;
     }
 
-    const leaderboard = readLeaderboards(dataView, offset);
+    const [leaderboard, newOffset] = readLeaderboards(dataView, offset);
+    offset += newOffset;
 
     const correctAnswer = dataView.getUint8(offset);
 
@@ -773,7 +783,7 @@ const gameStatsPacket = (
    * @returns {GameStatsPacket}
    */
   (dataView, offset) => {
-    const leaderboard = readLeaderboards(dataView, offset);
+    const [leaderboard, _] = readLeaderboards(dataView, offset);
 
     return {
       leaderboard: leaderboard,
@@ -916,8 +926,8 @@ const gameDetailsPacket = (
    * @returns {GameDetailsPacket}
    */
   (dataView, offset) => {
-    const title = readBinString(dataView, offset);
-
+    const [title, newOffset] = readBinString(dataView, offset);
+    offset += newOffset;
     const numOfQuestions = dataView.getUint8(offset);
 
     return {
