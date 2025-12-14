@@ -329,43 +329,43 @@ function handlePackets(data, ws) {
         switch (numOfAnswers) {
           case 1:
             answer0.style.display = "";
-            stats0.style.display = "";
+            numOfAnswers0.style.display = "";
             answer1.style.display = "none";
-            stats1.style.display = "none";
+            numOfAnswers1.style.display = "none";
             answer2.style.display = "none";
-            stats2.style.display = "none";
+            numOfAnswers2.style.display = "none";
             answer3.style.display = "none";
-            stats3.style.display = "none";
+            numOfAnswers3.style.display = "none";
             break;
           case 2:
             answer0.style.display = "";
-            stats0.style.display = "";
+            numOfAnswers0.style.display = "";
             answer1.style.display = "";
-            stats1.style.display = "";
+            numOfAnswers1.style.display = "";
             answer2.style.display = "none";
-            stats2.style.display = "none";
+            numOfAnswers2.style.display = "none";
             answer3.style.display = "none";
-            stats3.style.display = "none";
+            numOfAnswers3.style.display = "none";
             break;
           case 3:
             answer0.style.display = "";
-            stats0.style.display = "";
+            numOfAnswers0.style.display = "";
             answer1.style.display = "";
-            stats1.style.display = "";
+            numOfAnswers1.style.display = "";
             answer2.style.display = "";
-            stats2.style.display = "";
+            numOfAnswers2.style.display = "";
             answer3.style.display = "none";
-            stats3.style.display = "none";
+            numOfAnswers3.style.display = "none";
             break;
           case 4:
             answer0.style.display = "";
-            stats0.style.display = "";
+            numOfAnswers0.style.display = "";
             answer1.style.display = "";
-            stats1.style.display = "";
+            numOfAnswers1.style.display = "";
             answer2.style.display = "";
-            stats2.style.display = "";
+            numOfAnswers2.style.display = "";
             answer3.style.display = "";
-            stats3.style.display = "";
+            numOfAnswers3.style.display = "";
             break;
           default:
             console.error("More than 4?");
@@ -415,11 +415,11 @@ function handlePackets(data, ws) {
         console.error("No indication of correct answer?");
       }
 
-      if (stats0 && stats1 && stats2 && stats3) {
-        const stats = [stats0, stats1, stats2, stats3];
+      if (numOfAnswers0 && numOfAnswers1 && numOfAnswers2 && numOfAnswers3) {
+        const numOfAnswers = [numOfAnswers0, numOfAnswers1, numOfAnswers2, numOfAnswers3];
 
         for (let i = 0; i < questionStatsPacket.numOfAnswers.length; i++) {
-          stats[i].textContent = questionStatsPacket.numOfAnswers[i].toString();
+          numOfAnswers[i].textContent = questionStatsPacket.numOfAnswers[i].toString();
         }
       } else {
         console.error("No statistics about question?");
