@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
 members = [
-  "crates/quizzit-server",
-  "crates/quizzit-protocol"
+  "crates/qurio-server",
+  "crates/qurio-protocol"
 ]

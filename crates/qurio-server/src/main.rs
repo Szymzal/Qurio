@@ -23,7 +23,7 @@ use futures_util::{
     SinkExt, StreamExt,
     stream::{SplitSink, SplitStream},
 };
-use quizzit_protocol::{
+use qurio_protocol::{
     PROTOCOL_VERSION,
     error::UserNameConstructError,
     packets::{

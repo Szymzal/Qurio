@@ -41,8 +41,8 @@
               rustc = toolchain;
             };
           in rec {
-            quizzit = rustPlatform.buildRustPackage {
-              pname = "Quizzit";
+            qurio = rustPlatform.buildRustPackage {
+              pname = "Qurio";
               version = "0.1.0";
 
               src = ./.;
@@ -58,14 +58,14 @@
 
               buildInputs = [];
 
-              cargoBuildFlags = ["--bin" "quizzit"];
+              cargoBuildFlags = ["--bin" "qurio"];
             };
-            default = quizzit;
+            default = qurio;
           };
 
           apps = rec {
-            quizzit = flake-utils.lib.mkApp {drv = packages.quizzit;};
-            default = quizzit;
+            qurio = flake-utils.lib.mkApp {drv = packages.qurio;};
+            default = qurio;
           };
         }
     );
