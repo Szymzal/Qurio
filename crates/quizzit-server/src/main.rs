@@ -51,7 +51,7 @@ struct Question {
     pub question: BinString,
     pub num_of_answers: u8,
     pub answers: Vec<BinString>,
-    pub correct_answer_index: u8,
+    pub correct_answer_mask: u8,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -110,7 +110,7 @@ async fn main() {
                         .try_into()
                         .expect("BinString to be created"),
                 ],
-                correct_answer_index: 0,
+                correct_answer_mask: 0b0001,
             },
             Question {
                 question: "Is this worse than Kahoot?"
@@ -125,7 +125,7 @@ async fn main() {
                         .expect("BinString to be created"),
                     "Yes".try_into().expect("BinString to be created"),
                 ],
-                correct_answer_index: 3,
+                correct_answer_mask: 0b1010,
             },
         ]),
         question_index: AtomicU8::new(0),
@@ -497,7 +497,8 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         .get_mut(answer_packet.index as usize)
                         .expect("Answers to be populated") += 1;
 
-                    let points_to_add = if question.correct_answer_index == answer_packet.index {
+                    let answer_mask = 1 << answer_packet.index;
+                    let points_to_add = if question.correct_answer_mask & answer_mask != 0 {
                         1
                     } else {
                         0
@@ -903,7 +904,7 @@ async fn question(recv_state: Arc<AppState>) -> bool {
                 num_of_answers: question.num_of_answers,
                 answers_answered: vec,
                 leaderboard,
-                correct_answer_index: question.correct_answer_index,
+                correct_answer_mask: question.correct_answer_mask,
             };
 
             // NOTE: Sending QuestionStatsPacket makes senders individually send

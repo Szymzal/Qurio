@@ -382,34 +382,28 @@ function handlePackets(data, ws) {
 
       const correctAnswer = questionStatsPacket.correctAnswer;
       if (stats0Correct && stats1Correct && stats2Correct && stats3Correct) {
-        switch (correctAnswer) {
-          case 0:
-            stats0Correct.style.display = "";
-            stats1Correct.style.display = "none";
-            stats2Correct.style.display = "none";
-            stats3Correct.style.display = "none";
-            break;
-          case 1:
-            stats0Correct.style.display = "none";
-            stats1Correct.style.display = "";
-            stats2Correct.style.display = "none";
-            stats3Correct.style.display = "none";
-            break;
-          case 2:
-            stats0Correct.style.display = "none";
-            stats1Correct.style.display = "none";
-            stats2Correct.style.display = "";
-            stats3Correct.style.display = "none";
-            break;
-          case 3:
-            stats0Correct.style.display = "none";
-            stats1Correct.style.display = "none";
-            stats2Correct.style.display = "none";
-            stats3Correct.style.display = "";
-            break;
-          default:
-            console.error("Correct answer index is out of scope!");
-            break;
+        if ((correctAnswer & 1) != 0) {
+          stats0Correct.style.display = "";
+        } else {
+          stats0Correct.style.display = "none";
+        }
+
+        if ((correctAnswer & 2) != 0) {
+          stats1Correct.style.display = "";
+        } else {
+          stats1Correct.style.display = "none";
+        }
+
+        if ((correctAnswer & 4) != 0) {
+          stats2Correct.style.display = "";
+        } else {
+          stats2Correct.style.display = "none";
+        }
+
+        if ((correctAnswer & 8) != 0) {
+          stats3Correct.style.display = "";
+        } else {
+          stats3Correct.style.display = "none";
         }
       } else {
         console.error("No indication of correct answer?");

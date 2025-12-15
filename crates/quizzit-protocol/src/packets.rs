@@ -103,7 +103,7 @@ pub mod s2c {
         pub num_of_answers: u8,
         pub answers_answered: Vec<u8>,
         pub leaderboard: Leaderboard,
-        pub correct_answer_index: u8,
+        pub correct_answer_mask: u8,
     }
 
     #[derive(BinWrite, Clone, Debug)]
