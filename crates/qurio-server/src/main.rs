@@ -551,6 +551,12 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                 }
                 C2SPackets::ReturnToLobby => {
                     let _ = recv_state.tx.send(S2CPackets::ReturnToLobby);
+                    let mut answers = recv_state.answers.lock().await;
+                    answers.iter_mut().for_each(|x| *x = 0);
+                    recv_state.answered.lock().await.clear();
+                    recv_state.question_index.store(0, Ordering::Relaxed);
+                    recv_state.player_points.write().await.clear();
+
                     *recv_state.game_state.write().await = GameState::Lobby;
                 }
             }
