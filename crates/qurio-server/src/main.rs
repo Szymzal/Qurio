@@ -138,9 +138,12 @@ async fn main() {
         .route("/", get(index))
         .route("/host", get(index_host))
         .route("/modules/{module_path}", get(js_module))
+        .route("/fonts/Iter/{file}", get(font_file))
         .route("/style.css", get(css))
         .route("/main-client.js", get(js))
         .route("/main-host.js", get(js_host))
+        .route("/blocks.js", get(js_blocks))
+        .route("/particles.min.js", get(js_particles))
         .route("/ws", get(websocket_handler))
         .with_state(app_state)
         .layer((
@@ -825,11 +828,56 @@ async fn js() -> impl IntoResponse {
     )
 }
 
+async fn js_blocks() -> impl IntoResponse {
+    (
+        [(header::CONTENT_TYPE, "text/javascript")],
+        include_str!("../../../html/js/bloczki.js"),
+    )
+}
+
+async fn js_particles() -> impl IntoResponse {
+    (
+        [(header::CONTENT_TYPE, "text/javascript")],
+        include_str!("../../../html/js/particles.js/particles.min.js"),
+    )
+}
+
 async fn js_host() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/javascript")],
         include_str!("../../../html/js/main-host.js"),
     )
+}
+
+async fn font_file(Path(path): Path<String>) -> impl IntoResponse {
+    match path.as_str() {
+        "iter.css" => (
+            [(header::CONTENT_TYPE, "text/css")],
+            include_str!("../../../html/fonts/Iter/inter.css"),
+        )
+            .into_response(),
+        "InterVariable.woff2" => (
+            [(header::CONTENT_TYPE, "application/font-woff2")],
+            include_bytes!("../../../html/fonts/Iter/InterVariable.woff2"),
+        )
+            .into_response(),
+        "Inter-Regular.woff2" => (
+            [(header::CONTENT_TYPE, "application/font-woff2")],
+            include_bytes!("../../../html/fonts/Iter/Inter-Regular.woff2"),
+        )
+            .into_response(),
+        "Inter-Medium.woff2" => (
+            [(header::CONTENT_TYPE, "application/font-woff2")],
+            include_bytes!("../../../html/fonts/Iter/Inter-Medium.woff2"),
+        )
+            .into_response(),
+        "Inter-Bold.woff2" => (
+            [(header::CONTENT_TYPE, "application/font-woff2")],
+            include_bytes!("../../../html/fonts/Iter/Inter-Bold.woff2"),
+        )
+            .into_response(),
+        _ => (StatusCode::NOT_FOUND, "Module not found").into_response(),
+    }
 }
 
 async fn js_module(Path(module_path): Path<String>) -> impl IntoResponse {
