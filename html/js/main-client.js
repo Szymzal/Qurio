@@ -12,18 +12,22 @@ import {
 // ====== IMPORTS FROM DOCUMENT ======
 
 /** @type HTMLInputElement | null */
-const username = document.querySelector("#username");
+const usernameInput = document.querySelector("#username");
 /** @type HTMLButtonElement | null */
 const join_btn = document.querySelector("#join");
 /** @type HTMLDivElement | null */
 const error_box = document.querySelector("#errorBox");
 /** @type HTMLDivElement | null */
 const loginPage = document.querySelector("#login");
-/** @type HTMLDivElement | null */
-const waitForHost = document.querySelector("#waitForHost");
 
 /** @type HTMLDivElement | null */
+const wait = document.querySelector("#wait");
+/** @type HTMLHeadingElement | null */
+const waitForHost = document.querySelector("#waitForHost");
+/** @type HTMLHeadingElement | null */
 const lobby = document.querySelector("#lobby");
+/** @type HTMLParagraphElement | null */
+const usernameText = document.querySelector(".usernameText");
 
 /** @type HTMLDivElement | null */
 const waitForQuestion = document.querySelector("#waitingForQuestion");
@@ -66,13 +70,12 @@ const overallPlayerPoints = document.querySelector("#overallPlayerPoints");
  */
 const PagesID = {
   LOGIN: 0,
-  WAIT_FOR_HOST: 1,
-  LOBBY: 2,
-  ANSWER: 3,
-  WAITING_FOR_ANSWERS: 4,
-  QUESTIONABLE_RESULTS: 5,
-  GAME_RESULTS: 6,
-  WAIT_FOR_QUESTION: 7,
+  WAIT: 1,
+  ANSWER: 2,
+  WAITING_FOR_ANSWERS: 3,
+  QUESTIONABLE_RESULTS: 4,
+  GAME_RESULTS: 5,
+  WAIT_FOR_QUESTION: 6,
 };
 
 /**
@@ -80,8 +83,7 @@ const PagesID = {
  */
 const pages = [
   loginPage,
-  waitForHost,
-  lobby,
+  wait,
   answer,
   waitingForAnswers,
   questionableResults,
@@ -92,9 +94,10 @@ const pages = [
 let currentPage = PagesID.LOGIN;
 let numberOfAnswers = 0;
 let user_id = -1;
+let username = "";
 
 // ====== WEBSOCKET CONNECTION ======
-if (join_btn && username && error_box) {
+if (join_btn && usernameInput && error_box) {
   join_btn.addEventListener("click", function(e) {
     e.preventDefault();
     this.disabled = true;
@@ -104,7 +107,9 @@ if (join_btn && username && error_box) {
 
     websocket.onopen = function() {
       console.log("connection opened");
-      websocket.send(initializeHandshakePacket(username.value.trim()));
+
+      username = usernameInput.value.trim();
+      websocket.send(initializeHandshakePacket(username));
     };
 
     const btn = this;
@@ -164,7 +169,14 @@ function handlePackets(data) {
     case S2CPacketID.HandshakeAccepted:
       const handshakeAcceptedPacket = /** @type {import("./modules/protocol.mjs").HandshakeAcceptedPacket} */ (packet.value);
       user_id = handshakeAcceptedPacket.userID;
-      switchPages(PagesID.WAIT_FOR_HOST);
+      
+      if (usernameText) {
+        usernameText.innerText = username;
+      } else {
+        console.error("No usernameText?");
+      }
+
+      switchPages(PagesID.WAIT);
       break;
     case S2CPacketID.HandshakeRejected:
       const handshakeRejectedPacket = /** @type {import("./modules/protocol.mjs").HandshakeRejectedPacket} */ (packet.value);
@@ -250,13 +262,26 @@ function handlePackets(data) {
 
       break;
     case S2CPacketID.ReturnToLobby:
-      switchPages(PagesID.LOBBY);
+      switchPages(PagesID.WAIT);
       break;
     case S2CPacketID.HostJoined:
-      switchPages(PagesID.LOBBY);
+      if (waitForHost && lobby) {
+        waitForHost.style.display = "none";
+        lobby.style.display = "";
+      } else {
+        console.error("No waitForHost and lobby?");
+      }
+
       break;
     case S2CPacketID.HostLeft:
-      switchPages(PagesID.WAIT_FOR_HOST);
+      if (waitForHost && lobby) {
+        waitForHost.style.display = "";
+        lobby.style.display = "none";
+      } else {
+        console.error("No waitForHost and lobby?");
+      }
+
+      switchPages(PagesID.WAIT);
       break;
     default:
   }

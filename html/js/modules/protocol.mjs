@@ -143,8 +143,8 @@ const readBinString = (
    */
   (dataView, offset) => {
     const oldOffset = offset;
-    const stringLength = dataView.getUint16(offset);
-    offset += 2;
+    const stringLength = dataView.getUint8(offset);
+    offset++;
 
     const stringBytes = [];
     for (let i = 0; i < stringLength; i++) {

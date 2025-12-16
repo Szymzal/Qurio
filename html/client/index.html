@@ -12,8 +12,12 @@
 <body>
   <div class="container" id="background">
     <div class="page" id="login">
-      <div>
+      <div class="loginLeft">
         <div class="title">
+          <h1>Qurio</h1>
+          <h6>definitely not kahoot!</h6>
+        </div>
+        <div class="compactTitle">
           <h1>Qurio</h1>
           <h6>definitely not kahoot!</h6>
         </div>
@@ -55,11 +59,40 @@
         </div>
       </div>
     </div>
-    <div class="page" id="waitForHost" style="display: none;">
-      <h1>Waiting for host to join...</h1>
-    </div>
-    <div class="page" id="lobby" style="display: none;">
-      <h1>Do you see yourself on the screen?</h1>
+    <div class="page" id="wait" style="display: none;">
+      <div class="compactTitle">
+        <h1>Qurio</h1>
+        <h6>definitely not kahoot!</h6>
+      </div>
+      <h1 class="whatIsHappening" id="waitForHost">Waiting for the host...</h1>
+      <h1 class="whatIsHappening" id="lobby" style="display: none;">Now you should see yourself on the screen :)</h1>
+      <div class="userPersonalization">
+        <p class="usernameText">Username</p>
+        <div class="box userAvatar">
+          <div class="avatar">
+          </div>
+          <div class="body controls">
+            <p class="prevBody controlBtn">&lt;</p>
+            <p>Body</p>
+            <p class="nextBody controlBtn">&gt;</p>
+          </div>
+          <div class="head controls">
+            <p class="prevHead controlBtn">&lt;</p>
+            <p>Head</p>
+            <p class="nextHead controlBtn">&gt;</p>
+          </div>
+          <div class="eyes controls">
+            <p class="prevEyes controlBtn">&lt;</p>
+            <p>Eyes</p>
+            <p class="nextEyes controlBtn">&gt;</p>
+          </div>
+          <div class="pupils controls">
+            <p class="prevPupils controlBtn">&lt;</p>
+            <p>Pupils</p>
+            <p class="nextPupils controlBtn">&gt;</p>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="page" id="waitingForQuestion" style="display: none;">
       <h1>Look at the screen</h1>
@@ -71,7 +104,10 @@
       <button id="answer3" type="button">4</button>
     </div>
     <div class="page" id="waitingForAnswers" style="display: none;">
-      <h1>Waiting for answers...</h1>
+      <div class="compactTitle">
+        <h1>Qurio</h1>
+        <h6>definitely not kahoot!</h6>
+      </div>
     </div>
     <div class="page" id="questionableResults" style="display: none;">
       <h3>Position: </h3>

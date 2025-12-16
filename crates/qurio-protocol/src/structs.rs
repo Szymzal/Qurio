@@ -25,7 +25,7 @@ pub struct UncheckedUserName {
 #[derive(Debug, Clone, PartialEq, BinRead, BinWrite)]
 /// NOTE: BinString have a limit of `u16::MAX - 1` characters
 pub struct BinString {
-    len: u16,
+    len: u8,
     #[br(count = len)]
     data: Vec<u8>,
 }
@@ -122,7 +122,7 @@ impl TryInto<UserName> for UncheckedUserName {
 
 impl BinString {
     pub fn new(string: Vec<u8>) -> Result<Self, BinStringError> {
-        if string.len() > (u16::MAX - 1) as usize {
+        if string.len() > (u8::MAX - 1) as usize {
             return Err(BinStringError::TooLong(string.len()));
         }
 
@@ -132,7 +132,7 @@ impl BinString {
         };
 
         Ok(Self {
-            len: string.len() as u16,
+            len: string.len() as u8,
             data: string,
         })
     }

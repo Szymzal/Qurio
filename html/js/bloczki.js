@@ -59,6 +59,7 @@ update = function () {
 };
 requestAnimationFrame(update);
 
+// This is broken :(
 window.addEventListener("resize", (event) => {
   event.preventDefault();
 
