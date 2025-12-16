@@ -683,6 +683,8 @@ const questionInfoPacket = (
    * A Server to Host Packet
    *
    * @typedef {Object} QuestionInfoPacket
+   * @property {number} readQuestionMilis - time in miliseconds to read question
+   * @property {number} answerMilis - time in miliseconds to answer question
    * @property {number} questionIndex - index/number of the question from all questions
    * @property {string} question - actual question or statement
    * @property {string[]} answers - answers to select
@@ -697,6 +699,12 @@ const questionInfoPacket = (
    * @returns {QuestionInfoPacket}
    */
   (dataView, offset) => {
+    const readQuestionMilis = dataView.getUint32(offset);
+    offset += 4;
+
+    const answerMilis = dataView.getUint32(offset);
+    offset += 4;
+
     const questionIndex = dataView.getUint8(offset);
     offset++;
 
@@ -714,6 +722,8 @@ const questionInfoPacket = (
     }
 
     return {
+      readQuestionMilis: readQuestionMilis,
+      answerMilis: answerMilis,
       questionIndex: questionIndex,
       question: question,
       answers: answers,
@@ -913,6 +923,7 @@ const gameDetailsPacket = (
    * A Server to Host Packet
    *
    * @typedef {Object} GameDetailsPacket
+   * @property {number} titleScreenWait - how many miliseconds should we wait before entering first question?
    * @property {string} title - title of the quiz
    * @property {number} numOfQuestions - how many questions does the game have
    */
@@ -926,11 +937,15 @@ const gameDetailsPacket = (
    * @returns {GameDetailsPacket}
    */
   (dataView, offset) => {
+    const titleScreenWait = dataView.getUint16(offset);
+    offset += 2;
+
     const [title, newOffset] = readBinString(dataView, offset);
     offset += newOffset;
     const numOfQuestions = dataView.getUint8(offset);
 
     return {
+      titleScreenWait: titleScreenWait,
       title: title,
       numOfQuestions: numOfQuestions,
     };

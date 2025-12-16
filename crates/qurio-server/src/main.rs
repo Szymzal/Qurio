@@ -47,8 +47,10 @@ use tokio::{
 use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-struct Question {
+pub struct Question {
     pub question: BinString,
+    pub read_question_milis: u32,
+    pub answer_milis: u32,
     pub num_of_answers: u8,
     pub answers: Vec<BinString>,
     pub correct_answer_mask: u8,
@@ -101,6 +103,8 @@ async fn main() {
                 question: "Is this better than Kahoot?"
                     .try_into()
                     .expect("BinString to be created"),
+                read_question_milis: 3000,
+                answer_milis: 10000,
                 num_of_answers: 4,
                 answers: vec![
                     "Yes".try_into().expect("BinString to be created"),
@@ -116,6 +120,8 @@ async fn main() {
                 question: "Is this worse than Kahoot?"
                     .try_into()
                     .expect("BinString to be created"),
+                read_question_milis: 3000,
+                answer_milis: 10000,
                 num_of_answers: 4,
                 answers: vec![
                     "Maybe".try_into().expect("BinString to be created"),
@@ -443,6 +449,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                     if let Err(err) = recv_state.tx.send(
                         GameDetailsPacket {
+                            title_screen_wait: 3000,
                             title: "Test Quiz".try_into().expect("BinString to be created"),
                             num_of_questions: 2,
                         }
@@ -909,6 +916,8 @@ async fn question(recv_state: Arc<AppState>) -> bool {
     let question = &recv_state.questions[question_index as usize];
     if let Err(err) = recv_state.tx.send(
         QuestionInfoPacket {
+            read_question_milis: question.read_question_milis,
+            answer_milis: question.answer_milis,
             question_index,
             question: question.question.clone(),
             num_of_answers: question.num_of_answers,
@@ -931,9 +940,10 @@ async fn question(recv_state: Arc<AppState>) -> bool {
     }
 
     let background_recv_state = recv_state.clone();
+    let read_question_milis = question.read_question_milis as u64;
+    let answer_milis = question.answer_milis as u64;
     tokio::spawn(async move {
-        // TODO: Configure wait time
-        sleep(Duration::from_secs(6)).await;
+        sleep(Duration::from_millis(read_question_milis)).await;
 
         *background_recv_state.game_state.write().await = GameState::Answering;
         if let Err(err) = background_recv_state.tx.send(S2CPackets::StartAnswering) {
@@ -941,8 +951,7 @@ async fn question(recv_state: Arc<AppState>) -> bool {
         }
 
         tokio::spawn(async move {
-            // TODO: Configure wait time
-            sleep(Duration::from_secs(10)).await;
+            sleep(Duration::from_millis(answer_milis)).await;
 
             *background_recv_state.game_state.write().await = GameState::Stats;
 

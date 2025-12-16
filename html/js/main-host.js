@@ -263,6 +263,7 @@ function handlePackets(data, ws) {
         });
       }
 
+      console.dir(gameDetailsPacket.titleScreenWait);
       // TODO: Come up with better idea to control this thing...
       setTimeout(() => {
         if (quizTitle && question.length > 0) {
@@ -279,13 +280,15 @@ function handlePackets(data, ws) {
         } else {
           console.error("No quiz title or question!");
         }
-      }, 3000);
+      }, gameDetailsPacket.titleScreenWait);
 
       switchPages(PagesID.QUESTION);
 
       break;
     case S2CPacketID.QuestionInfo:
       const questionInfoPacket = /** @type {import("./modules/protocol.mjs").QuestionInfoPacket} */ (packet.value);
+
+      console.dir(questionInfoPacket);
 
       if (questionNum) {
         questionNum.textContent = (questionInfoPacket.questionIndex + 1).toString();

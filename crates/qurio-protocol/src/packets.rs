@@ -92,6 +92,8 @@ pub mod s2c {
 
     #[derive(BinWrite, Clone, Debug)]
     pub struct QuestionInfoPacket {
+        pub read_question_milis: u32,
+        pub answer_milis: u32,
         pub question_index: u8,
         pub question: BinString,
         pub num_of_answers: u8,
@@ -130,6 +132,7 @@ pub mod s2c {
 
     #[derive(BinWrite, Clone, Debug)]
     pub struct GameDetailsPacket {
+        pub title_screen_wait: u16,
         pub title: BinString,
         pub num_of_questions: u8,
     }
