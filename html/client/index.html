@@ -11,7 +11,7 @@
 
 <body>
   <div class="container" id="background">
-    <div class="page" id="login" style="display: none;">
+    <div class="page" id="login">
       <div class="loginLeft">
         <div class="title">
           <h1>Qurio</h1>
@@ -101,7 +101,7 @@
       </div>
       <h1 class="info">Look at the screen!</h1>
     </div>
-    <div class="page" id="answer">
+    <div class="page" id="answer" style="display: none;">
       <div class="compactTitle">
         <h1>Qurio</h1>
         <h6>definitely not kahoot!</h6>
@@ -123,13 +123,39 @@
         <h3 class="neutralTips tips">Tips</h3>
       </div>
     </div>
-    <div class="page" id="questionableResults" style="display: none;">
-      <h3>Position: </h3>
-      <h2 id="playerPosition"></h2>
-      <h3>Points: </h3>
-      <h2 id="playerPoints"></h2>
+    <div class="page" id="questionableResults">
+      <div class="compactTitle" style="display: none;">
+        <h1>Qurio</h1>
+        <h6>definitely not kahoot!</h6>
+      </div>
+      <h2 class="tips">Tips</h2>
+      <div class="smolLeaderboard">
+        <div class="abovePlace">
+          <div class="miniAvatar"></div>
+          <p class="position">1.</p>
+          <p class="otherUsername">Lyptor</p>
+          <p class="points">2500</p>
+        </div>
+        <div class="player">
+          <div class="miniAvatar"></div>
+          <p id="playerPosition"></p>
+          <p id="usernameText"></p>
+          <p id="playerPoints"></p>
+          <p id="playerPointer">(You)</p>
+        </div>
+        <div class="belowPlace">
+          <div class="miniAvatar"></div>
+          <p class="position">3.</p>
+          <p class="otherUsername">Yoqvi</p>
+          <p class="points">500</p>
+        </div>
+      </div>
     </div>
     <div class="page" id="gameResults" style="display: none;">
+      <div class="compactTitle">
+        <h1>Qurio</h1>
+        <h6>definitely not kahoot!</h6>
+      </div>
       <h3>Overall position: </h3>
       <h2 id="overallPlayerPosition"></h2>
       <h3>Overall points: </h3>

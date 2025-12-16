@@ -380,3 +380,80 @@ canvas {
     flex-direction: column;
   }
 }
+
+#questionableResults {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.smolLeaderboard > * {
+  display: grid;
+  grid-template-columns: 68px 1.5em 12em 4em 2.5em;
+  padding: 0.25rem;
+}
+
+#playerPointer {
+  width: 100%;
+  text-align: right;
+  font-size: 0.75em;
+}
+
+.smolLeaderboard * {
+  text-align: center;
+  margin: auto;
+  font-size: 1.4rem;
+}
+
+#usernameText,
+.otherUsername,
+#playerPoints,
+.points {
+  width: 100%;
+  align-self: center;
+}
+
+#playerPoints,
+.points {
+  text-align: right;
+}
+
+#usernameText,
+.otherUsername {
+  text-align: left;
+}
+
+.miniAvatar {
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  background-color: white;
+}
+
+.player {
+  background-color: #df7126;
+}
+
+#questionableResults .tips {
+  font-size: 3.5rem;
+}
+
+@media only screen and (max-width: 35rem) {
+  .smolLeaderboard > * {
+    grid-template-columns: 52px 1.5em 12em 4em 2.5em;
+  }
+
+  .smolLeaderboard * {
+    font-size: 1rem;
+  }
+
+  .miniAvatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  #questionableResults .tips {
+    font-size: 2.5rem;
+  }
+}
