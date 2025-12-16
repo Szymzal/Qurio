@@ -197,28 +197,19 @@ function handlePackets(data) {
 
         switch (numberOfAnswers) {
           case 1:
-            answer0.style.display = "";
-            answer1.style.display = "none";
-            answer2.style.display = "none";
-            answer3.style.display = "none";
+            console.error("What? Why only one answer?");
             break;
           case 2:
-            answer0.style.display = "";
-            answer1.style.display = "";
-            answer2.style.display = "none";
-            answer3.style.display = "none";
+            answer2.className = "hidden";
+            answer3.className = "hidden";
             break;
           case 3:
-            answer0.style.display = "";
-            answer1.style.display = "";
-            answer2.style.display = "";
-            answer3.style.display = "none";
+            answer2.className = "";
+            answer3.className = "hidden";
             break;
           case 4:
-            answer0.style.display = "";
-            answer1.style.display = "";
-            answer2.style.display = "";
-            answer3.style.display = "";
+            answer2.className = "";
+            answer3.className = "";
             break;
           default:
             console.error("More than 4?");

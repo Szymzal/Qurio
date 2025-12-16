@@ -305,13 +305,14 @@ canvas {
 
 .answerBtns {
   height: 60%;
-  aspect-ratio: 1;
+  width: 40rem;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  margin: 1rem;
+  grid-template-columns: 0.5fr 0.5fr 0.5fr 0.5fr 0.5fr 0.5fr;
   grid-template-rows: 1fr 1fr;
   grid-template-areas:
-    "a b"
-    "c d";
+    "a a a b b b"
+    "c c c d d d";
   grid-gap: 1rem;
 }
 
@@ -321,29 +322,61 @@ canvas {
   border-radius: 2rem;
   border: 0;
   font-size: 5rem;
+  cursor: pointer;
+}
+
+.answerBtns button:hover {
+  filter: grayscale(30%);
 }
 
 #answer0 {
+  grid-area: a;
   background-color: #b93f3f;
 }
 
 #answer1 {
+  grid-area: b;
   background-color: #7019e9;
 }
 
 #answer2 {
+  grid-area: c;
   background-color: #81e819;
 }
 
 #answer3 {
+  grid-area: d;
   background-color: #e9ce19;
+}
+
+.answerBtns:has(#answer3:is(.hidden)) {
+  width: 100%;
+  max-width: 55rem;
+  grid-template-areas:
+    "a a b b c c"
+    "a a b b c c";
+}
+
+.answerBtns:has(#answer2:is(.hidden)) {
+  grid-template-areas:
+    "a a a b b b"
+    "a a a b b b";
+}
+
+.hidden {
+  display: none;
 }
 
 @media only screen and (max-width: 100vh) {
   .answerBtns {
-    height: unset;
+    width: unset;
     aspect-ratio: unset;
     width: 95%;
     height: 70%;
+  }
+
+  .answerBtns:has(#answer3:is(.hidden)) {
+    display: flex;
+    flex-direction: column;
   }
 }
