@@ -265,7 +265,8 @@ canvas {
   font-size: 5rem;
 }
 
-#waitingForQuestion {
+#waitingForQuestion,
+#waitingForAnswers {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -273,6 +274,11 @@ canvas {
 
 .info {
   font-size: 5rem;
+  text-align: center;
+}
+
+.tips {
+  text-align: center;
 }
 
 @media only screen and (max-width: 45rem) {
@@ -288,5 +294,56 @@ canvas {
     text-align: center;
     margin-top: 3rem;
     margin-bottom: 2.5rem;
+  }
+}
+
+#answer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.answerBtns {
+  height: 60%;
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  grid-template-areas:
+    "a b"
+    "c d";
+  grid-gap: 1rem;
+}
+
+.answerBtns button {
+  width: 100%;
+  height: 100%;
+  border-radius: 2rem;
+  border: 0;
+  font-size: 5rem;
+}
+
+#answer0 {
+  background-color: #b93f3f;
+}
+
+#answer1 {
+  background-color: #7019e9;
+}
+
+#answer2 {
+  background-color: #81e819;
+}
+
+#answer3 {
+  background-color: #e9ce19;
+}
+
+@media only screen and (max-width: 100vh) {
+  .answerBtns {
+    height: unset;
+    aspect-ratio: unset;
+    width: 95%;
+    height: 70%;
   }
 }
