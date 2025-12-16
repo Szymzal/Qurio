@@ -260,5 +260,33 @@ canvas {
 }
 
 .whatIsHappening {
+  margin: 0;
+  padding-right: 1rem;
   font-size: 5rem;
+}
+
+#waitingForQuestion {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.info {
+  font-size: 5rem;
+}
+
+@media only screen and (max-width: 45rem) {
+  #wait {
+    display: flex;
+    flex-direction: column;
+    align-content: center;
+    justify-content: center;
+  }
+
+  #wait .whatIsHappening {
+    font-size: 3.5rem;
+    text-align: center;
+    margin-top: 3rem;
+    margin-bottom: 2.5rem;
+  }
 }
