@@ -1,173 +1,204 @@
 <!DOCTYPE html>
 <html lang="en">
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Qurio</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="fonts/Iter/iter.css">
-</head>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Qurio</title>
+		<link rel="stylesheet" href="style-client.css">
+		<link rel="stylesheet" href="fonts/Inter/inter.css">
+	</head>
 
-<body>
-  <div class="container" id="background">
-    <div class="page" id="login">
-      <div class="loginLeft">
-        <div class="title">
-          <h1>Qurio</h1>
-          <h6>definitely not kahoot!</h6>
-        </div>
-        <div class="compactTitle">
-          <h1>Qurio</h1>
-          <h6>definitely not kahoot!</h6>
-        </div>
-        <div class="box userForm">
-          <label for="username">
-            Username:
-            <input id="username">
-          </label>
-          <button id="join" type="button">
-            Join
-          </button>
+	<body>
+		<div class="container" id="background">
+			<div class="page" id="login">
+				<div class="loginLeft">
+					<div class="title">
+						<h1>Qurio</h1>
+						<h6>definitely not kahoot!</h6>
+					</div>
+					<div class="compactTitle">
+						<h1>Qurio</h1>
+						<h6>definitely not kahoot!</h6>
+					</div>
+					<div class="box userForm">
+						<label for="username">
+							Username:
+							<input id="username">
+						</label>
+						<button id="join" type="button">
+							Join
+						</button>
 
-          <div id="errorBox">
-          </div>
-        </div>
-      </div>
-      <div class="box userAvatar">
-        <div class="avatar">
-        </div>
-        <div class="body controls">
-          <p class="prevBody controlBtn">&lt;</p>
-          <p>Body</p>
-          <p class="nextBody controlBtn">&gt;</p>
-        </div>
-        <div class="head controls">
-          <p class="prevHead controlBtn">&lt;</p>
-          <p>Head</p>
-          <p class="nextHead controlBtn">&gt;</p>
-        </div>
-        <div class="eyes controls">
-          <p class="prevEyes controlBtn">&lt;</p>
-          <p>Eyes</p>
-          <p class="nextEyes controlBtn">&gt;</p>
-        </div>
-        <div class="pupils controls">
-          <p class="prevPupils controlBtn">&lt;</p>
-          <p>Pupils</p>
-          <p class="nextPupils controlBtn">&gt;</p>
-        </div>
-      </div>
-    </div>
-    <div class="page" id="wait" style="display: none;">
-      <div class="compactTitle">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <h1 class="whatIsHappening" id="waitForHost">Waiting for the host...</h1>
-      <h1 class="whatIsHappening" id="lobby" style="display: none;">Now you should see yourself on the screen :)</h1>
-      <div class="userPersonalization">
-        <p class="usernameText">Username</p>
-        <div class="box userAvatar">
-          <div class="avatar">
-          </div>
-          <div class="body controls">
-            <p class="prevBody controlBtn">&lt;</p>
-            <p>Body</p>
-            <p class="nextBody controlBtn">&gt;</p>
-          </div>
-          <div class="head controls">
-            <p class="prevHead controlBtn">&lt;</p>
-            <p>Head</p>
-            <p class="nextHead controlBtn">&gt;</p>
-          </div>
-          <div class="eyes controls">
-            <p class="prevEyes controlBtn">&lt;</p>
-            <p>Eyes</p>
-            <p class="nextEyes controlBtn">&gt;</p>
-          </div>
-          <div class="pupils controls">
-            <p class="prevPupils controlBtn">&lt;</p>
-            <p>Pupils</p>
-            <p class="nextPupils controlBtn">&gt;</p>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="page" id="waitingForQuestion" style="display: none;">
-      <div class="compactTitle">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <h1 class="info">Look at the screen!</h1>
-    </div>
-    <div class="page" id="answer" style="display: none;">
-      <div class="compactTitle">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <div class="answerBtns">
-        <button id="answer0" type="button">A</button>
-        <button id="answer1" type="button">B</button>
-        <button id="answer2" type="button">C</button>
-        <button id="answer3" type="button">D</button>
-      </div>
-    </div>
-    <div class="page" id="waitingForAnswers" style="display: none;">
-      <div class="compactTitle">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <div class="infoBox">
-        <h1 class="info">Waiting for others...</h1>
-        <h3 class="neutralTips tips">Tips</h3>
-      </div>
-    </div>
-    <div class="page" id="questionableResults">
-      <div class="compactTitle" style="display: none;">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <h2 class="tips">Tips</h2>
-      <div class="smolLeaderboard">
-        <div class="abovePlace">
-          <div class="miniAvatar"></div>
-          <p class="position">1.</p>
-          <p class="otherUsername">Lyptor</p>
-          <p class="points">2500</p>
-        </div>
-        <div class="player">
-          <div class="miniAvatar"></div>
-          <p id="playerPosition"></p>
-          <p id="usernameText"></p>
-          <p id="playerPoints"></p>
-          <p id="playerPointer">(You)</p>
-        </div>
-        <div class="belowPlace">
-          <div class="miniAvatar"></div>
-          <p class="position">3.</p>
-          <p class="otherUsername">Yoqvi</p>
-          <p class="points">500</p>
-        </div>
-      </div>
-    </div>
-    <div class="page" id="gameResults" style="display: none;">
-      <div class="compactTitle">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <h3>Overall position: </h3>
-      <h2 id="overallPlayerPosition"></h2>
-      <h3>Overall points: </h3>
-      <h2 id="overallPlayerPoints"></h2>
-    </div>
-  </div>
+						<div id="errorBox">
+						</div>
+					</div>
+				</div>
+				<div class="box userAvatar">
+					<div class="avatar">
+					</div>
+					<div class="body controls">
+						<p class="prevBody controlBtn">&lt;</p>
+						<p>Body</p>
+						<p class="nextBody controlBtn">&gt;</p>
+					</div>
+					<div class="head controls">
+						<p class="prevHead controlBtn">&lt;</p>
+						<p>Head</p>
+						<p class="nextHead controlBtn">&gt;</p>
+					</div>
+					<div class="eyes controls">
+						<p class="prevEyes controlBtn">&lt;</p>
+						<p>Eyes</p>
+						<p class="nextEyes controlBtn">&gt;</p>
+					</div>
+					<div class="pupils controls">
+						<p class="prevPupils controlBtn">&lt;</p>
+						<p>Pupils</p>
+						<p class="nextPupils controlBtn">&gt;</p>
+					</div>
+				</div>
+			</div>
+			<div class="page" id="wait" style="display: none;">
+				<div class="compactTitle">
+					<h1>Qurio</h1>
+					<h6>definitely not kahoot!</h6>
+				</div>
+				<h1 class="whatIsHappening" id="waitForHost">Waiting for the host...</h1>
+				<h1 class="whatIsHappening" id="lobby" style="display: none;">Now you should see yourself on the screen :)</h1>
+				<div class="userPersonalization">
+					<p class="usernameText">Username</p>
+					<div class="box userAvatar">
+						<div class="avatar">
+						</div>
+						<div class="body controls">
+							<p class="prevBody controlBtn">&lt;</p>
+							<p>Body</p>
+							<p class="nextBody controlBtn">&gt;</p>
+						</div>
+						<div class="head controls">
+							<p class="prevHead controlBtn">&lt;</p>
+							<p>Head</p>
+							<p class="nextHead controlBtn">&gt;</p>
+						</div>
+						<div class="eyes controls">
+							<p class="prevEyes controlBtn">&lt;</p>
+							<p>Eyes</p>
+							<p class="nextEyes controlBtn">&gt;</p>
+						</div>
+						<div class="pupils controls">
+							<p class="prevPupils controlBtn">&lt;</p>
+							<p>Pupils</p>
+							<p class="nextPupils controlBtn">&gt;</p>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="page" id="waitingForQuestion" style="display: none;">
+				<div class="compactTitle">
+					<h1>Qurio</h1>
+					<h6>definitely not kahoot!</h6>
+				</div>
+				<h1 class="info">Look at the screen!</h1>
+			</div>
+			<div class="page" id="answer" style="display: none;">
+				<div class="compactTitle">
+					<h1>Qurio</h1>
+					<h6>definitely not kahoot!</h6>
+				</div>
+				<div class="answerBtns">
+					<button id="answer0" type="button">A</button>
+					<button id="answer1" type="button">B</button>
+					<button id="answer2" type="button">C</button>
+					<button id="answer3" type="button">D</button>
+				</div>
+			</div>
+			<div class="page" id="waitingForAnswers" style="display: none;">
+				<div class="compactTitle">
+					<h1>Qurio</h1>
+					<h6>definitely not kahoot!</h6>
+				</div>
+				<div class="infoBox">
+					<h1 class="info">Waiting for others...</h1>
+					<h3 class="neutralTips tips">Tips</h3>
+				</div>
+			</div>
+			<!-- TODO: Get whenether answer was correct or not -->
+			<div class="page" id="questionableResults" style="display: none;">
+				<div class="compactTitle">
+					<h1>Qurio</h1>
+					<h6>definitely not kahoot!</h6>
+				</div>
+				<h2 class="tips">Tips</h2>
+				<div class="smolLeaderboard">
+					<div class="abovePlace">
+						<div class="miniAvatar"></div>
+						<p class="position">1.</p>
+						<p class="otherUsername">Lyptor</p>
+						<p class="points">2500</p>
+					</div>
+					<div class="player">
+						<div class="miniAvatar"></div>
+						<p id="playerPosition">2.</p>
+						<p id="usernameText">User</p>
+						<p id="playerPoints">1000</p>
+						<p id="playerPointer">(You)</p>
+					</div>
+					<div class="belowPlace">
+						<div class="miniAvatar"></div>
+						<p class="position">3.</p>
+						<p class="otherUsername">Yoqvi</p>
+						<p class="points">500</p>
+					</div>
+				</div>
+			</div>
+			<div class="page" id="gameResults" style="display: none;">
+				<div class="compactTitle">
+					<h1>Qurio</h1>
+					<h6>definitely not kahoot!</h6>
+				</div>
+				<div class="actualPage">
+					<h2 class="endTitle">The END</h2>
+					<div class="achievements">
+						<h3>Achievements</h3>
+						<div class="achievement" id="positionAchievement">
+							<h4>Your position</h4>
+							<div class="row">
+								<p class="overallPlayerPosition">3.</p>
+								<p class="usernameText">Yoqvi</p>
+								<p class="overallPlayerPoints">500</p>
+							</div>
+						</div>
+						<div class="achievement" id="ratioAchievement">
+							<h4>Your Answer Ratio</h4>
+							<div class="row">
+								<p class="answerRatio">50%</p>
+							</div>
+						</div>
+						<div class="achievement" id="quickestAchievement">
+							<h4>Your Quickest Correct Answer</h4>
+							<img src="../assets/stopwatch.svg" alt="Stopwatch icon">
+							<div class="row">
+								<p class="quickestTime">2.5s</p>
+							</div>
+						</div>
+						<div class="achievement" id="streakAchievement">
+							<h4>Your Highest Streak</h4>
+							<img src="../assets/firesprite.svg" alt="Fire icon">
+							<div class="row">
+								<p class="highStreak">7</p>
+							</div>
+						</div>
+					</div>
+					<div class="avatar"></div>
+				</div>
+			</div>
+		</div>
 
-  <script type="module" src="modules/protocol.mjs"></script>
-  <script type="module" src="main-client.js"></script>
+		<script type="module" src="modules/protocol.mjs"></script>
+		<script type="module" src="main-client.js"></script>
 
-  <script src="particles.min.js"></script>
-  <script src="blocks.js"></script>
-</body>
-
+		<script src="particles.min.js"></script>
+		<script src="blocks.js"></script>
+	</body>
 </html>

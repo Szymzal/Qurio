@@ -144,13 +144,15 @@ async fn main() {
         .route("/", get(index))
         .route("/host", get(index_host))
         .route("/modules/{module_path}", get(js_module))
-        .route("/fonts/Iter/{file}", get(font_file))
-        .route("/style.css", get(css))
+        .route("/fonts/Inter/{file}", get(font_file))
+        .route("/style-client.css", get(css))
+        .route("/style-host.css", get(css_host))
         .route("/main-client.js", get(js))
         .route("/main-host.js", get(js_host))
         .route("/blocks.js", get(js_blocks))
         .route("/particles.min.js", get(js_particles))
         .route("/ws", get(websocket_handler))
+        .route("/assets/{file}", get(assets))
         .with_state(app_state)
         .layer((
             TraceLayer::new_for_http(),
@@ -830,7 +832,14 @@ async fn index_host() -> Html<&'static str> {
 async fn css() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/css")],
-        include_str!("../../../html/client/style.css"),
+        include_str!("../../../html/client/style-client.css"),
+    )
+}
+
+async fn css_host() -> impl IntoResponse {
+    (
+        [(header::CONTENT_TYPE, "text/css")],
+        include_str!("../../../html/host/style-host.css"),
     )
 }
 
@@ -862,31 +871,47 @@ async fn js_host() -> impl IntoResponse {
     )
 }
 
+async fn assets(Path(path): Path<String>) -> impl IntoResponse {
+    match path.as_str() {
+        "stopwatch.svg" => (
+            [(header::CONTENT_TYPE, "image/svg+xml")],
+            include_str!("../../../html/assets/stopwatch.svg"),
+        )
+            .into_response(),
+        "firesprite.svg" => (
+            [(header::CONTENT_TYPE, "image/svg+xml")],
+            include_str!("../../../html/assets/firesprite.svg"),
+        )
+            .into_response(),
+        _ => (StatusCode::NOT_FOUND, "Asset not found").into_response(),
+    }
+}
+
 async fn font_file(Path(path): Path<String>) -> impl IntoResponse {
     match path.as_str() {
-        "iter.css" => (
+        "inter.css" => (
             [(header::CONTENT_TYPE, "text/css")],
-            include_str!("../../../html/fonts/Iter/inter.css"),
+            include_str!("../../../html/fonts/Inter/inter.css"),
         )
             .into_response(),
         "InterVariable.woff2" => (
             [(header::CONTENT_TYPE, "application/font-woff2")],
-            include_bytes!("../../../html/fonts/Iter/InterVariable.woff2"),
+            include_bytes!("../../../html/fonts/Inter/InterVariable.woff2"),
         )
             .into_response(),
         "Inter-Regular.woff2" => (
             [(header::CONTENT_TYPE, "application/font-woff2")],
-            include_bytes!("../../../html/fonts/Iter/Inter-Regular.woff2"),
+            include_bytes!("../../../html/fonts/Inter/Inter-Regular.woff2"),
         )
             .into_response(),
         "Inter-Medium.woff2" => (
             [(header::CONTENT_TYPE, "application/font-woff2")],
-            include_bytes!("../../../html/fonts/Iter/Inter-Medium.woff2"),
+            include_bytes!("../../../html/fonts/Inter/Inter-Medium.woff2"),
         )
             .into_response(),
         "Inter-Bold.woff2" => (
             [(header::CONTENT_TYPE, "application/font-woff2")],
-            include_bytes!("../../../html/fonts/Iter/Inter-Bold.woff2"),
+            include_bytes!("../../../html/fonts/Inter/Inter-Bold.woff2"),
         )
             .into_response(),
         _ => (StatusCode::NOT_FOUND, "Module not found").into_response(),

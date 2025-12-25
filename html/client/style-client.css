@@ -70,7 +70,7 @@ canvas {
 
 .title h1,
 .compactTitle h1 {
-  font-size: 5rem;
+  font-size: 5em;
   font-weight: 500;
   position: relative;
   top: 0.75rem;
@@ -78,7 +78,7 @@ canvas {
 
 .title h6,
 .compactTitle h6 {
-  font-size: 0.8rem;
+  font-size: 0.8em;
 }
 
 #login .compactTitle {
@@ -92,12 +92,12 @@ canvas {
 }
 
 .compactTitle h1 {
-  top: 1rem;
+  top: 0.22em;
 }
 
 .compactTitle h6 {
   position: relative;
-  left: 1.4rem;
+  left: 1.4em;
 }
 
 #login {
@@ -455,5 +455,184 @@ canvas {
 
   #questionableResults .tips {
     font-size: 2.5rem;
+  }
+}
+
+.correctAnswer {
+  background-color: #2a4c40;
+}
+
+.wrongAnswer {
+  background-color: #783741;
+}
+
+#gameResults {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#gameResults .actualPage {
+  display: grid;
+  grid-template-columns: 30rem 1fr;
+  grid-template-rows: 1fr auto;
+  grid-template-areas:
+    "title title"
+    "achievements avatar";
+}
+
+#gameResults * {
+  font-weight: 400;
+}
+
+.endTitle {
+  grid-area: title;
+  text-align: center;
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.achievements {
+  grid-area: achievements;
+  display: grid;
+  grid-template-columns: 4em 1fr;
+  justify-self: flex-start;
+}
+
+.achievements > * {
+  grid-column-start: 1;
+  grid-column-end: 3;
+}
+
+.achievements > h3 {
+  text-align: center;
+  grid-column-start: 2;
+  margin-bottom: 0;
+  font-size: 2em;
+}
+
+.avatar {
+  grid-area: avatar;
+}
+
+#gameResults .row {
+  display: grid;
+  grid-template-columns: 1.5em 12em 4em;
+  padding: 0.25rem;
+}
+
+#gameResults .row > * {
+  grid-column-end: span 4;
+}
+
+#gameResults .row > *:first-child {
+  margin-left: 0.25rem;
+}
+
+#gameResults #positionAchievement .row > * {
+  grid-column-end: unset;
+  margin-left: unset;
+}
+
+#gameResults p {
+  margin: 0;
+}
+
+#gameResults #positionAchievement .row {
+  background-color: #b93f3f;
+}
+
+#gameResults .overallPlayerPosition {
+  text-align: center;
+}
+
+#gameResults .overallPlayerPoints {
+  text-align: right;
+}
+
+#gameResults #ratioAchievement .row {
+  background-color: #7019e9;
+}
+
+#gameResults #quickestAchievement .row {
+  background-color: #2a4c40;
+}
+
+#gameResults #quickestAchievement > img {
+  justify-self: center;
+  align-self: flex-end;
+  width: 3em;
+}
+
+#gameResults #streakAchievement .row {
+  background-color: #df7126;
+}
+
+#gameResults #streakAchievement > img {
+  justify-self: center;
+  align-self: flex-end;
+  height: 3em;
+}
+
+#gameResults .achievement {
+  display: grid;
+  grid-template-columns: 4em 1fr;
+  grid-template-areas:
+    "icon title"
+    "icon achievement";
+}
+
+#gameResults .achievement > h4 {
+  margin-bottom: 0.5rem;
+  grid-area: title;
+  font-size: 1.2em;
+}
+
+#gameResults .achievement > img {
+  grid-area: icon;
+}
+
+#gameResults .achievement > .row {
+  grid-area: achievement;
+}
+
+@media only screen and (max-width: 45rem) {
+  .endTitle {
+    margin-top: 7rem;
+  }
+
+  #gameResults .actualPage {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .achievements {
+    position: relative;
+    right: 2em;
+  }
+
+  #gameResults .avatar {
+    margin-top: 2rem;
+    align-self: center;
+  }
+}
+
+@media only screen and (max-width: 28rem) {
+  .endTitle {
+    font-size: 3rem;
+  }
+
+  .achievements {
+    font-size: 0.8rem;
+  }
+
+  #gameResults .avatar {
+    width: 160px;
+    height: 160px;
+    border-radius: 1.5rem;
+  }
+
+  .compactTitle {
+    font-size: 0.8rem;
   }
 }
