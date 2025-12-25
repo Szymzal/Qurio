@@ -152,3 +152,63 @@ canvas {
   border-radius: 8px;
   border: 0.1rem solid black;
 }
+
+#wellIDontReallyKnowHowToNameThis {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+}
+
+#wellIDontReallyKnowHowToNameThis * {
+  margin: 0;
+  font-weight: 400;
+  font-size: 3rem;
+}
+
+#questionInProgress {
+  display: grid;
+  grid-template-rows: calc(100% - 5rem);
+  grid-template-areas:
+    "full"
+    "progress";
+}
+
+#quizTitle,
+#questionInProgress .question {
+  grid-area: full;
+  padding: 5rem;
+  text-align: center;
+  margin: auto;
+  font-size: 4rem;
+}
+
+@property --percentage {
+  syntax: "<percentage>";
+  initial-value: 0%;
+  inherits: false;
+}
+
+@keyframes progress {
+  from {
+    --percentage: 0%;
+  }
+
+  to {
+    --percentage: 103%;
+  }
+}
+
+.progressBar {
+  grid-area: progress;
+  width: 100vw;
+  height: 5rem;
+  animation: 10s linear both progress;
+  background: linear-gradient(
+    to right,
+    #2a4c40,
+    #2a4c40 calc(var(--percentage) - 3%),
+    #2c2e43 var(--percentage),
+    #2c2e43
+  );
+}
