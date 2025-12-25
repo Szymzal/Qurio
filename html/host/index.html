@@ -6,22 +6,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Qurio Host</title>
   <link rel="stylesheet" href="style-host.css">
+  <link rel="stylesheet" href="fonts/Inter/inter.css">
 </head>
 
 <body>
-  <div class="container">
-    <div id="lobby">
-      <div id="playerBoard"></div>
-      <button id="startGame">Start Game</button>
+  <div class="container" id="background">
+    <div class="page" id="lobby">
+      <div class="compactTitle">
+        <h1>Qurio</h1>
+        <h6>definitely not kahoot!</h6>
+      </div>
+      <div class="buttons">
+        <button id="startGame">Start</button>
+        <button id="settings">Settings</button>
+      </div>
+      <div id="playerBoard">
+        <div class="player">
+          <div class="avatar"></div>
+          <p class="username">Szymzal</p>
+        </div>
+      </div>
     </div>
-    <div id="questionInProgress" style="display: none;">
+    <div class="page" id="questionInProgress" style="display: none;">
+      <div class="compactTitle">
+        <h1>Qurio</h1>
+        <h6>definitely not kahoot!</h6>
+      </div>
       <h1 id="quizTitle"></h1>
       <h1 class="question"></h1>
       <div id="wellIDontReallyKnowHowToNameThis">
         Question nr: <h3 id="questionNum"></h3>/<h3 id="numOfQuestions"></h3>
       </div>
     </div>
-    <div id="answers" style="display: none;">
+    <div class="page" id="answers" style="display: none;">
+      <div class="compactTitle">
+        <h1>Qurio</h1>
+        <h6>definitely not kahoot!</h6>
+      </div>
       <h1 class="question"></h1>
       <div>
         <p id="answer0"></p>
@@ -30,7 +51,11 @@
         <p id="answer3"></p>
       </div>
     </div>
-    <div id="questionStats" style="display: none;">
+    <div class="page" id="questionStats" style="display: none;">
+      <div class="compactTitle">
+        <h1>Qurio</h1>
+        <h6>definitely not kahoot!</h6>
+      </div>
       <h1 class="question"></h1>
       <div id="stats0">
         <h3>Answer 1:</h3>
@@ -54,11 +79,19 @@
       </div>
       <button id="toLeaderboards">Next</button>
     </div>
-    <div id="leaderboardPage" style="display: none;">
+    <div class="page" id="leaderboardPage" style="display: none;">
+      <div class="compactTitle">
+        <h1>Qurio</h1>
+        <h6>definitely not kahoot!</h6>
+      </div>
       <div id="leaderboard"></div>
       <button id="nextQuestion">Next Question</button>
     </div>
-    <div id="endGame" style="display: none;">
+    <div class="page" id="endGame" style="display: none;">
+      <div class="compactTitle">
+        <h1>Qurio</h1>
+        <h6>definitely not kahoot!</h6>
+      </div>
       <div id="gameLeaderboard"></div>
       <button id="toTheLobby">End</button>
     </div>
@@ -66,6 +99,9 @@
 
   <script type="module" src="modules/protocol.mjs"></script>
   <script type="module" src="main-host.js"></script>
+
+  <script src="particles.min.js"></script>
+  <script src="blocks.js"></script>
 </body>
 
 </html>
