@@ -348,3 +348,182 @@ canvas {
 #answers .progressBar {
   height: 1rem;
 }
+
+.leaderboardSide,
+.achievements {
+  margin-top: 5rem;
+}
+
+.leaderboards {
+  font-size: 1.4rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 5rem;
+  grid-template-areas:
+    "header header"
+    "leaderboard achievements";
+  justify-content: center;
+}
+
+.leaderboards h2 {
+  text-align: center;
+  font-weight: 400;
+}
+
+.leaderboards > button {
+  grid-area: header;
+  margin: 0.5rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  font-size: 2rem;
+  border-radius: 3rem;
+  color: white;
+  cursor: pointer;
+  justify-self: flex-end;
+  border: 0.5rem solid #202338;
+  background-color: #2c2e43;
+}
+
+.leaderboards > button:hover {
+  filter: grayscale(50%);
+}
+
+.leaderboards .leaderboardSide {
+  grid-area: leaderboard;
+}
+
+.leaderboards .classicLeaderboard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.leaderboards .achievements {
+  grid-area: achievements;
+}
+
+.player {
+  display: grid;
+  grid-template-columns: 68px 1.5em 12em 4em;
+  padding: 0.25rem;
+  margin: 0.1rem;
+}
+
+.position,
+.username,
+.points {
+  width: 100%;
+  align-self: center;
+}
+
+.points {
+  text-align: right;
+}
+
+.username {
+  text-align: left;
+}
+
+.miniAvatar {
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  background-color: white;
+}
+
+.player p {
+  margin: 0;
+}
+
+.player:first-child {
+  background-color: #df9836;
+}
+
+.player:nth-child(2) {
+  background-color: #afafaf;
+}
+
+.player:nth-child(3) {
+  background-color: #6c4a23;
+}
+
+.achievements {
+  display: grid;
+  grid-template-columns: 4em 1fr;
+  justify-self: center;
+  align-self: flex-start;
+}
+
+.achievements > * {
+  grid-column-start: 1;
+  grid-column-end: 3;
+}
+
+.achievements > h2 {
+  text-align: center;
+  grid-column-start: 2;
+  margin-bottom: 0;
+}
+
+.achievements .row > p {
+  margin: 0;
+  align-self: center;
+}
+
+.achievements .row p:last-child {
+  text-align: right;
+  margin-right: 0.5rem;
+}
+
+.achievements .row {
+  display: grid;
+  grid-template-columns: 68px 1.5em 12em 4em;
+  padding: 0.25rem;
+}
+
+.achievements #streakAchievement .row,
+.achievements #overallStreakAchievement .row {
+  background-color: #df7126;
+}
+
+.achievements #streakAchievement > img,
+.achievements #overallStreakAchievement > img {
+  justify-self: center;
+  align-self: flex-end;
+  height: 3em;
+}
+
+.achievements #quickestAchievement .row,
+.achievements #overallQuickestAchievement .row {
+  background-color: #2a4c40;
+}
+
+.achievements #quickestAchievement > img,
+.achievements #overallQuickestAchievement > img {
+  justify-self: center;
+  align-self: flex-end;
+  width: 3em;
+}
+
+.achievements .achievement {
+  display: grid;
+  grid-template-columns: 4em 1fr;
+  grid-template-areas:
+    "icon title"
+    "icon achievement";
+}
+
+.achievements .achievement > h4 {
+  margin-bottom: 0.5rem;
+  grid-area: title;
+  font-size: 1.2em;
+  font-weight: 400;
+}
+
+.achievements .achievement > img {
+  grid-area: icon;
+}
+
+.achievements .achievement > .row {
+  grid-area: achievement;
+}

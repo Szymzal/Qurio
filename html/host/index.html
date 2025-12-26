@@ -11,7 +11,7 @@
 
 	<body>
 		<div class="container" id="background">
-			<div class="page" id="lobby" style="display: none;">
+			<div class="page" id="lobby">
 				<div class="compactTitle">
 					<h1>Qurio</h1>
 					<h6>definitely not kahoot!</h6>
@@ -45,7 +45,7 @@
 					<h3 class="numOfQuestions">20</h3>
 				</div>
 			</div>
-			<div class="page" id="answers">
+			<div class="page" id="answers" style="display: none;">
 				<div class="question">
 					<div class="compactTitle">
 						<h1>Qurio</h1>
@@ -124,20 +124,110 @@
 				</div>
 				<button id="toLeaderboards">Next</button>
 			</div>
-			<div class="page" id="leaderboardPage" style="display: none;">
+			<div class="page leaderboards" id="leaderboardPage" style="display: none;">
 				<div class="compactTitle">
 					<h1>Qurio</h1>
 					<h6>definitely not kahoot!</h6>
 				</div>
-				<div id="leaderboard"></div>
+				<div class="leaderboardSide">
+					<h2>Leaderboard</h2>
+					<div class="classicLeaderboard" id="leaderboard">
+						<div class="player">
+							<div class="miniAvatar"></div>
+							<p class="position">1.</p>
+							<p class="username">Lyptor</p>
+							<p class="points">2500</p>
+						</div>
+						<div class="player">
+							<div class="miniAvatar"></div>
+							<p class="position">2.</p>
+							<p class="username">User</p>
+							<p class="points">1000</p>
+						</div>
+						<div class="player">
+							<div class="miniAvatar"></div>
+							<p class="position">3.</p>
+							<p class="username">Yoqvi</p>
+							<p class="points">500</p>
+						</div>
+					</div>
+				</div>
+				<div class="achievements">
+					<h2>Achievements</h2>
+					<div class="achievement" id="quickestAchievement">
+						<h4>Quickest Correct Answer</h4>
+						<img src="../assets/stopwatch.svg" alt="Stopwatch icon">
+						<div class="row">
+							<div class="miniAvatar"></div>
+							<p class="position">3.</p>
+							<p class="username">Yoqvi</p>
+							<p class="quickestTime">2.5s</p>
+						</div>
+					</div>
+					<div class="achievement" id="streakAchievement">
+						<h4>Highest Streak</h4>
+						<img src="../assets/firesprite.svg" alt="Fire icon">
+						<div class="row">
+							<div class="miniAvatar"></div>
+							<p class="position">3.</p>
+							<p class="username">Yoqvi</p>
+							<p class="highStreak">7</p>
+						</div>
+					</div>
+				</div>
 				<button id="nextQuestion">Next Question</button>
 			</div>
-			<div class="page" id="endGame" style="display: none;">
+			<div class="page leaderboards" id="endGame" style="display: none;">
 				<div class="compactTitle">
 					<h1>Qurio</h1>
 					<h6>definitely not kahoot!</h6>
 				</div>
-				<div id="gameLeaderboard"></div>
+				<div class="leaderboardSide">
+					<h2>Leaderboard</h2>
+					<div class="classicLeaderboard" id="gameLeaderboard">
+						<div class="player">
+							<div class="miniAvatar"></div>
+							<p class="position">1.</p>
+							<p class="username">Lyptor</p>
+							<p class="points">2500</p>
+						</div>
+						<div class="player">
+							<div class="miniAvatar"></div>
+							<p class="position">2.</p>
+							<p class="username">User</p>
+							<p class="points">1000</p>
+						</div>
+						<div class="player">
+							<div class="miniAvatar"></div>
+							<p class="position">3.</p>
+							<p class="username">Yoqvi</p>
+							<p class="points">500</p>
+						</div>
+					</div>
+				</div>
+				<div class="achievements">
+					<h2>Achievements</h2>
+					<div class="achievement" id="overallQuickestAchievement">
+						<h4>Quickest Correct Answer</h4>
+						<img src="../assets/stopwatch.svg" alt="Stopwatch icon">
+						<div class="row">
+							<div class="miniAvatar"></div>
+							<p class="position">3.</p>
+							<p class="username">Yoqvi</p>
+							<p class="quickestTime">2.5s</p>
+						</div>
+					</div>
+					<div class="achievement" id="overallStreakAchievement">
+						<h4>Highest Streak</h4>
+						<img src="../assets/firesprite.svg" alt="Fire icon">
+						<div class="row">
+							<div class="miniAvatar"></div>
+							<p class="position">3.</p>
+							<p class="username">Yoqvi</p>
+							<p class="highStreak">7</p>
+						</div>
+					</div>
+				</div>
 				<button id="toTheLobby">End</button>
 			</div>
 		</div>
