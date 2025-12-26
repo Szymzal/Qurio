@@ -1,115 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Qurio Host</title>
-  <link rel="stylesheet" href="style-host.css">
-  <link rel="stylesheet" href="fonts/Inter/inter.css">
-</head>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Qurio Host</title>
+		<link rel="stylesheet" href="style-host.css">
+		<link rel="stylesheet" href="fonts/Inter/inter.css">
+	</head>
 
-<body>
-  <div class="container" id="background">
-    <div class="page" id="lobby">
-      <div class="compactTitle">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <div class="buttons">
-        <button id="startGame">Start</button>
-        <button id="settings">Settings</button>
-      </div>
-      <div id="playerBoard">
-        <div class="player">
-          <div class="avatar"></div>
-          <p class="username">Szymzal</p>
-        </div>
-      </div>
-    </div>
-    <div class="page" id="questionInProgress" style="display: none;">
-      <div class="compactTitle">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <h1 id="quizTitle">The Title Which I Don't Really Know What is About And Definetly Will Not Be Any Of The Title A
-        Real Quiz Or Qurio? Can We Call This? Or Whatever just return to work Don't Think About It It Will Break Your
-        Brain More Than Anything Or Everything Or Whatever</h1>
-      <h1 class="question">The Title Which I Don't Really Know What is About And Definetly Will Not Be Any Of The Title
-        A
-        Real Quiz Or Qurio? Can We Call This? Or Whatever just return to work Don't Think About It It Will Break Your
-        Brain More Than Anything Or Everything Or Whatever</h1>
-      <div class="progressBar"></div>
-      <div id="wellIDontReallyKnowHowToNameThis">
-        <h3 id="questionNum">1</h3>
-        <p>/</p>
-        <h3 id="numOfQuestions">20</h3>
-      </div>
-    </div>
-    <div class="page" id="answers" style="display: none;">
-      <div class="compactTitle">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <h1 class="question"></h1>
-      <div>
-        <p id="answer0"></p>
-        <p id="answer1"></p>
-        <p id="answer2"></p>
-        <p id="answer3"></p>
-      </div>
-    </div>
-    <div class="page" id="questionStats" style="display: none;">
-      <div class="compactTitle">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <h1 class="question"></h1>
-      <div id="stats0">
-        <h3>Answer 1:</h3>
-        <p id="numOfAnswers0"></p>
-        <h4 id="stats0correct">Correct Answer!</h4>
-      </div>
-      <div id="stats1">
-        <h3>Answer 2:</h3>
-        <p id="numOfAnswers1"></p>
-        <h4 id="stats1correct">Correct Answer!</h4>
-      </div>
-      <div id="stats2">
-        <h3>Answer 3:</h3>
-        <p id="numOfAnswers2"></p>
-        <h4 id="stats2correct">Correct Answer!</h4>
-      </div>
-      <div id="stats3">
-        <h3>Answer 4:</h3>
-        <p id="numOfAnswers3"></p>
-        <h4 id="stats3correct">Correct Answer!</h4>
-      </div>
-      <button id="toLeaderboards">Next</button>
-    </div>
-    <div class="page" id="leaderboardPage" style="display: none;">
-      <div class="compactTitle">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <div id="leaderboard"></div>
-      <button id="nextQuestion">Next Question</button>
-    </div>
-    <div class="page" id="endGame" style="display: none;">
-      <div class="compactTitle">
-        <h1>Qurio</h1>
-        <h6>definitely not kahoot!</h6>
-      </div>
-      <div id="gameLeaderboard"></div>
-      <button id="toTheLobby">End</button>
-    </div>
-  </div>
+	<body>
+		<div class="container" id="background">
+			<div class="page" id="lobby" style="display: none;">
+				<div class="compactTitle">
+					<h1>Qurio</h1>
+					<h6>definitely not kahoot!</h6>
+				</div>
+				<div class="buttons">
+					<button id="startGame">Start</button>
+					<button id="settings">Settings</button>
+				</div>
+				<div id="playerBoard">
+					<div class="player">
+						<div class="avatar"></div>
+						<p class="username">Szymzal</p>
+					</div>
+				</div>
+			</div>
+			<div class="page" id="questionInProgress" style="display: none;">
+				<div class="compactTitle">
+					<h1>Qurio</h1>
+					<h6>definitely not kahoot!</h6>
+				</div>
+				<h1 id="quizTitle">The Title Which I Don't Really Know What is About And Definetly Will Not Be Any Of The Title A
+					Real Quiz Or Qurio? Can We Call This? Or Whatever just return to work Don't Think About It It Will Break Your
+					Brain More Than Anything Or Everything Or Whatever</h1>
+				<h1 class="question">The Title Which I Don't Really Know What is About And Definetly Will Not Be Any Of The Title
+					A Real Quiz Or Qurio? Can We Call This? Or Whatever just return to work Don't Think About It It Will Break Your
+					Brain More Than Anything Or Everything Or Whatever</h1>
+				<div class="progressBar"></div>
+				<div class="wellIDontReallyKnowHowToNameThis">
+					<h3 class="questionNum">1</h3>
+					<p>/</p>
+					<h3 class="numOfQuestions">20</h3>
+				</div>
+			</div>
+			<div class="page" id="answers">
+				<div class="question">
+					<div class="compactTitle">
+						<h1>Qurio</h1>
+						<h6>definitely not kahoot!</h6>
+					</div>
+					<div class="wellIDontReallyKnowHowToNameThis">
+						<h3 class="questionNum">1</h3>
+						<p>/</p>
+						<h3 class="numOfQuestions">20</h3>
+					</div>
+					The Title Which I Don't Really Know What is About And Definetly Will Not Be Any Of The Title A Real Quiz Or
+					Qurio? Can We Call This? Or Whatever just return to work Don't Think About It It Will Break Your Brain More Than
+					Anything Or Everything Or Whatever
+				</div>
+				<div class="answersWithText">
+					<div class="answerText" id="answer0Text">
+						<h2>A</h2>
+						<p id="answer0">The Title Which I Don't Really Know What is About And Definetly Will Not Be Any Of The Title A
+							Real Quiz Or
+							Qurio? Can We Call This? Or Whatever just return to work Don't Think About It It Will Break Your Brain More
+							Than
+							Anything Or Everything Or Whatever</p>
+					</div>
+					<div class="answerText" id="answer1Text">
+						<h2>B</h2>
+						<p id="answer1">The Title Which I Don't Really Know What is About And Definetly Will Not Be Any Of The Title A
+							Real Quiz Or
+							Qurio? Can We Call This? Or Whatever just return to work Don't Think About It It Will Break Your Brain More
+							Than
+							Anything Or Everything Or Whatever</p>
+					</div>
+					<div class="answerText" id="answer2Text">
+						<h2>C</h2>
+						<p id="answer2">The Title Which I Don't Really Know What is About And Definetly Will Not Be Any Of The Title A
+							Real Quiz Or
+							Qurio? Can We Call This? Or Whatever just return to work Don't Think About It It Will Break Your Brain More
+							Than
+							Anything Or Everything Or Whatever</p>
+					</div>
+					<div class="answerText hidden" id="answer3Text">
+						<h2>D</h2>
+						<p id="answer3">The Title Which I Don't Really Know What is About And Definetly Will Not Be Any Of The Title A
+							Real Quiz Or
+							Qurio? Can We Call This? Or Whatever just return to work Don't Think About It It Will Break Your Brain More
+							Than
+							Anything Or Everything Or Whatever</p>
+					</div>
+				</div>
+				<div class="progressBar"></div>
+			</div>
+			<div class="page" id="questionStats" style="display: none;">
+				<div class="compactTitle">
+					<h1>Qurio</h1>
+					<h6>definitely not kahoot!</h6>
+				</div>
+				<h1 class="question"></h1>
+				<div id="stats0">
+					<h3>Answer 1:</h3>
+					<p id="numOfAnswers0"></p>
+					<h4 id="stats0correct">Correct Answer!</h4>
+				</div>
+				<div id="stats1">
+					<h3>Answer 2:</h3>
+					<p id="numOfAnswers1"></p>
+					<h4 id="stats1correct">Correct Answer!</h4>
+				</div>
+				<div id="stats2">
+					<h3>Answer 3:</h3>
+					<p id="numOfAnswers2"></p>
+					<h4 id="stats2correct">Correct Answer!</h4>
+				</div>
+				<div id="stats3">
+					<h3>Answer 4:</h3>
+					<p id="numOfAnswers3"></p>
+					<h4 id="stats3correct">Correct Answer!</h4>
+				</div>
+				<button id="toLeaderboards">Next</button>
+			</div>
+			<div class="page" id="leaderboardPage" style="display: none;">
+				<div class="compactTitle">
+					<h1>Qurio</h1>
+					<h6>definitely not kahoot!</h6>
+				</div>
+				<div id="leaderboard"></div>
+				<button id="nextQuestion">Next Question</button>
+			</div>
+			<div class="page" id="endGame" style="display: none;">
+				<div class="compactTitle">
+					<h1>Qurio</h1>
+					<h6>definitely not kahoot!</h6>
+				</div>
+				<div id="gameLeaderboard"></div>
+				<button id="toTheLobby">End</button>
+			</div>
+		</div>
 
-  <script type="module" src="modules/protocol.mjs"></script>
-  <script type="module" src="main-host.js"></script>
+		<script type="module" src="modules/protocol.mjs"></script>
+		<script type="module" src="main-host.js"></script>
 
-  <script src="particles.min.js"></script>
-  <script src="blocks.js"></script>
-</body>
-
+		<script src="particles.min.js"></script>
+		<script src="blocks.js"></script>
+	</body>
 </html>

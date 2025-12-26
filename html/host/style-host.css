@@ -153,14 +153,14 @@ canvas {
   border: 0.1rem solid black;
 }
 
-#wellIDontReallyKnowHowToNameThis {
+.wellIDontReallyKnowHowToNameThis {
   position: absolute;
   top: 1rem;
   right: 1rem;
   display: flex;
 }
 
-#wellIDontReallyKnowHowToNameThis * {
+.wellIDontReallyKnowHowToNameThis * {
   margin: 0;
   font-weight: 400;
   font-size: 3rem;
@@ -211,4 +211,140 @@ canvas {
     #2c2e43 var(--percentage),
     #2c2e43
   );
+}
+
+#answers {
+  position: relative;
+  display: grid;
+  grid-template-rows: 15rem calc(100% - 15rem - 1rem);
+  grid-template-areas:
+    "question"
+    "answers"
+    "progress";
+}
+
+#answers .question {
+  grid-area: question;
+  margin: 0;
+  text-align: center;
+}
+
+#answers .question {
+  font-size: 2.8rem;
+}
+
+#answers .answersWithText {
+  grid-area: answers;
+}
+
+#answers .compactTitle {
+  position: unset;
+  float: left;
+  margin-left: 0.5rem;
+  margin-bottom: 1rem;
+  margin-right: 1rem;
+  height: 4rem;
+}
+
+#answers .compactTitle h1 {
+  font-size: 5rem;
+}
+
+#answers .compactTitle h6 {
+  font-size: 0.8rem;
+}
+
+#answers .wellIDontReallyKnowHowToNameThis {
+  position: unset;
+  float: right;
+  margin: 0.5rem;
+  margin-left: 1rem;
+  margin-bottom: 1rem;
+}
+
+.answersWithText {
+  display: grid;
+  margin: 1rem;
+  grid-template-columns: 0.5fr 0.5fr 0.5fr 0.5fr 0.5fr 0.5fr;
+  grid-template-rows: 1fr 1fr;
+  grid-template-areas:
+    "a a a b b b"
+    "c c c d d d";
+  grid-gap: 1rem;
+}
+
+.answerText {
+  width: 100%;
+  height: 100%;
+  border-radius: 2rem;
+  border: 0;
+  font-size: 5rem;
+  color: black;
+  display: flex;
+}
+
+.answerText > p {
+  font-size: 2.3rem;
+  align-self: center;
+  padding: 0.8rem;
+  text-align: center;
+  margin: auto;
+}
+
+#answer0Text {
+  grid-area: a;
+  background-color: #b93f3f;
+}
+
+#answer1Text {
+  grid-area: b;
+  background-color: #7019e9;
+}
+
+#answer2Text {
+  grid-area: c;
+  background-color: #81e819;
+}
+
+#answer3Text {
+  grid-area: d;
+  background-color: #e9ce19;
+}
+
+.answerText h2 {
+  margin: 0;
+  font-weight: 400;
+  align-self: center;
+}
+
+.answersWithText:has(#answer3Text:is(.hidden)) > .answerText {
+  flex-direction: column;
+}
+
+.answersWithText:has(#answer3Text:is(.hidden)) {
+  grid-template-areas:
+    "a a b b c c"
+    "a a b b c c";
+}
+
+.answersWithText:has(#answer3Text:is(.hidden)) .answerText > p {
+  font-size: 2.5rem;
+}
+
+.answersWithText:has(#answer2Text:is(.hidden)) {
+  grid-template-areas:
+    "a a a b b b"
+    "a a a b b b";
+}
+
+.answersWithText:has(#answer2Text:is(.hidden)) .answerText > p {
+  font-size: 3rem;
+}
+
+.hidden {
+  display: none;
+}
+
+#answers .progressBar {
+  height: 1rem;
 }
