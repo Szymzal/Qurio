@@ -2,7 +2,15 @@
 
 // ====== IMPORTS ======
 
-import { finishStatsPacket, initializeHostHandshakePacket, nextQuestionPacket, readPacket, returnToLobbyPacket, S2CPacketID, startGamePacket } from "./modules/protocol.mjs";
+import {
+  finishStatsPacket,
+  initializeHostHandshakePacket,
+  nextQuestionPacket,
+  readPacket,
+  returnToLobbyPacket,
+  S2CPacketID,
+  startGamePacket,
+} from "./modules/protocol.mjs";
 
 // ====== IMPORTS FROM DOCUMENT ======
 
@@ -24,7 +32,9 @@ const questionNum = document.querySelector("#questionNum");
 /** @type HTMLHeadingElement | null */
 const numOfQuestions = document.querySelector("#numOfQuestions");
 /** @type HTMLDivElement | null */
-const wellIDontReallyKnowHowToNameThis =  document.querySelector("#wellIDontReallyKnowHowToNameThis");
+const wellIDontReallyKnowHowToNameThis = document.querySelector(
+  "#wellIDontReallyKnowHowToNameThis",
+);
 
 /** @type HTMLDivElement | null */
 const answersPage = document.querySelector("#answers");
@@ -80,7 +90,7 @@ const gameLeaderboard = document.querySelector("#gameLeaderboard");
 /** @type HTMLButtonElement | null */
 const toTheLobbyBtn = document.querySelector("#toTheLobby");
 
-// ====== VARIABLES ====== 
+// ====== VARIABLES ======
 
 /**
  * Provides easy to use enum to decode reason ID
@@ -106,7 +116,7 @@ const pages = [
   answersPage,
   questionStats,
   leaderboardPage,
-  endGame
+  endGame,
 ];
 
 /**
@@ -121,16 +131,16 @@ if (playerBoard !== null) {
   const websocket = new WebSocket(`ws://${window.location.host}/ws`);
   websocket.binaryType = "arraybuffer";
 
-  websocket.onopen = function() {
+  websocket.onopen = function () {
     console.log("connection opened");
     websocket.send(initializeHostHandshakePacket());
   };
 
-  websocket.onclose = function() {
+  websocket.onclose = function () {
     console.log("connection closed");
   };
 
-  websocket.onmessage = function(e) {
+  websocket.onmessage = function (e) {
     if (e.data instanceof ArrayBuffer) {
       handlePackets(e.data, websocket);
     } else {
@@ -199,8 +209,11 @@ function handlePackets(data, ws) {
   console.debug("Received packet ID: ", packet.packetID);
 
   switch (packet.packetID) {
-    case S2CPacketID.HostHandshakeAccepted: 
-      const hostHandshakeAcceptedPacket = /** @type {import("./modules/protocol.mjs").HostHandshakeAcceptedPacket} */ (packet.value);
+    case S2CPacketID.HostHandshakeAccepted:
+      const hostHandshakeAcceptedPacket =
+        /** @type {import("./modules/protocol.mjs").HostHandshakeAcceptedPacket} */ (
+          packet.value
+        );
 
       hostHandshakeAcceptedPacket.users.forEach((user) => {
         users.push(user);
@@ -209,22 +222,38 @@ function handlePackets(data, ws) {
       updatePlayerBoard();
       break;
     case S2CPacketID.HandshakeRejected:
-      const handshakeRejectedPacket = /** @type {import("./modules/protocol.mjs").HandshakeRejectedPacket} */ (packet.value);
-      console.error("Handshake was rejected! {}", handshakeRejectedPacket.reason);
+      const handshakeRejectedPacket =
+        /** @type {import("./modules/protocol.mjs").HandshakeRejectedPacket} */ (
+          packet.value
+        );
+      console.error(
+        "Handshake was rejected! {}",
+        handshakeRejectedPacket.reason,
+      );
       break;
     case S2CPacketID.UserJoined:
-      const userJoinedPacket = /** @type {import("./modules/protocol.mjs").UserJoinedPacket} */ (packet.value);
+      const userJoinedPacket =
+        /** @type {import("./modules/protocol.mjs").UserJoinedPacket} */ (
+          packet.value
+        );
       console.log(`User ${userJoinedPacket.user.username} joined!`);
 
       users.push(userJoinedPacket.user);
       updatePlayerBoard();
       break;
     case S2CPacketID.UserLeft:
-      const userLeftPacket = /** @type {import("./modules/protocol.mjs").UserLeftPacket} */ (packet.value);
-      const userIndex = users.findIndex((value) => value.userID === userLeftPacket.userID);
+      const userLeftPacket =
+        /** @type {import("./modules/protocol.mjs").UserLeftPacket} */ (
+          packet.value
+        );
+      const userIndex = users.findIndex(
+        (value) => value.userID === userLeftPacket.userID,
+      );
 
       if (userIndex < 0) {
-        console.warn(`User ${userLeftPacket.userID} left, but it didn't joined anyways!`);
+        console.warn(
+          `User ${userLeftPacket.userID} left, but it didn't joined anyways!`,
+        );
         return;
       }
 
@@ -236,12 +265,17 @@ function handlePackets(data, ws) {
       updatePlayerBoard();
       break;
     case S2CPacketID.GameDetails:
-      const gameDetailsPacket = /** @type {import("./modules/protocol.mjs").GameDetailsPacket} */ (packet.value);
+      const gameDetailsPacket =
+        /** @type {import("./modules/protocol.mjs").GameDetailsPacket} */ (
+          packet.value
+        );
 
       if (wellIDontReallyKnowHowToNameThis) {
         wellIDontReallyKnowHowToNameThis.style.display = "";
       } else {
-        console.error("HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?");
+        console.error(
+          "HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?",
+        );
       }
 
       if (quizTitle) {
@@ -252,7 +286,8 @@ function handlePackets(data, ws) {
       }
 
       if (numOfQuestions) {
-        numOfQuestions.textContent = gameDetailsPacket.numOfQuestions.toString();
+        numOfQuestions.textContent =
+          gameDetailsPacket.numOfQuestions.toString();
       } else {
         console.error("No number of questions!");
       }
@@ -275,7 +310,9 @@ function handlePackets(data, ws) {
           if (wellIDontReallyKnowHowToNameThis) {
             wellIDontReallyKnowHowToNameThis.style.display = "none";
           } else {
-            console.error("HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?");
+            console.error(
+              "HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?",
+            );
           }
         } else {
           console.error("No quiz title or question!");
@@ -286,12 +323,17 @@ function handlePackets(data, ws) {
 
       break;
     case S2CPacketID.QuestionInfo:
-      const questionInfoPacket = /** @type {import("./modules/protocol.mjs").QuestionInfoPacket} */ (packet.value);
+      const questionInfoPacket =
+        /** @type {import("./modules/protocol.mjs").QuestionInfoPacket} */ (
+          packet.value
+        );
 
       console.dir(questionInfoPacket);
 
       if (questionNum) {
-        questionNum.textContent = (questionInfoPacket.questionIndex + 1).toString();
+        questionNum.textContent = (
+          questionInfoPacket.questionIndex + 1
+        ).toString();
       } else {
         console.error("No question number!");
       }
@@ -306,21 +348,21 @@ function handlePackets(data, ws) {
 
       const numOfAnswers = questionInfoPacket.answers.length;
       if (
-        answer0 && 
-        answer1 && 
-        answer2 && 
-        answer3 && 
-        stats0 && 
-        stats1 && 
-        stats2 && 
-        stats3 && 
-        stats0Correct && 
-        stats1Correct && 
-        stats2Correct && 
-        stats3Correct && 
-        numOfAnswers0 && 
-        numOfAnswers1 && 
-        numOfAnswers2 && 
+        answer0 &&
+        answer1 &&
+        answer2 &&
+        answer3 &&
+        stats0 &&
+        stats1 &&
+        stats2 &&
+        stats3 &&
+        stats0Correct &&
+        stats1Correct &&
+        stats2Correct &&
+        stats3Correct &&
+        numOfAnswers0 &&
+        numOfAnswers1 &&
+        numOfAnswers2 &&
         numOfAnswers3
       ) {
         const answers = [answer0, answer1, answer2, answer3];
@@ -381,7 +423,10 @@ function handlePackets(data, ws) {
       switchPages(PagesID.QUESTION);
       break;
     case S2CPacketID.QuestionStats:
-      const questionStatsPacket = /** @type {import("./modules/protocol.mjs").QuestionStatsPacket} */ (packet.value);
+      const questionStatsPacket =
+        /** @type {import("./modules/protocol.mjs").QuestionStatsPacket} */ (
+          packet.value
+        );
 
       const correctAnswer = questionStatsPacket.correctAnswer;
       if (stats0Correct && stats1Correct && stats2Correct && stats3Correct) {
@@ -413,10 +458,16 @@ function handlePackets(data, ws) {
       }
 
       if (numOfAnswers0 && numOfAnswers1 && numOfAnswers2 && numOfAnswers3) {
-        const numOfAnswers = [numOfAnswers0, numOfAnswers1, numOfAnswers2, numOfAnswers3];
+        const numOfAnswers = [
+          numOfAnswers0,
+          numOfAnswers1,
+          numOfAnswers2,
+          numOfAnswers3,
+        ];
 
         for (let i = 0; i < questionStatsPacket.numOfAnswers.length; i++) {
-          numOfAnswers[i].textContent = questionStatsPacket.numOfAnswers[i].toString();
+          numOfAnswers[i].textContent =
+            questionStatsPacket.numOfAnswers[i].toString();
         }
       } else {
         console.error("No statistics about question?");
@@ -442,7 +493,9 @@ function handlePackets(data, ws) {
           if (userInfo) {
             username.textContent = userInfo.username;
           } else {
-            console.error("User does not exist! Leaderboards will be unfinished!");
+            console.error(
+              "User does not exist! Leaderboards will be unfinished!",
+            );
             username.textContent = "ERROR";
           }
 
@@ -465,7 +518,10 @@ function handlePackets(data, ws) {
       switchPages(PagesID.ANSWERS);
       break;
     case S2CPacketID.GameStats:
-      const gameStatsPacket = /** @type {import("./modules/protocol.mjs").GameStatsPacket} */ (packet.value);
+      const gameStatsPacket =
+        /** @type {import("./modules/protocol.mjs").GameStatsPacket} */ (
+          packet.value
+        );
 
       /** @type {import("./modules/protocol.mjs").UserStat[]} */
       const gameLeaderboardUsers = gameStatsPacket.leaderboard.users;
@@ -483,11 +539,13 @@ function handlePackets(data, ws) {
           position.textContent = `${i + 1}.`;
 
           const username = document.createElement("p");
-          const userInfo = users.find((x) => x.userID = userStat.userID);
+          const userInfo = users.find((x) => (x.userID = userStat.userID));
           if (userInfo) {
             username.textContent = userInfo.username;
           } else {
-            console.error("User does not exist! Leaderboards will be unfinished!");
+            console.error(
+              "User does not exist! Leaderboards will be unfinished!",
+            );
             username.textContent = "ERROR";
           }
 
@@ -518,8 +576,14 @@ function handlePackets(data, ws) {
  * @param {Element} element
  */
 function removeAllChilds(element) {
-  while (element.firstChild && element.firstChild.nodeType === Node.ELEMENT_NODE) {
-    element.removeChild(element.firstChild);
+  let index = 0;
+  while (element.childNodes.length > index) {
+    const child = element.childNodes[index];
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      element.removeChild(child);
+    } else {
+      index++;
+    }
   }
 }
 
@@ -528,7 +592,6 @@ function updatePlayerBoard() {
     console.error("No player board!");
     return;
   }
-
 
   /** @type {Element[]} */
   const players = [];
@@ -547,15 +610,24 @@ function updatePlayerBoard() {
 /**
  * Creates player HTML element and returns it
  *
- * @param {string} username 
+ * @param {string} username
  * @returns {Element}
  */
 function createPlayer(username) {
-  const element = document.createElement("div");
+  const playerDiv = document.createElement("div");
+  playerDiv.className = "player";
 
-  element.textContent = username;
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
 
-  return element;
+  const usernameElement = document.createElement("p");
+  usernameElement.className = "username";
+  usernameElement.textContent = username;
+
+  playerDiv.append(avatar);
+  playerDiv.append(usernameElement);
+
+  return playerDiv;
 }
 
 /**
