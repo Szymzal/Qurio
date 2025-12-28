@@ -35,7 +35,7 @@ use qurio_protocol::{
             UserJoinedPacket, UserLeftPacket,
         },
     },
-    structs::{BinString, HandshakeRejectionReason, Leaderboard, User, UserId, UserName, UserStat},
+    structs::{HandshakeRejectionReason, Leaderboard, User, UserId, UserName, UserStat},
 };
 use thiserror::Error;
 use tokio::{
@@ -45,16 +45,12 @@ use tokio::{
     time::sleep,
 };
 use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
+use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-pub struct Question {
-    pub question: BinString,
-    pub read_question_milis: u32,
-    pub answer_milis: u32,
-    pub num_of_answers: u8,
-    pub answers: Vec<BinString>,
-    pub correct_answer_mask: u8,
-}
+use crate::quiz_file::{Quiz, read_quiz_file};
+
+pub mod quiz_file;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum GameState {
@@ -70,7 +66,7 @@ struct AppState {
     host_joined: AtomicBool,
     game_state: RwLock<GameState>,
     player_points: RwLock<HashMap<UserId, u16>>,
-    questions: Arc<[Question]>,
+    quiz: Arc<Quiz>,
     question_index: AtomicU8,
     answers: Mutex<[u8; 4]>,
     answered: Mutex<HashSet<UserId>>,
@@ -92,48 +88,20 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer().without_time())
         .init();
 
+    let quiz = match read_quiz_file("./quizes/test.json") {
+        Ok(value) => value,
+        Err(err) => panic!("Error: {}", err),
+    };
+
+    info!("quiz: {:?}", quiz);
+
     let (tx, _rx) = broadcast::channel(100);
     let app_state = Arc::new(AppState {
         users: RwLock::new(HashMap::new()),
         host_joined: AtomicBool::new(false),
         game_state: RwLock::new(GameState::Lobby),
         player_points: RwLock::new(HashMap::new()),
-        questions: Arc::new([
-            Question {
-                question: "Is this better than Kahoot?"
-                    .try_into()
-                    .expect("BinString to be created"),
-                read_question_milis: 3000,
-                answer_milis: 10000,
-                num_of_answers: 4,
-                answers: vec![
-                    "Yes".try_into().expect("BinString to be created"),
-                    "No".try_into().expect("BinString to be created"),
-                    "Maybe".try_into().expect("BinString to be created"),
-                    "Well, can we play something else?"
-                        .try_into()
-                        .expect("BinString to be created"),
-                ],
-                correct_answer_mask: 0b0001,
-            },
-            Question {
-                question: "Is this worse than Kahoot?"
-                    .try_into()
-                    .expect("BinString to be created"),
-                read_question_milis: 3000,
-                answer_milis: 10000,
-                num_of_answers: 4,
-                answers: vec![
-                    "Maybe".try_into().expect("BinString to be created"),
-                    "No".try_into().expect("BinString to be created"),
-                    "Well, can we play something else?"
-                        .try_into()
-                        .expect("BinString to be created"),
-                    "Yes".try_into().expect("BinString to be created"),
-                ],
-                correct_answer_mask: 0b1010,
-            },
-        ]),
+        quiz: Arc::new(quiz),
         question_index: AtomicU8::new(0),
         answers: Mutex::new([0u8; 4]),
         answered: Mutex::new(HashSet::new()),
@@ -321,7 +289,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                 }
                 S2CPackets::QuestionStats(question_stats_packet) => {
                     if !is_host {
-                        // Send player stats instead of QuestionStats, because you are a player not
+                        // Send PlayerStats instead of QuestionStats, because you are a player not
                         // the host
 
                         let points = match send_state.player_points.read().await.get(&user_id) {
@@ -451,9 +419,9 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                     if let Err(err) = recv_state.tx.send(
                         GameDetailsPacket {
-                            title_screen_wait: 3000,
-                            title: "Test Quiz".try_into().expect("BinString to be created"),
-                            num_of_questions: 2,
+                            title_screen_wait: recv_state.quiz.title_screen_wait,
+                            title: recv_state.quiz.title.clone(),
+                            num_of_questions: recv_state.quiz.questions.len() as u8,
                         }
                         .as_packet(),
                     ) {
@@ -482,13 +450,15 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     }
 
                     let question_index = recv_state.question_index.load(Ordering::Relaxed);
-                    let question = &recv_state.questions[question_index as usize];
+                    let question = &recv_state.quiz.questions[question_index as usize];
 
-                    if answer_packet.index > question.num_of_answers - 1 {
+                    let num_of_answers = question.answers.len() as u8;
+
+                    if answer_packet.index > num_of_answers - 1 {
                         tracing::warn!(
                             "User tried to answer outside of answers: got: {}, expected below: {}",
                             answer_packet.index,
-                            question.num_of_answers
+                            num_of_answers
                         );
                         continue;
                     }
@@ -529,7 +499,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     recv_state
                         .question_index
                         .store(question_index + 1, Ordering::Relaxed);
-                    let question_length = recv_state.questions.len();
+                    let question_length = recv_state.quiz.questions.len();
 
                     if (question_index + 1) >= question_length as u8 {
                         *recv_state.game_state.write().await = GameState::EndGame;
@@ -607,7 +577,7 @@ pub enum HandshakeInitializationError {
 }
 
 /// Initializes connection between server and client using WebSocket using protocol from crate
-/// `quizzit_protocol`
+/// `qurio_protocol`
 ///
 /// Returns user id of the new user created
 async fn initialize_handshake(
@@ -938,14 +908,14 @@ async fn question(recv_state: Arc<AppState>) -> bool {
     recv_state.answered.lock().await.clear();
 
     let question_index = recv_state.question_index.load(Ordering::Relaxed);
-    let question = &recv_state.questions[question_index as usize];
+    let question = &recv_state.quiz.questions[question_index as usize];
     if let Err(err) = recv_state.tx.send(
         QuestionInfoPacket {
             read_question_milis: question.read_question_milis,
             answer_milis: question.answer_milis,
             question_index,
             question: question.question.clone(),
-            num_of_answers: question.num_of_answers,
+            num_of_answers: question.answers.len() as u8,
             answers: question.answers.clone(),
         }
         .as_packet(),
@@ -956,7 +926,7 @@ async fn question(recv_state: Arc<AppState>) -> bool {
 
     if let Err(err) = recv_state.tx.send(
         AnswerDetailsPacket {
-            num_of_answers: question.num_of_answers,
+            num_of_answers: question.answers.len() as u8,
         }
         .as_packet(),
     ) {
@@ -987,9 +957,9 @@ async fn question(recv_state: Arc<AppState>) -> bool {
             let leaderboard = create_leaderboard(background_recv_state.clone()).await;
 
             let question_index = background_recv_state.question_index.load(Ordering::Relaxed);
-            let question = &background_recv_state.questions[question_index as usize];
+            let question = &background_recv_state.quiz.questions[question_index as usize];
             let stats = QuestionStatsPacket {
-                num_of_answers: question.num_of_answers,
+                num_of_answers: question.answers.len() as u8,
                 answers_answered: vec,
                 leaderboard,
                 correct_answer_mask: question.correct_answer_mask,

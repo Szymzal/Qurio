@@ -25,15 +25,15 @@ const startGameBtn = document.querySelector("#startGame");
 const questionInProgress = document.querySelector("#questionInProgress");
 /** @type HTMLHeadingElement | null */
 const quizTitle = document.querySelector("#quizTitle");
-/** @type NodeListOf<HTMLHeadingElement> */
+/** @type NodeListOf<HTMLElement> */
 const question = document.querySelectorAll(".question");
 /** @type HTMLHeadingElement | null */
-const questionNum = document.querySelector("#questionNum");
+const questionNum = document.querySelector(".questionNum");
 /** @type HTMLHeadingElement | null */
-const numOfQuestions = document.querySelector("#numOfQuestions");
+const numOfQuestions = document.querySelector(".numOfQuestions");
 /** @type HTMLDivElement | null */
 const wellIDontReallyKnowHowToNameThis = document.querySelector(
-  "#wellIDontReallyKnowHowToNameThis",
+  ".wellIDontReallyKnowHowToNameThis",
 );
 
 /** @type HTMLDivElement | null */
