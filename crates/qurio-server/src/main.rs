@@ -5,6 +5,7 @@ use std::{
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU8, Ordering},
+        mpsc::{self, Receiver, Sender},
     },
     time::Duration,
 };
@@ -75,6 +76,7 @@ struct AppState {
     answers: Mutex<[u8; 4]>,
     answered: Mutex<HashSet<UserId>>,
     tx: broadcast::Sender<S2CPackets>,
+    question_interrupt: Mutex<Option<Sender<bool>>>,
 }
 
 #[tokio::main]
@@ -110,6 +112,7 @@ async fn main() {
         answers: Mutex::new([0u8; 4]),
         answered: Mutex::new(HashSet::new()),
         tx,
+        question_interrupt: Mutex::new(None),
     });
 
     let app = Router::new()
@@ -544,6 +547,23 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                             player_points.insert(user_id, points_to_add);
                         }
                     }
+
+                    // This will probably hunt me down
+                    // NOTE: Don't remove this seperate thread, it allows to release all the previous locks and make
+                    // interrupt accually work
+                    let background_recv_state = recv_state.clone();
+                    tokio::spawn(async move {
+                        let all_players_counted = background_recv_state.users.read().await.len();
+                        let players_answered = background_recv_state.answered.lock().await.len();
+
+                        if all_players_counted == players_answered {
+                            // Send interrupt
+                            let lock = background_recv_state.question_interrupt.lock().await;
+                            if let Some(send) = &*lock {
+                                let _ = send.send(true);
+                            }
+                        }
+                    });
                 }
                 C2SPackets::NextQuestion => {
                     let question_index = recv_state.question_index.load(Ordering::Relaxed);
@@ -989,15 +1009,29 @@ async fn question(recv_state: Arc<AppState>) -> bool {
     let read_question_milis = question.read_question_milis as u64;
     let answer_milis = question.answer_milis as u64;
     tokio::spawn(async move {
+        // NOTE: You need to be very careful with those sleep functions
         sleep(Duration::from_millis(read_question_milis)).await;
 
         *background_recv_state.game_state.write().await = GameState::Answering;
         if let Err(err) = background_recv_state.tx.send(S2CPackets::StartAnswering) {
             tracing::error!("Failed to send through channel: {}. Closing", err);
+            return;
         }
 
+        // Don't remove this seperate thread, otherwise it will break
         tokio::spawn(async move {
-            sleep(Duration::from_millis(answer_milis)).await;
+            let (send, recv): (Sender<bool>, Receiver<bool>) = mpsc::channel();
+            let mut interrupt = background_recv_state.question_interrupt.lock().await;
+            *interrupt = Some(send);
+            drop(interrupt);
+
+            // Some kind of interruptable sleep
+            // NOTE: You need to be very careful with those sleep functions
+            let _ = recv.recv_timeout(Duration::from_millis(answer_milis));
+
+            let mut interrupt = background_recv_state.question_interrupt.lock().await;
+            *interrupt = None;
+            drop(interrupt);
 
             *background_recv_state.game_state.write().await = GameState::Stats;
 
