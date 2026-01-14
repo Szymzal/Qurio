@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     io::Cursor,
+    ops::Index,
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU8, Ordering},
@@ -35,7 +36,10 @@ use qurio_protocol::{
             UserJoinedPacket, UserLeftPacket,
         },
     },
-    structs::{HandshakeRejectionReason, Leaderboard, User, UserId, UserName, UserStat},
+    structs::{
+        HandshakeRejectionReason, KnownPlayerStats, Leaderboard, PlayerLeaderboardStats, User,
+        UserId, UserName, UserStat,
+    },
 };
 use thiserror::Error;
 use tokio::{
@@ -45,7 +49,7 @@ use tokio::{
     time::sleep,
 };
 use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
-use tracing::info;
+use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::quiz_file::{Quiz, read_quiz_file};
@@ -292,17 +296,64 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         // Send PlayerStats instead of QuestionStats, because you are a player not
                         // the host
 
-                        let points = match send_state.player_points.read().await.get(&user_id) {
-                            Some(value) => *value,
-                            None => {
-                                send_state.player_points.write().await.insert(user_id, 0);
-                                0
-                            }
+                        // TODO: Claim _ERROR_ as invalid username
+                        let error_username =
+                            UserName::new("_ERROR_").expect("_ERROR_ to be parsed");
+                        let leaderboard = question_stats_packet.leaderboard;
+
+                        let current_player =
+                            match leaderboard.users.iter().position(|x| x.id == user_id) {
+                                Some(position) => {
+                                    let player = leaderboard.users.index(position);
+                                    KnownPlayerStats {
+                                        position: position as u8 + 1,
+                                        points: player.points,
+                                    }
+                                }
+                                None => {
+                                    warn!("User didn't exist creating...");
+                                    send_state.player_points.write().await.insert(user_id, 0);
+                                    KnownPlayerStats {
+                                        position: leaderboard.num_users + 1,
+                                        points: 0,
+                                    }
+                                }
+                            };
+
+                        let above_player = if current_player.position > 1 {
+                            let position = current_player.position - 1;
+                            let user_stat = leaderboard.users.index(position as usize - 1);
+                            let reader = send_state.users.read().await;
+                            let username = reader.get(&user_stat.id).unwrap_or(&error_username);
+
+                            Some(PlayerLeaderboardStats {
+                                position,
+                                username: username.clone(),
+                                points: user_stat.points,
+                            })
+                        } else {
+                            None
+                        };
+
+                        let below_player = if current_player.position < leaderboard.num_users {
+                            let position = current_player.position + 1;
+                            let user_stat = leaderboard.users.index(position as usize - 1);
+                            let reader = send_state.users.read().await;
+                            let username = reader.get(&user_stat.id).unwrap_or(&error_username);
+
+                            Some(PlayerLeaderboardStats {
+                                position,
+                                username: username.clone(),
+                                points: user_stat.points,
+                            })
+                        } else {
+                            None
                         };
 
                         let player_stats = PlayerStatsPacket {
-                            position: get_position_of_player(send_state.clone(), user_id).await,
-                            points,
+                            player: current_player,
+                            above_player,
+                            below_player,
                         };
 
                         send_packet(player_stats, &mut sender).await;

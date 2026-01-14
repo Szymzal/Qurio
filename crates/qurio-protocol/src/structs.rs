@@ -62,6 +62,19 @@ pub enum HandshakeRejectionReason {
     HostIsTaken,
 }
 
+#[derive(Debug, Clone, PartialEq, BinWrite)]
+pub struct KnownPlayerStats {
+    pub position: u8,
+    pub points: u16,
+}
+
+#[derive(Debug, Clone, PartialEq, BinWrite)]
+pub struct PlayerLeaderboardStats {
+    pub position: u8,
+    pub username: UserName,
+    pub points: u16,
+}
+
 // ======= STRUCT IMPLEMENTATIONS =======
 
 impl UserId {

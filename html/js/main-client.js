@@ -26,8 +26,8 @@ const wait = document.querySelector("#wait");
 const waitForHost = document.querySelector("#waitForHost");
 /** @type HTMLHeadingElement | null */
 const lobby = document.querySelector("#lobby");
-/** @type HTMLParagraphElement | null */
-const usernameText = document.querySelector(".usernameText");
+/** @type NodeListOf<HTMLParagraphElement> | null */
+const usernameTexts = document.querySelectorAll(".usernameText");
 
 /** @type HTMLDivElement | null */
 const waitForQuestion = document.querySelector("#waitingForQuestion");
@@ -52,6 +52,22 @@ const questionableResults = document.querySelector("#questionableResults");
 const playerPosition = document.querySelector("#playerPosition");
 /** @type HTMLHeadingElement | null */
 const playerPoints = document.querySelector("#playerPoints");
+/** @type HTMLHeadingElement | null */
+const aboveDiv = document.querySelector(".abovePlace");
+/** @type HTMLHeadingElement | null */
+const abovePosition = document.querySelector(".abovePlace .position");
+/** @type HTMLHeadingElement | null */
+const aboveUsername = document.querySelector(".abovePlace .otherUsername");
+/** @type HTMLHeadingElement | null */
+const abovePoints = document.querySelector(".abovePlace .points");
+/** @type HTMLHeadingElement | null */
+const belowDiv = document.querySelector(".belowPlace");
+/** @type HTMLHeadingElement | null */
+const belowPosition = document.querySelector(".belowPlace .position");
+/** @type HTMLHeadingElement | null */
+const belowUsername = document.querySelector(".belowPlace .otherUsername");
+/** @type HTMLHeadingElement | null */
+const belowPoints = document.querySelector(".belowPlace .points");
 
 /** @type HTMLDivElement | null */
 const gameResults = document.querySelector("#gameResults");
@@ -98,14 +114,14 @@ let username = "";
 
 // ====== WEBSOCKET CONNECTION ======
 if (join_btn && usernameInput && error_box) {
-  join_btn.addEventListener("click", function(e) {
+  join_btn.addEventListener("click", function (e) {
     e.preventDefault();
     this.disabled = true;
 
     const websocket = new WebSocket(`ws://${window.location.host}/ws`);
     websocket.binaryType = "arraybuffer";
 
-    websocket.onopen = function() {
+    websocket.onopen = function () {
       console.log("connection opened");
 
       username = usernameInput.value.trim();
@@ -114,12 +130,12 @@ if (join_btn && usernameInput && error_box) {
 
     const btn = this;
 
-    websocket.onclose = function() {
+    websocket.onclose = function () {
       console.log("connection closed");
       btn.disabled = false;
     };
 
-    websocket.onmessage = function(e) {
+    websocket.onmessage = function (e) {
       if (e.data instanceof ArrayBuffer) {
         handlePackets(e.data);
       } else {
@@ -133,7 +149,7 @@ if (join_btn && usernameInput && error_box) {
         const answer = answers[i];
         answer.addEventListener("click", (event) => {
           event.preventDefault();
-          
+
           answers.forEach((answer) => {
             answer.disabled = true;
           });
@@ -167,26 +183,41 @@ function handlePackets(data) {
   console.debug("Received packet ID: ", packet.packetID);
   switch (packet.packetID) {
     case S2CPacketID.HandshakeAccepted:
-      const handshakeAcceptedPacket = /** @type {import("./modules/protocol.mjs").HandshakeAcceptedPacket} */ (packet.value);
+      const handshakeAcceptedPacket =
+        /** @type {import("./modules/protocol.mjs").HandshakeAcceptedPacket} */ (
+          packet.value
+        );
       user_id = handshakeAcceptedPacket.userID;
-      
-      if (usernameText) {
-        usernameText.innerText = username;
+
+      if (usernameTexts && usernameTexts.length > 0) {
+        usernameTexts.forEach((x) => {
+          console.log(`Username: ${username}`);
+          x.innerText = username;
+        });
       } else {
-        console.error("No usernameText?");
+        console.error("No usernameTexts?");
       }
 
       switchPages(PagesID.WAIT);
       break;
     case S2CPacketID.HandshakeRejected:
-      const handshakeRejectedPacket = /** @type {import("./modules/protocol.mjs").HandshakeRejectedPacket} */ (packet.value);
-      console.error("Handshake was rejected! {}", handshakeRejectedPacket.reason);
+      const handshakeRejectedPacket =
+        /** @type {import("./modules/protocol.mjs").HandshakeRejectedPacket} */ (
+          packet.value
+        );
+      console.error(
+        "Handshake was rejected! {}",
+        handshakeRejectedPacket.reason,
+      );
       break;
     case S2CPacketID.GameIsStarting:
       switchPages(PagesID.WAIT_FOR_QUESTION);
       break;
     case S2CPacketID.AnswerDetails:
-      const answerDetailsPacket = /** @type {import("./modules/protocol.mjs").AnswerDetailsPacket} */ (packet.value);
+      const answerDetailsPacket =
+        /** @type {import("./modules/protocol.mjs").AnswerDetailsPacket} */ (
+          packet.value
+        );
       numberOfAnswers = answerDetailsPacket.numOfAnswers;
 
       if (answer0 && answer1 && answer2 && answer3) {
@@ -224,15 +255,45 @@ function handlePackets(data) {
       switchPages(PagesID.ANSWER);
       break;
     case S2CPacketID.PlayerStats:
-      const playerStatsPacket = /** @type {import("./modules/protocol.mjs").PlayerStatsPacket} */ (packet.value);
+      const playerStatsPacket =
+        /** @type {import("./modules/protocol.mjs").PlayerStatsPacket} */ (
+          packet.value
+        );
       switchPages(PagesID.QUESTIONABLE_RESULTS);
 
       if (playerPosition && playerPoints) {
-        playerPosition.textContent = `${playerStatsPacket.position}`;
-        playerPoints.textContent = `${playerStatsPacket.points}`;
+        playerPosition.textContent = `${playerStatsPacket.player.position}.`;
+        playerPoints.textContent = `${playerStatsPacket.player.points}`;
       } else {
         console.error("No player position & points");
       }
+
+      if (abovePoints && aboveUsername && abovePosition && aboveDiv) {
+        if (playerStatsPacket.above_player === null) {
+          aboveDiv.style.visibility = "hidden";
+        } else {
+          aboveDiv.style.visibility = "visible";
+          abovePosition.textContent = `${playerStatsPacket.above_player.position}.`;
+          aboveUsername.textContent = `${playerStatsPacket.above_player.username}`;
+          abovePoints.textContent = `${playerStatsPacket.above_player.points}`;
+        }
+      } else {
+        console.error("No above player leaderboards!");
+      }
+
+      if (belowPoints && belowUsername && belowPosition && belowDiv) {
+        if (playerStatsPacket.below_player === null) {
+          belowDiv.style.visibility = "hidden";
+        } else {
+          belowDiv.style.visibility = "visible";
+          belowPosition.textContent = `${playerStatsPacket.below_player.position}.`;
+          belowUsername.textContent = `${playerStatsPacket.below_player.username}`;
+          belowPoints.textContent = `${playerStatsPacket.below_player.points}`;
+        }
+      } else {
+        console.error("No below player leaderboards!");
+      }
+
       break;
     case S2CPacketID.NextQuestion:
       switchPages(PagesID.WAIT_FOR_QUESTION);
@@ -241,7 +302,10 @@ function handlePackets(data) {
       switchPages(PagesID.WAIT_FOR_QUESTION);
       break;
     case S2CPacketID.PlayerOverallStats:
-      const playerOverallStats = /** @type {import("./modules/protocol.mjs").PlayerOverallStatsPacket} */ (packet.value);
+      const playerOverallStats =
+        /** @type {import("./modules/protocol.mjs").PlayerOverallStatsPacket} */ (
+          packet.value
+        );
       switchPages(PagesID.GAME_RESULTS);
 
       if (overallPlayerPosition && overallPlayerPoints) {

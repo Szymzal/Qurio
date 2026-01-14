@@ -406,7 +406,7 @@ canvas {
   font-size: 1.4rem;
 }
 
-#usernameText,
+.player .usernameText,
 .otherUsername,
 #playerPoints,
 .points {
@@ -419,7 +419,7 @@ canvas {
   text-align: right;
 }
 
-#usernameText,
+.player .usernameText,
 .otherUsername {
   text-align: left;
 }

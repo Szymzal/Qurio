@@ -23,6 +23,23 @@ const PROTOCOL_MAGIC_LENGTH = PROTOCOL_MAGIC.length + 1; // Adding one more byte
  */
 
 /**
+ * KnownPlayerStats
+ *
+ * @typedef {Object} KnownPlayerStats
+ * @property {number} position - position on leaderboard
+ * @property {number} points - how many points does user have
+ */
+
+/**
+ * PlayerLeaderboardStats
+ *
+ * @typedef {Object} PlayerLeaderboardsStats
+ * @property {number} position - position on leaderboard
+ * @property {string} username - username of this player
+ * @property {number} points - how many points does user have
+ */
+
+/**
  * Leaderboard
  *
  * @typedef {Object} Leaderboard
@@ -73,8 +90,8 @@ export const S2CPacketID = {
   HostLeft: 18,
 };
 
-const readLeaderboards = (
-  /** 
+const readLeaderboards =
+  /**
    * @param {number} offset
    * @param {DataView} dataView
    * @returns {Leaderboard}
@@ -85,7 +102,7 @@ const readLeaderboards = (
     offset++;
 
     const leaderboard = {
-      users: []
+      users: [],
     };
     for (let i = 0; i < numOfUsers; i++) {
       const id = dataView.getUint8(offset);
@@ -101,11 +118,10 @@ const readLeaderboards = (
     }
 
     return [leaderboard, offset - oldOffset];
-  }
-);
+  };
 
-const readUser = (
-  /** 
+const readUser =
+  /**
    * @param {number} offset
    * @param {DataView} dataView
    * @returns {User}
@@ -115,6 +131,26 @@ const readUser = (
     const userID = dataView.getUint8(offset);
     offset++;
 
+    const [username, newOffset] = readUserName(dataView, offset);
+    offset += newOffset;
+
+    return [
+      {
+        userID: userID,
+        username: username,
+      },
+      offset - oldOffset,
+    ];
+  };
+
+const readUserName =
+  /**
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {string}
+   */
+  (dataView, offset) => {
+    const oldOffset = offset;
     const usernameLength = dataView.getUint8(offset);
     offset++;
 
@@ -128,15 +164,11 @@ const readUser = (
     const decoder = new TextDecoder();
     const username = decoder.decode(usernameBuffer);
 
-    return [{
-      userID: userID,
-      username: username
-    }, offset - oldOffset];
-  }
-);
+    return [username, offset - oldOffset];
+  };
 
-const readBinString = (
-  /** 
+const readBinString =
+  /**
    * @param {number} offset
    * @param {DataView} dataView
    * @returns {string}
@@ -157,10 +189,9 @@ const readBinString = (
     const string = decoder.decode(stringBuffer);
 
     return [string, offset - oldOffset];
-  }
-);
+  };
 
-const writeMagic = (
+const writeMagic =
   /** @param {DataView} dataView
    *  @returns {number}
    */
@@ -175,18 +206,21 @@ const writeMagic = (
     });
 
     return offset;
-  }
-);
+  };
 
-const readMagic = (
+const readMagic =
   /** Returns -1 when there are not a matching magic value or offset of rest of the bytes
    *
-   * @param {DataView} dataView 
+   * @param {DataView} dataView
    * @returns {number}
    */
   (dataView) => {
     const encodedTextBuffer = new ArrayBuffer(PROTOCOL_MAGIC.length);
-    const dataViewText = new DataView(encodedTextBuffer, 0, encodedTextBuffer.byteLength);
+    const dataViewText = new DataView(
+      encodedTextBuffer,
+      0,
+      encodedTextBuffer.byteLength,
+    );
     let offset = 0;
 
     for (let i = 0; i < PROTOCOL_MAGIC.length; i++) {
@@ -203,14 +237,13 @@ const readMagic = (
     }
 
     return offset;
-  }
-);
+  };
 
 // ======== C2S ========
 
 const INITIALIZE_HANDSHAKE_PACKET_ID = 0;
-export const initializeHandshakePacket = (
-  /** 
+export const initializeHandshakePacket =
+  /**
    * Client to Server Packet
    * Used to initialize connection though WebSocket
    *
@@ -223,14 +256,16 @@ export const initializeHandshakePacket = (
    * - 1 byte  (Length of the username)
    * - x bytes (Username)
    *
-   * @param {string} username 
+   * @param {string} username
    * @returns {ArrayBuffer}
    */
   (username) => {
     const encoder = new TextEncoder();
     const username_encoded = encoder.encode(username);
 
-    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH + 2 + username_encoded.byteLength + 1);
+    const buffer = new ArrayBuffer(
+      PROTOCOL_MAGIC_LENGTH + 2 + username_encoded.byteLength + 1,
+    );
     const dataView = new DataView(buffer, 0, buffer.byteLength);
 
     // Offset from start of the buffer
@@ -250,12 +285,11 @@ export const initializeHandshakePacket = (
     });
 
     return buffer;
-  }
-);
+  };
 
 const INITIALIZE_HOST_HANDSHAKE_PACKET_ID = 1;
-export const initializeHostHandshakePacket = (
-  /** 
+export const initializeHostHandshakePacket =
+  /**
    * Host to Server Packet
    * Used to initialize connection though WebSocket as a host
    *
@@ -277,12 +311,11 @@ export const initializeHostHandshakePacket = (
     dataView.setUint16(offset + 1, PROTOCOL_VERSION);
 
     return buffer;
-  }
-);
+  };
 
 const START_GAME_PACKET_ID = 2;
-export const startGamePacket = (
-  /** 
+export const startGamePacket =
+  /**
    * Host to Server Packet
    * Starts game
    *
@@ -301,12 +334,11 @@ export const startGamePacket = (
     dataView.setUint8(offset, START_GAME_PACKET_ID);
 
     return buffer;
-  }
-);
+  };
 
 const NEXT_QUESTION_PACKET_ID = 3;
-export const nextQuestionPacket = (
-  /** 
+export const nextQuestionPacket =
+  /**
    * Host to Server Packet
    * Indicates to the server that host is ready for next question
    *
@@ -325,12 +357,11 @@ export const nextQuestionPacket = (
     dataView.setUint8(offset, NEXT_QUESTION_PACKET_ID);
 
     return buffer;
-  }
-);
+  };
 
 const FINISH_STATS_PACKET_ID = 4;
-export const finishStatsPacket = (
-  /** 
+export const finishStatsPacket =
+  /**
    * Host to Server Packet
    * Indicates to the server that host is ready for next question
    *
@@ -349,12 +380,11 @@ export const finishStatsPacket = (
     dataView.setUint8(offset, FINISH_STATS_PACKET_ID);
 
     return buffer;
-  }
-);
+  };
 
 const RETURN_TO_LOBBY_PACKET_ID = 5;
-export const returnToLobbyPacket = (
-  /** 
+export const returnToLobbyPacket =
+  /**
    * Host to Server Packet
    * Indicates to the server that host wants to end the game by returning to the lobby
    *
@@ -373,12 +403,11 @@ export const returnToLobbyPacket = (
     dataView.setUint8(offset, RETURN_TO_LOBBY_PACKET_ID);
 
     return buffer;
-  }
-);
+  };
 
 const ANSWER_PACKET_ID = 6;
-export const answerPacket = (
-  /** 
+export const answerPacket =
+  /**
    * Client to Server Packet
    * Selects answer to the question. If the packet is send too late the packet and the answer will be ignored
    *
@@ -402,12 +431,11 @@ export const answerPacket = (
     dataView.setUint8(offset, answer_index);
 
     return buffer;
-  }
-);
+  };
 
 // ======== S2C ========
 
-export const readPacket = (
+export const readPacket =
   /**
    * A Server to Client Packet
    *
@@ -434,8 +462,8 @@ export const readPacket = (
    *            HostLeftPacket} value - value of the packet
    */
 
-  /** 
-   * @param {ArrayBuffer} buffer 
+  /**
+   * @param {ArrayBuffer} buffer
    * @returns {S2CPacket}
    */
   (buffer) => {
@@ -518,10 +546,9 @@ export const readPacket = (
         console.error("Packet ID not matched");
         return {};
     }
-  }
-);
+  };
 
-const handshakeAcceptedPacket = (
+const handshakeAcceptedPacket =
   /**
    * Handshake Accepted Packet
    * A Server to Client Packet
@@ -541,12 +568,11 @@ const handshakeAcceptedPacket = (
   (dataView, offset) => {
     const userID = dataView.getUint8(offset);
     return {
-      userID: userID
+      userID: userID,
     };
-  }
-);
+  };
 
-const handshakeRejectedPacket = (
+const handshakeRejectedPacket =
   /**
    * Handshake Rejected Packet
    * A Server to Client/Host Packet
@@ -568,13 +594,13 @@ const handshakeRejectedPacket = (
     const reason = dataView.getUint8(offset);
 
     if (
-      reason === HandshakeRejectionReason.USERNAME_TOO_SHORT || 
+      reason === HandshakeRejectionReason.USERNAME_TOO_SHORT ||
       reason === HandshakeRejectionReason.USERNAME_TOO_LONG
     ) {
       const gotCharacters = dataView.getUint32(offset + 1);
       return {
         reason: reason,
-        got: gotCharacters
+        got: gotCharacters,
       };
     } else if (
       reason === HandshakeRejectionReason.INCORRECT_PROTOCOL_VERSION ||
@@ -584,16 +610,15 @@ const handshakeRejectedPacket = (
     ) {
       return {
         reason: reason,
-        got: null
+        got: null,
       };
     }
 
     console.error("Couldn't read rejection reason");
     return {};
-  }
-);
+  };
 
-const hostHandshakeAcceptedPacket = (
+const hostHandshakeAcceptedPacket =
   /**
    * Host Handshake Accepted Packet
    * A Server to Host Packet
@@ -613,7 +638,7 @@ const hostHandshakeAcceptedPacket = (
   (dataView, offset) => {
     const userCount = dataView.getUint8(offset);
     offset++;
-    
+
     const users = [];
     for (let userI = 0; userI < userCount; userI++) {
       const [user, newOffset] = readUser(dataView, offset);
@@ -622,12 +647,11 @@ const hostHandshakeAcceptedPacket = (
     }
 
     return {
-      users: users
+      users: users,
     };
-  }
-);
+  };
 
-const userJoinedPacket = (
+const userJoinedPacket =
   /**
    * New user joined. Information to the host to add to their state.
    * A Server to Host Packet
@@ -647,12 +671,11 @@ const userJoinedPacket = (
   (dataView, offset) => {
     const [user, _] = readUser(dataView, offset);
     return {
-      user: user
+      user: user,
     };
-  }
-);
+  };
 
-const userLeftPacket = (
+const userLeftPacket =
   /**
    * User left. Information to the host to remove from their state.
    * A Server to Host Packet
@@ -672,12 +695,11 @@ const userLeftPacket = (
   (dataView, offset) => {
     const userID = dataView.getUint8(offset);
     return {
-      userID: userID
+      userID: userID,
     };
-  }
-);
+  };
 
-const questionInfoPacket = (
+const questionInfoPacket =
   /**
    * Information about question to display
    * A Server to Host Packet
@@ -728,10 +750,9 @@ const questionInfoPacket = (
       question: question,
       answers: answers,
     };
-  }
-);
+  };
 
-const questionStatsPacket = (
+const questionStatsPacket =
   /**
    * Statistics about question
    * A Server to Host Packet
@@ -772,10 +793,9 @@ const questionStatsPacket = (
       leaderboard: leaderboard,
       correctAnswer: correctAnswer,
     };
-  }
-);
+  };
 
-const gameStatsPacket = (
+const gameStatsPacket =
   /**
    * Statistics about the whole game
    * A Server to Host Packet
@@ -798,8 +818,7 @@ const gameStatsPacket = (
     return {
       leaderboard: leaderboard,
     };
-  }
-);
+  };
 
 /**
  * Indication that the game is starting
@@ -815,7 +834,7 @@ const gameStatsPacket = (
  * @typedef {Object} NextQuestionPacket
  */
 
-const answerDetailsPacket = (
+const answerDetailsPacket =
   /**
    * Details about answer
    * A Server to Client Packet
@@ -838,17 +857,17 @@ const answerDetailsPacket = (
     return {
       numOfAnswers: numOfAnswers,
     };
-  }
-);
+  };
 
-const playerStatsPacket = (
+const playerStatsPacket =
   /**
    * Statistics about single player
    * A Server to Client Packet
    *
    * @typedef {Object} PlayerStatsPacket
-   * @property {number} position - in which position is the player
-   * @property {number} points - how many points does have the player
+   * @property {KnownPlayerStats} player - current player statistics
+   * @property {PlayerLeaderboardsStats|null} above_player - (OPTIONAL) statistics of player above in leaderboards
+   * @property {PlayerLeaderboardsStats|null} below_player - (OPTIONAL) statistics of player below in leaderboards
    */
 
   /** AWARE: You should not use this function directly only with conjuction with readPacket.
@@ -864,13 +883,84 @@ const playerStatsPacket = (
     offset++;
 
     const points = dataView.getUint16(offset);
+    offset += 2;
+
+    if (offset + dataView.byteOffset + 4 < dataView.byteLength) {
+      const other_position = dataView.getUint8(offset);
+      offset++;
+
+      const [other_username, newOffset] = readUserName(dataView, offset);
+      offset += newOffset;
+
+      const other_points = dataView.getUint16(offset);
+      offset += 2;
+
+      if (offset + dataView.byteOffset + 4 < dataView.byteLength) {
+        const below_position = dataView.getUint8(offset);
+        offset++;
+
+        const [below_username, newNewOffset] = readUserName(dataView, offset);
+        offset += newNewOffset;
+
+        const below_points = dataView.getUint16(offset);
+        offset += 2;
+
+        return {
+          player: {
+            position: position,
+            points: points,
+          },
+          above_player: {
+            position: other_position,
+            username: other_username,
+            points: other_points,
+          },
+          below_player: {
+            position: below_position,
+            username: below_username,
+            points: below_points,
+          },
+        };
+      }
+
+      if (position < other_position) {
+        return {
+          player: {
+            position: position,
+            points: points,
+          },
+          above_player: null,
+          below_player: {
+            position: other_position,
+            username: other_username,
+            points: other_points,
+          },
+        };
+      }
+
+      return {
+        player: {
+          position: position,
+          points: points,
+        },
+        above_player: {
+          position: other_position,
+          username: other_username,
+          points: other_points,
+        },
+        below_player: null,
+      };
+    }
 
     return {
-      position: position,
-      points: points,
+      player: {
+        position: position,
+        points: points,
+      },
+      above_player: null,
+      below_player: null,
     };
-  }
-);
+  };
 
 /**
  * Indication that the game ended
@@ -879,7 +969,7 @@ const playerStatsPacket = (
  * @typedef {Object} GameEndedPacket
  */
 
-const playerOverallStatsPacket = (
+const playerOverallStatsPacket =
   /**
    * Statistics about single player
    * A Server to Client Packet
@@ -907,8 +997,7 @@ const playerOverallStatsPacket = (
       position: position,
       points: points,
     };
-  }
-);
+  };
 
 /**
  * Now everyone is returning to the lobby
@@ -917,7 +1006,7 @@ const playerOverallStatsPacket = (
  * @typedef {Object} ReturnToLobbyPacket
  */
 
-const gameDetailsPacket = (
+const gameDetailsPacket =
   /**
    * Details about game
    * A Server to Host Packet
@@ -949,8 +1038,7 @@ const gameDetailsPacket = (
       title: title,
       numOfQuestions: numOfQuestions,
     };
-  }
-);
+  };
 
 /**
  * Indication that now is the moment to answer
