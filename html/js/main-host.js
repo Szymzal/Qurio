@@ -275,7 +275,7 @@ function handlePackets(data, ws) {
         );
 
       if (wellIDontReallyKnowHowToNameThis) {
-        wellIDontReallyKnowHowToNameThis.style.display = "";
+        wellIDontReallyKnowHowToNameThis.style.display = "none";
       } else {
         console.error(
           "HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?",
@@ -325,7 +325,7 @@ function handlePackets(data, ws) {
           });
 
           if (wellIDontReallyKnowHowToNameThis) {
-            wellIDontReallyKnowHowToNameThis.style.display = "none";
+            wellIDontReallyKnowHowToNameThis.style.display = "";
           } else {
             console.error(
               "HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?",
