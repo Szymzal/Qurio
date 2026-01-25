@@ -940,6 +940,11 @@ async fn assets(Path(path): Path<String>) -> impl IntoResponse {
             include_str!("../../../html/assets/firesprite.svg"),
         )
             .into_response(),
+        "tips" => (
+            [(header::CONTENT_TYPE, "application/json")],
+            include_str!("../../../html/assets/tips.json"),
+        )
+            .into_response(),
         _ => (StatusCode::NOT_FOUND, "Asset not found").into_response(),
     }
 }

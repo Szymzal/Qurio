@@ -1,0 +1,21 @@
+{
+  "neutral": [
+    "I already forgot the question",
+    "Are u sure?",
+    "Nah, I would choose other answer",
+    "Isn't it stressful?",
+    "Doing great! I think...",
+    "Feeling extra lucky?",
+    "Did u even read the question right?"
+  ],
+  "wrong": [
+    "Never give up!",
+    "That was a missclick",
+    "Unlucky"
+  ],
+  "correct": [
+    "Keep going!!!",
+    "You are amazing",
+    "Great guess..."
+  ]
+}

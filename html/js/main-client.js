@@ -76,6 +76,11 @@ const overallPlayerPosition = document.querySelector("#overallPlayerPosition");
 /** @type HTMLHeadingElement | null */
 const overallPlayerPoints = document.querySelector("#overallPlayerPoints");
 
+/** @type NodeListOf<HTMLHeadingElement> */
+const neutralTips = document.querySelectorAll(".neutralTips");
+/** @type NodeListOf<HTMLHeadingElement> */
+const resultTips = document.querySelectorAll(".correctDependentTips");
+
 // ====== VARIABLES ======
 
 /**
@@ -107,6 +112,7 @@ const pages = [
   waitForQuestion,
 ];
 
+let tips = null;
 let currentPage = PagesID.LOGIN;
 let numberOfAnswers = 0;
 let user_id = -1;
@@ -156,11 +162,12 @@ if (join_btn && usernameInput && error_box) {
 
           websocket.send(answerPacket(i));
 
+          setNeutralTips();
           switchPages(PagesID.WAITING_FOR_ANSWERS);
         });
       }
     } else {
-      console.error("No buttons!");
+      console.error("No answer buttons!");
     }
   });
 } else {
@@ -270,6 +277,8 @@ function handlePackets(data) {
         backgroundColorElement.classList.remove("correctAnswer");
       }
 
+      setResultTips(playerStatsPacket.correct);
+
       if (playerPosition && playerPoints) {
         playerPosition.textContent = `${playerStatsPacket.player.position}.`;
         playerPoints.textContent = `${playerStatsPacket.player.points}`;
@@ -373,3 +382,43 @@ function switchPages(to) {
 
   currentPage = to;
 }
+
+function setNeutralTips() {
+  const randomIndex = Math.floor(Math.random() * tips.neutral.length);
+  const randomTip = tips.neutral[randomIndex];
+
+  neutralTips.forEach((neutralTip) => {
+    neutralTip.textContent = randomTip;
+  });
+}
+
+/**
+ * @param {boolean} correct
+ */
+function setResultTips(correct) {
+  let randomTip = "";
+  if (correct) {
+    const randomIndex = Math.floor(Math.random() * tips.correct.length);
+    randomTip = tips.correct[randomIndex];
+  } else {
+    const randomIndex = Math.floor(Math.random() * tips.wrong.length);
+    randomTip = tips.wrong[randomIndex];
+  }
+
+  resultTips.forEach((resultTip) => {
+    resultTip.textContent = randomTip;
+  });
+}
+
+// ====== ASSETS INITIALIZATION ======
+
+fetch(new Request(`/assets/tips`))
+  .then((response) => {
+    if (!response.ok) {
+      console.error("Failed to fetch tips!");
+      return;
+    }
+
+    return response.json();
+  })
+  .then((json) => (tips = json));
