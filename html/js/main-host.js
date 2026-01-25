@@ -514,37 +514,7 @@ function handlePackets(data, ws) {
       const leaderboardUsers = questionStatsPacket.leaderboard.users;
 
       if (leaderboard) {
-        while (leaderboard.firstChild) {
-          leaderboard.removeChild(leaderboard.firstChild);
-        }
-
-        for (let i = 0; i < leaderboardUsers.length; i++) {
-          const userStat = leaderboardUsers[i];
-
-          const element = document.createElement("div");
-          const position = document.createElement("p");
-          position.textContent = `${i + 1}.`;
-
-          const username = document.createElement("p");
-          const userInfo = users.find((x) => x.userID == userStat.userID);
-          if (userInfo) {
-            username.textContent = userInfo.username;
-          } else {
-            console.error(
-              "User does not exist! Leaderboards will be unfinished!",
-            );
-            username.textContent = "ERROR";
-          }
-
-          const points = document.createElement("p");
-          points.textContent = userStat.points.toString();
-
-          element.appendChild(position);
-          element.appendChild(username);
-          element.appendChild(points);
-
-          leaderboard.appendChild(element);
-        }
+        setLeaderboard(leaderboard, leaderboardUsers);
       } else {
         console.error("No leaderboards!");
       }
@@ -570,37 +540,7 @@ function handlePackets(data, ws) {
       const gameLeaderboardUsers = gameStatsPacket.leaderboard.users;
 
       if (gameLeaderboard) {
-        while (gameLeaderboard.firstChild) {
-          gameLeaderboard.removeChild(gameLeaderboard.firstChild);
-        }
-
-        for (let i = 0; i < gameLeaderboardUsers.length; i++) {
-          const userStat = gameLeaderboardUsers[i];
-
-          const element = document.createElement("div");
-          const position = document.createElement("p");
-          position.textContent = `${i + 1}.`;
-
-          const username = document.createElement("p");
-          const userInfo = users.find((x) => (x.userID = userStat.userID));
-          if (userInfo) {
-            username.textContent = userInfo.username;
-          } else {
-            console.error(
-              "User does not exist! Leaderboards will be unfinished!",
-            );
-            username.textContent = "ERROR";
-          }
-
-          const points = document.createElement("p");
-          points.textContent = userStat.points.toString();
-
-          element.appendChild(position);
-          element.appendChild(username);
-          element.appendChild(points);
-
-          gameLeaderboard.appendChild(element);
-        }
+        setLeaderboard(gameLeaderboard, gameLeaderboardUsers);
       } else {
         console.error("No leaderboards!");
       }
@@ -692,4 +632,47 @@ function switchPages(to) {
 
 function progressbarKeyframes() {
   return [{ "--percentage": "0%" }, { "--percentage": "103%" }];
+}
+
+/**
+ * @param {Element} leaderboard
+ * @param {import("./modules/protocol.mjs").UserStat[]} players
+ */
+function setLeaderboard(leaderboard, players) {
+  while (leaderboard.firstChild) {
+    leaderboard.removeChild(leaderboard.firstChild);
+  }
+
+  for (let i = 0; i < players.length; i++) {
+    const userStat = players[i];
+
+    const element = document.createElement("div");
+    element.className = "player";
+    const miniAvatar = document.createElement("div");
+    miniAvatar.className = "miniAvatar";
+    const position = document.createElement("p");
+    position.textContent = `${i + 1}.`;
+    position.className = "position";
+
+    const username = document.createElement("p");
+    username.className = "username";
+    const userInfo = users.find((x) => x.userID == userStat.userID);
+    if (userInfo) {
+      username.textContent = userInfo.username;
+    } else {
+      console.error("User does not exist! Leaderboards will be unfinished!");
+      username.textContent = "ERROR";
+    }
+
+    const points = document.createElement("p");
+    points.textContent = userStat.points.toString();
+    points.className = "points";
+
+    element.appendChild(miniAvatar);
+    element.appendChild(position);
+    element.appendChild(username);
+    element.appendChild(points);
+
+    leaderboard.appendChild(element);
+  }
 }
