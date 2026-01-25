@@ -47,7 +47,6 @@ use tokio::{
     net::TcpListener,
     signal,
     sync::{Mutex, RwLock, broadcast},
-    time::sleep,
 };
 use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
 use tracing::{info, warn};
@@ -77,7 +76,7 @@ struct AppState {
     answered: Mutex<HashSet<UserId>>,
     correct_answers: Mutex<HashSet<UserId>>,
     tx: broadcast::Sender<S2CPackets>,
-    question_interrupt: Mutex<Option<Sender<bool>>>,
+    sleep_interrupt: Mutex<Option<Sender<bool>>>,
 }
 
 #[tokio::main]
@@ -114,7 +113,7 @@ async fn main() {
         answered: Mutex::new(HashSet::new()),
         correct_answers: Mutex::new(HashSet::new()),
         tx,
-        question_interrupt: Mutex::new(None),
+        sleep_interrupt: Mutex::new(None),
     });
 
     let app = Router::new()
@@ -130,7 +129,7 @@ async fn main() {
         .route("/particles.min.js", get(js_particles))
         .route("/ws", get(websocket_handler))
         .route("/assets/{file}", get(assets))
-        .with_state(app_state)
+        .with_state(app_state.clone())
         .layer((
             TraceLayer::new_for_http(),
             TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, Duration::from_secs(10)),
@@ -144,12 +143,12 @@ async fn main() {
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
 
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(shutdown_signal(app_state))
         .await
         .expect("Axum serve to be successful!")
 }
 
-async fn shutdown_signal() {
+async fn shutdown_signal(app_state: Arc<AppState>) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -170,6 +169,11 @@ async fn shutdown_signal() {
     tokio::select! {
         _ = ctrl_c => {},
         _ = terminate => {},
+    }
+
+    let lock = app_state.sleep_interrupt.lock().await;
+    if let Some(send) = &*lock {
+        let _ = send.send(false);
     }
 }
 
@@ -569,7 +573,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                         if all_players_counted == players_answered {
                             // Send interrupt
-                            let lock = background_recv_state.question_interrupt.lock().await;
+                            let lock = background_recv_state.sleep_interrupt.lock().await;
                             if let Some(send) = &*lock {
                                 let _ = send.send(true);
                             }
@@ -1022,8 +1026,24 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
     let read_question_milis = question.read_question_milis as u64 + additional_wait;
     let answer_milis = question.answer_milis as u64;
     tokio::spawn(async move {
+        let (send, recv): (Sender<bool>, Receiver<bool>) = mpsc::channel();
+        let mut interrupt = background_recv_state.sleep_interrupt.lock().await;
+        *interrupt = Some(send);
+        drop(interrupt);
+
+        // Some kind of interruptable sleep
         // NOTE: You need to be very careful with those sleep functions
-        sleep(Duration::from_millis(read_question_milis)).await;
+        if recv
+            .recv_timeout(Duration::from_millis(read_question_milis))
+            .is_ok()
+        {
+            tracing::info!("Received interrupt, closing thread");
+            return;
+        }
+
+        let mut interrupt = background_recv_state.sleep_interrupt.lock().await;
+        *interrupt = None;
+        drop(interrupt);
 
         *background_recv_state.game_state.write().await = GameState::Answering;
         if let Err(err) = background_recv_state.tx.send(S2CPackets::StartAnswering) {
@@ -1034,7 +1054,7 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
         // Don't remove this seperate thread, otherwise it will break
         tokio::spawn(async move {
             let (send, recv): (Sender<bool>, Receiver<bool>) = mpsc::channel();
-            let mut interrupt = background_recv_state.question_interrupt.lock().await;
+            let mut interrupt = background_recv_state.sleep_interrupt.lock().await;
             *interrupt = Some(send);
             drop(interrupt);
 
@@ -1042,7 +1062,7 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
             // NOTE: You need to be very careful with those sleep functions
             let _ = recv.recv_timeout(Duration::from_millis(answer_milis));
 
-            let mut interrupt = background_recv_state.question_interrupt.lock().await;
+            let mut interrupt = background_recv_state.sleep_interrupt.lock().await;
             *interrupt = None;
             drop(interrupt);
 

@@ -156,9 +156,13 @@ if (playerBoard !== null) {
     startGameBtn.addEventListener("click", (event) => {
       event.preventDefault();
 
-      startGameBtn.disabled = true;
-      toTheLobbyBtn.disabled = false;
-      websocket.send(startGamePacket());
+      if (users.length > 0) {
+        startGameBtn.disabled = true;
+        toTheLobbyBtn.disabled = false;
+        websocket.send(startGamePacket());
+      } else {
+        console.error("You need at least 1 player!");
+      }
     });
 
     toTheLobbyBtn.addEventListener("click", (event) => {
