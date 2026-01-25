@@ -261,6 +261,15 @@ function handlePackets(data) {
         );
       switchPages(PagesID.QUESTIONABLE_RESULTS);
 
+      const backgroundColorElement = document.body;
+      if (playerStatsPacket.correct) {
+        backgroundColorElement.classList.add("correctAnswer");
+        backgroundColorElement.classList.remove("wrongAnswer");
+      } else {
+        backgroundColorElement.classList.add("wrongAnswer");
+        backgroundColorElement.classList.remove("correctAnswer");
+      }
+
       if (playerPosition && playerPoints) {
         playerPosition.textContent = `${playerStatsPacket.player.position}.`;
         playerPoints.textContent = `${playerStatsPacket.player.points}`;
@@ -296,9 +305,15 @@ function handlePackets(data) {
 
       break;
     case S2CPacketID.NextQuestion:
+      const backgroundColorElement2 = document.body;
+      backgroundColorElement2.classList.remove("correctAnswer");
+      backgroundColorElement2.classList.remove("wrongAnswer");
       switchPages(PagesID.WAIT_FOR_QUESTION);
       break;
     case S2CPacketID.GameEnded:
+      const backgroundColorElement3 = document.body;
+      backgroundColorElement3.classList.remove("correctAnswer");
+      backgroundColorElement3.classList.remove("wrongAnswer");
       switchPages(PagesID.WAIT_FOR_QUESTION);
       break;
     case S2CPacketID.PlayerOverallStats:

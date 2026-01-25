@@ -75,6 +75,35 @@ pub struct PlayerLeaderboardStats {
     pub points: u16,
 }
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct BinBool(bool);
+
+impl BinWrite for BinBool {
+    type Args<'a> = ();
+
+    fn write_options<W: std::io::Write + std::io::Seek>(
+        &self,
+        writer: &mut W,
+        endian: binrw::Endian,
+        _args: Self::Args<'_>,
+    ) -> binrw::BinResult<()> {
+        let value = if self.0 { 1u8 } else { 0u8 };
+        value.write_options(writer, endian, ())
+    }
+}
+
+impl From<BinBool> for bool {
+    fn from(value: BinBool) -> Self {
+        value.0
+    }
+}
+
+impl From<bool> for BinBool {
+    fn from(value: bool) -> Self {
+        BinBool(value)
+    }
+}
+
 // ======= STRUCT IMPLEMENTATIONS =======
 
 impl UserId {

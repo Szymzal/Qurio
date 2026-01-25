@@ -2,8 +2,8 @@ pub mod s2c {
     use std::io::Cursor;
 
     use crate::structs::{
-        BinString, HandshakeRejectionReason, KnownPlayerStats, Leaderboard, PlayerLeaderboardStats,
-        User, UserId,
+        BinBool, BinString, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
+        PlayerLeaderboardStats, User, UserId,
     };
     use binrw::BinWrite;
 
@@ -123,6 +123,7 @@ pub mod s2c {
 
     #[derive(BinWrite, Clone, Debug)]
     pub struct PlayerStatsPacket {
+        pub correct: BinBool,
         pub player: KnownPlayerStats,
         pub above_player: Option<PlayerLeaderboardStats>,
         pub below_player: Option<PlayerLeaderboardStats>,

@@ -75,6 +75,7 @@ struct AppState {
     question_index: AtomicU8,
     answers: Mutex<[u8; 4]>,
     answered: Mutex<HashSet<UserId>>,
+    correct_answers: Mutex<HashSet<UserId>>,
     tx: broadcast::Sender<S2CPackets>,
     question_interrupt: Mutex<Option<Sender<bool>>>,
 }
@@ -111,6 +112,7 @@ async fn main() {
         question_index: AtomicU8::new(0),
         answers: Mutex::new([0u8; 4]),
         answered: Mutex::new(HashSet::new()),
+        correct_answers: Mutex::new(HashSet::new()),
         tx,
         question_interrupt: Mutex::new(None),
     });
@@ -353,7 +355,10 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                             None
                         };
 
+                        let correct = send_state.correct_answers.lock().await.contains(&user_id);
+
                         let player_stats = PlayerStatsPacket {
+                            correct: correct.into(),
                             player: current_player,
                             above_player,
                             below_player,
@@ -539,11 +544,12 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         .expect("Answers to be populated") += 1;
 
                     let answer_mask = 1 << answer_packet.index;
-                    let points_to_add = if question.correct_answer_mask & answer_mask != 0 {
-                        1
-                    } else {
-                        0
-                    };
+                    let correct = question.correct_answer_mask & answer_mask != 0;
+                    let points_to_add = if correct { 1 } else { 0 };
+
+                    if correct {
+                        recv_state.correct_answers.lock().await.insert(user_id);
+                    }
 
                     let mut player_points = recv_state.player_points.write().await;
                     match player_points.get_mut(&user_id) {
@@ -609,6 +615,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     let mut answers = recv_state.answers.lock().await;
                     answers.iter_mut().for_each(|x| *x = 0);
                     recv_state.answered.lock().await.clear();
+                    recv_state.correct_answers.lock().await.clear();
                     recv_state.question_index.store(0, Ordering::Relaxed);
                     recv_state.player_points.write().await.clear();
 
@@ -982,6 +989,7 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
     let mut answers = recv_state.answers.lock().await;
     answers.iter_mut().for_each(|x| *x = 0);
     recv_state.answered.lock().await.clear();
+    recv_state.correct_answers.lock().await.clear();
 
     let question_index = recv_state.question_index.load(Ordering::Relaxed);
     let question = &recv_state.quiz.questions[question_index as usize];

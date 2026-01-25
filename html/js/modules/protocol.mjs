@@ -865,6 +865,7 @@ const playerStatsPacket =
    * A Server to Client Packet
    *
    * @typedef {Object} PlayerStatsPacket
+   * @property {boolean} correct - was player correct on this question?
    * @property {KnownPlayerStats} player - current player statistics
    * @property {PlayerLeaderboardsStats|null} above_player - (OPTIONAL) statistics of player above in leaderboards
    * @property {PlayerLeaderboardsStats|null} below_player - (OPTIONAL) statistics of player below in leaderboards
@@ -879,6 +880,9 @@ const playerStatsPacket =
    * @returns {PlayerStatsPacket}
    */
   (dataView, offset) => {
+    const correct = dataView.getUint8(offset) !== 0;
+    offset++;
+
     const position = dataView.getUint8(offset);
     offset++;
 
@@ -906,6 +910,7 @@ const playerStatsPacket =
         offset += 2;
 
         return {
+          correct: correct,
           player: {
             position: position,
             points: points,
@@ -925,6 +930,7 @@ const playerStatsPacket =
 
       if (position < other_position) {
         return {
+          correct: correct,
           player: {
             position: position,
             points: points,
@@ -939,6 +945,7 @@ const playerStatsPacket =
       }
 
       return {
+        correct: correct,
         player: {
           position: position,
           points: points,
@@ -953,6 +960,7 @@ const playerStatsPacket =
     }
 
     return {
+      correct: correct,
       player: {
         position: position,
         points: points,
