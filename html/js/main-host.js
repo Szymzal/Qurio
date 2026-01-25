@@ -35,8 +35,8 @@ const numOfQuestions = document.querySelector(".numOfQuestions");
 const wellIDontReallyKnowHowToNameThis = document.querySelector(
   ".wellIDontReallyKnowHowToNameThis",
 );
-/** @type HTMLDivElement | null */
-const progressBar = document.querySelector(".progressBar");
+/** @type NodeListOf<HTMLDivElement> */
+const progressBars = document.querySelectorAll(".progressBar");
 
 /** @type HTMLDivElement | null */
 const answersPage = document.querySelector("#answers");
@@ -128,6 +128,7 @@ const users = [];
 
 let currentPage = PagesID.LOBBY;
 let nextProgressBarDuration = 0;
+let nextAnswerProgressBarDuration = 0;
 
 // ====== WEBSOCKET CONNECTION ======
 if (playerBoard !== null) {
@@ -303,24 +304,20 @@ function handlePackets(data, ws) {
 
       console.dir(gameDetailsPacket.titleScreenWait);
 
-      if (progressBar) {
+      progressBars.forEach((progressBar) =>
         progressBar.animate(progressbarKeyframes(), {
           duration: gameDetailsPacket.titleScreenWait,
-        });
-      } else {
-        console.error("No progress bar?");
-      }
+        }),
+      );
 
       // TODO: Come up with better idea to control this thing...
       setTimeout(() => {
         if (quizTitle && question.length > 0) {
-          if (progressBar) {
+          progressBars.forEach((progressBar) =>
             progressBar.animate(progressbarKeyframes(), {
               duration: nextProgressBarDuration,
-            });
-          } else {
-            console.error("No progress bar?");
-          }
+            }),
+          );
 
           quizTitle.style.display = "none";
           question.forEach((q) => {
@@ -350,16 +347,20 @@ function handlePackets(data, ws) {
 
       console.dir(questionInfoPacket);
 
-      if (quizTitle && progressBar) {
+      if (quizTitle) {
         if (quizTitle.style.display !== "none") {
           nextProgressBarDuration = questionInfoPacket.readQuestionMilis;
+          nextAnswerProgressBarDuration = questionInfoPacket.answerMilis;
         } else {
-          progressBar.animate(progressbarKeyframes(), {
-            duration: questionInfoPacket.readQuestionMilis,
-          });
+          nextAnswerProgressBarDuration = questionInfoPacket.answerMilis;
+          progressBars.forEach((progressBar) =>
+            progressBar.animate(progressbarKeyframes(), {
+              duration: questionInfoPacket.readQuestionMilis,
+            }),
+          );
         }
       } else {
-        console.error("No quiz title or progress bar?");
+        console.error("No quiz title?");
       }
 
       if (questionNum) {
@@ -547,6 +548,12 @@ function handlePackets(data, ws) {
       switchPages(PagesID.QUESTION_STATS);
       break;
     case S2CPacketID.StartAnswering:
+      progressBars.forEach((progressBar) =>
+        progressBar.animate(progressbarKeyframes(), {
+          duration: nextAnswerProgressBarDuration,
+        }),
+      );
+
       switchPages(PagesID.ANSWERS);
       break;
     case S2CPacketID.GameStats:
