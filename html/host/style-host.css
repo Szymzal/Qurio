@@ -189,15 +189,15 @@ canvas {
   inherits: false;
 }
 
-@keyframes progress {
-  from {
-    --percentage: 0%;
-  }
-
-  to {
-    --percentage: 103%;
-  }
-}
+/* @keyframes progress { */
+/*   from { */
+/*     --percentage: 0%; */
+/*   } */
+/**/
+/*   to { */
+/*     --percentage: 103%; */
+/*   } */
+/* } */
 
 .progressBar {
   grid-area: progress;

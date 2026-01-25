@@ -489,7 +489,12 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     }
 
                     let background_recv_state = recv_state.clone();
-                    if question(background_recv_state.clone()).await {
+                    if question(
+                        background_recv_state.clone(),
+                        recv_state.quiz.title_screen_wait.into(),
+                    )
+                    .await
+                    {
                         return;
                     }
                 }
@@ -586,7 +591,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     }
 
                     let _ = recv_state.tx.send(S2CPackets::NextQuestion);
-                    if question(recv_state.clone()).await {
+                    if question(recv_state.clone(), 0).await {
                         return;
                     }
                 }
@@ -971,7 +976,7 @@ async fn js_module(Path(module_path): Path<String>) -> impl IntoResponse {
     (StatusCode::NOT_FOUND, "Module not found").into_response()
 }
 
-async fn question(recv_state: Arc<AppState>) -> bool {
+async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
     *recv_state.game_state.write().await = GameState::Question;
 
     let mut answers = recv_state.answers.lock().await;
@@ -1006,7 +1011,7 @@ async fn question(recv_state: Arc<AppState>) -> bool {
     }
 
     let background_recv_state = recv_state.clone();
-    let read_question_milis = question.read_question_milis as u64;
+    let read_question_milis = question.read_question_milis as u64 + additional_wait;
     let answer_milis = question.answer_milis as u64;
     tokio::spawn(async move {
         // NOTE: You need to be very careful with those sleep functions

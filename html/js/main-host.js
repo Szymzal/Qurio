@@ -35,6 +35,8 @@ const numOfQuestions = document.querySelector(".numOfQuestions");
 const wellIDontReallyKnowHowToNameThis = document.querySelector(
   ".wellIDontReallyKnowHowToNameThis",
 );
+/** @type HTMLDivElement | null */
+const progressBar = document.querySelector(".progressBar");
 
 /** @type HTMLDivElement | null */
 const answersPage = document.querySelector("#answers");
@@ -125,6 +127,7 @@ const pages = [
 const users = [];
 
 let currentPage = PagesID.LOBBY;
+let nextProgressBarDuration = 0;
 
 // ====== WEBSOCKET CONNECTION ======
 if (playerBoard !== null) {
@@ -299,9 +302,26 @@ function handlePackets(data, ws) {
       }
 
       console.dir(gameDetailsPacket.titleScreenWait);
+
+      if (progressBar) {
+        progressBar.animate(progressbarKeyframes(), {
+          duration: gameDetailsPacket.titleScreenWait,
+        });
+      } else {
+        console.error("No progress bar?");
+      }
+
       // TODO: Come up with better idea to control this thing...
       setTimeout(() => {
         if (quizTitle && question.length > 0) {
+          if (progressBar) {
+            progressBar.animate(progressbarKeyframes(), {
+              duration: nextProgressBarDuration,
+            });
+          } else {
+            console.error("No progress bar?");
+          }
+
           quizTitle.style.display = "none";
           question.forEach((q) => {
             q.style.display = "";
@@ -329,6 +349,18 @@ function handlePackets(data, ws) {
         );
 
       console.dir(questionInfoPacket);
+
+      if (quizTitle && progressBar) {
+        if (quizTitle.style.display !== "none") {
+          nextProgressBarDuration = questionInfoPacket.readQuestionMilis;
+        } else {
+          progressBar.animate(progressbarKeyframes(), {
+            duration: questionInfoPacket.readQuestionMilis,
+          });
+        }
+      } else {
+        console.error("No quiz title or progress bar?");
+      }
 
       if (questionNum) {
         questionNum.textContent = (
@@ -645,4 +677,8 @@ function switchPages(to) {
   }
 
   currentPage = to;
+}
+
+function progressbarKeyframes() {
+  return [{ "--percentage": "0%" }, { "--percentage": "103%" }];
 }
