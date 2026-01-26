@@ -3,7 +3,7 @@ pub mod s2c {
 
     use crate::structs::{
         BinBool, BinString, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
-        PlayerLeaderboardStats, User, UserId,
+        PlayerLeaderboardStats, QuestionAdvancements, User, UserId,
     };
     use binrw::BinWrite;
 
@@ -109,6 +109,7 @@ pub mod s2c {
         pub answers_answered: Vec<u8>,
         pub leaderboard: Leaderboard,
         pub correct_answer_mask: u8,
+        pub advancements: QuestionAdvancements,
     }
 
     #[derive(BinWrite, Clone, Debug)]

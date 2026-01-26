@@ -43,7 +43,31 @@ const PROTOCOL_MAGIC_LENGTH = PROTOCOL_MAGIC.length + 1; // Adding one more byte
  * Leaderboard
  *
  * @typedef {Object} Leaderboard
- * @param {UserStat[]} users
+ * @property {UserStat[]} users
+ */
+
+/**
+ * QuestionAdvancements
+ *
+ * @typedef {Object} QuestionAdvancements
+ * @property {QuickAdvancement} quick - Advancement of the quickest answer of the question
+ * @property {StreakAdvancement} streak - Advancement of the biggest streak of the round
+ */
+
+/**
+ * QuickAdvancement
+ *
+ * @typedef {Object} QuickAdvancement
+ * @property {number} userId - id of the advancement
+ * @property {number} time - how fast did he answered
+ */
+
+/**
+ * StreakAdvancement
+ *
+ * @typedef {Object} StreakAdvancement
+ * @property {number} userId - id of the advancement
+ * @property {number} streak - streak number of correct answers of the user
  */
 
 /**
@@ -761,6 +785,7 @@ const questionStatsPacket =
    * @property {number[]} numOfAnswers - how many players choose answers
    * @property {Leaderboard} leaderboard - leaderboards
    * @property {number} correctAnswer - index of the correct answer
+   * @property {QuestionAdvancements} advancements - advancements of the question
    */
 
   /** AWARE: You should not use this function directly only with conjuction with readPacket.
@@ -787,11 +812,34 @@ const questionStatsPacket =
     offset += newOffset;
 
     const correctAnswer = dataView.getUint8(offset);
+    offset++;
+
+    const quickUserId = dataView.getUint8(offset);
+    offset++;
+
+    const quickTime = dataView.getUint32(offset);
+    offset += 4;
+
+    const streakUserId = dataView.getUint8(offset);
+    offset++;
+
+    const streakNumber = dataView.getUint8(offset);
+    offset++;
 
     return {
       numOfAnswers: numOfAnswers,
       leaderboard: leaderboard,
       correctAnswer: correctAnswer,
+      advancements: {
+        quick: {
+          userId: quickUserId,
+          time: quickTime,
+        },
+        streak: {
+          userId: streakUserId,
+          streak: streakNumber,
+        },
+      },
     };
   };
 

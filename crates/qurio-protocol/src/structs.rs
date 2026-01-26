@@ -75,6 +75,24 @@ pub struct PlayerLeaderboardStats {
     pub points: u16,
 }
 
+#[derive(Debug, Clone, PartialEq, BinWrite)]
+pub struct QuickAdvancement {
+    pub user: UserId,
+    pub time: u32, // in milis
+}
+
+#[derive(Debug, Clone, PartialEq, BinWrite)]
+pub struct StreakAdvancement {
+    pub user: UserId,
+    pub streak: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, BinWrite)]
+pub struct QuestionAdvancements {
+    pub quickest: QuickAdvancement,
+    pub streak: StreakAdvancement,
+}
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct BinBool(bool);
 

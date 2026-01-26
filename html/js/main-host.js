@@ -92,6 +92,31 @@ const gameLeaderboard = document.querySelector("#gameLeaderboard");
 /** @type HTMLButtonElement | null */
 const toTheLobbyBtn = document.querySelector("#toTheLobby");
 
+/** @type HTMLParagraphElement | null */
+const quickPositionElement = document.querySelector(
+  "#quickestAchievement .row .position",
+);
+/** @type HTMLParagraphElement | null */
+const quickUsernameElement = document.querySelector(
+  "#quickestAchievement .row .username",
+);
+/** @type HTMLParagraphElement | null */
+const quickTimeElement = document.querySelector(
+  "#quickestAchievement .row .quickestTime",
+);
+/** @type HTMLParagraphElement | null */
+const streakPositionElement = document.querySelector(
+  "#streakAchievement .row .position",
+);
+/** @type HTMLParagraphElement | null */
+const streakUsernameElement = document.querySelector(
+  "#streakAchievement .row .username",
+);
+/** @type HTMLParagraphElement | null */
+const streakTimeElement = document.querySelector(
+  "#streakAchievement .row .highStreak",
+);
+
 // ====== VARIABLES ======
 
 /**
@@ -517,6 +542,52 @@ function handlePackets(data, ws) {
         setLeaderboard(leaderboard, leaderboardUsers);
       } else {
         console.error("No leaderboards!");
+      }
+
+      if (quickPositionElement && quickUsernameElement && quickTimeElement) {
+        const quickUserId = questionStatsPacket.advancements.quick.userId;
+        const quickTime = (
+          questionStatsPacket.advancements.quick.time / 1000.0
+        ).toPrecision(3);
+        let quickUsername = users.find(
+          (x) => x.userID === quickUserId,
+        )?.username;
+
+        if (quickUsername == undefined) {
+          quickUsername = "Nobody";
+        }
+
+        // NOTE: Should I care when not found?
+        let quickPosition =
+          leaderboardUsers.findIndex((x) => x.userID === quickUserId) + 1;
+
+        quickPositionElement.textContent = `${quickPosition}.`;
+        quickUsernameElement.textContent = quickUsername;
+        quickTimeElement.textContent = `${quickTime}s`;
+      } else {
+        console.error("No quickest advancement in question stats?");
+      }
+
+      if (streakPositionElement && streakUsernameElement && streakTimeElement) {
+        const streakUserId = questionStatsPacket.advancements.streak.userId;
+        const streakNumber = questionStatsPacket.advancements.streak.streak;
+        let streakUsername = users.find(
+          (x) => x.userID === streakUserId,
+        )?.username;
+
+        if (streakUsername == undefined) {
+          streakUsername = "Nobody";
+        }
+
+        // NOTE: Should I care when not found?
+        let streakPosition =
+          leaderboardUsers.findIndex((x) => x.userID === streakUserId) + 1;
+
+        streakPositionElement.textContent = `${streakPosition}.`;
+        streakUsernameElement.textContent = streakUsername;
+        streakTimeElement.textContent = streakNumber.toString();
+      } else {
+        console.error("No streak advancement in question stats?");
       }
 
       switchPages(PagesID.QUESTION_STATS);

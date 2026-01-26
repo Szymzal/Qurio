@@ -38,8 +38,8 @@ use qurio_protocol::{
         },
     },
     structs::{
-        HandshakeRejectionReason, KnownPlayerStats, Leaderboard, PlayerLeaderboardStats, User,
-        UserId, UserName, UserStat,
+        self, HandshakeRejectionReason, KnownPlayerStats, Leaderboard, PlayerLeaderboardStats,
+        QuickAdvancement, StreakAdvancement, User, UserId, UserName, UserStat,
     },
 };
 use thiserror::Error;
@@ -47,6 +47,7 @@ use tokio::{
     net::TcpListener,
     signal,
     sync::{Mutex, RwLock, broadcast},
+    time::Instant,
 };
 use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
 use tracing::{info, warn};
@@ -77,6 +78,45 @@ struct AppState {
     correct_answers: Mutex<HashSet<UserId>>,
     tx: broadcast::Sender<S2CPackets>,
     sleep_interrupt: Mutex<Option<Sender<bool>>>,
+    advancements: Mutex<GameAdvancements>,
+    question_advancements: Mutex<QuestionAdvancements>,
+    answering_timestamp: RwLock<Instant>,
+}
+
+struct RatioMetric {
+    correct: u8,
+    wrong: u8,
+}
+
+impl RatioMetric {
+    pub fn new() -> Self {
+        Self {
+            correct: 0,
+            wrong: 0,
+        }
+    }
+
+    pub fn increase_correct(&mut self) {
+        self.correct += 1;
+    }
+
+    pub fn increase_wrong(&mut self) {
+        self.wrong += 1;
+    }
+
+    pub fn percent(&self) -> f32 {
+        self.correct as f32 / self.wrong as f32
+    }
+}
+
+struct GameAdvancements {
+    pub quick: HashMap<UserId, u32>, // Millis
+    pub streak: HashMap<UserId, u8>,
+    pub ratio: HashMap<UserId, RatioMetric>,
+}
+
+struct QuestionAdvancements {
+    pub quick: Option<QuickAdvancement>,
 }
 
 #[tokio::main]
@@ -114,6 +154,13 @@ async fn main() {
         correct_answers: Mutex::new(HashSet::new()),
         tx,
         sleep_interrupt: Mutex::new(None),
+        advancements: Mutex::new(GameAdvancements {
+            quick: HashMap::new(),
+            streak: HashMap::new(),
+            ratio: HashMap::new(),
+        }),
+        question_advancements: Mutex::new(QuestionAdvancements { quick: None }),
+        answering_timestamp: RwLock::new(Instant::now()),
     });
 
     let app = Router::new()
@@ -517,6 +564,12 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         continue;
                     }
 
+                    let answer_time = recv_state
+                        .answering_timestamp
+                        .read()
+                        .await
+                        .elapsed()
+                        .as_millis() as u32;
                     let question_index = recv_state.question_index.load(Ordering::Relaxed);
                     let question = &recv_state.quiz.questions[question_index as usize];
 
@@ -551,8 +604,74 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     let correct = question.correct_answer_mask & answer_mask != 0;
                     let points_to_add = if correct { 1 } else { 0 };
 
+                    let mut game_advancements = recv_state.advancements.lock().await;
                     if correct {
+                        match game_advancements.quick.get_mut(&user_id) {
+                            Some(previous_time) => {
+                                if *previous_time > answer_time {
+                                    *previous_time = answer_time;
+                                }
+                            }
+                            None => {
+                                game_advancements.quick.insert(user_id, answer_time);
+                            }
+                        }
+
+                        match game_advancements.streak.get_mut(&user_id) {
+                            Some(streak) => {
+                                *streak += 1;
+                            }
+                            None => {
+                                game_advancements.streak.insert(user_id, 1);
+                            }
+                        }
+
+                        match game_advancements.ratio.get_mut(&user_id) {
+                            Some(ratio) => {
+                                ratio.increase_correct();
+                            }
+                            None => {
+                                let mut ratio_metric = RatioMetric::new();
+                                ratio_metric.increase_correct();
+                                game_advancements.ratio.insert(user_id, ratio_metric);
+                            }
+                        }
+
+                        drop(game_advancements);
+
+                        let mut question_advancements =
+                            recv_state.question_advancements.lock().await;
+                        match &mut question_advancements.quick {
+                            Some(quick_advancement) => {
+                                if quick_advancement.time > answer_time {
+                                    *quick_advancement = QuickAdvancement {
+                                        user: user_id,
+                                        time: answer_time,
+                                    };
+                                }
+                            }
+                            None => {
+                                question_advancements.quick = Some(QuickAdvancement {
+                                    user: user_id,
+                                    time: answer_time,
+                                });
+                            }
+                        }
+
                         recv_state.correct_answers.lock().await.insert(user_id);
+                    } else {
+                        match game_advancements.ratio.get_mut(&user_id) {
+                            Some(ratio) => {
+                                ratio.increase_wrong();
+                            }
+                            None => {
+                                let mut ratio_metric = RatioMetric::new();
+                                ratio_metric.increase_wrong();
+                                game_advancements.ratio.insert(user_id, ratio_metric);
+                            }
+                        }
+
+                        drop(game_advancements);
                     }
 
                     let mut player_points = recv_state.player_points.write().await;
@@ -622,6 +741,12 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     recv_state.correct_answers.lock().await.clear();
                     recv_state.question_index.store(0, Ordering::Relaxed);
                     recv_state.player_points.write().await.clear();
+                    let mut advancements = recv_state.advancements.lock().await;
+                    *advancements = GameAdvancements {
+                        quick: HashMap::new(),
+                        streak: HashMap::new(),
+                        ratio: HashMap::new(),
+                    };
 
                     *recv_state.game_state.write().await = GameState::Lobby;
                 }
@@ -1056,6 +1181,10 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
             return;
         }
 
+        // Reset time
+        let now = Instant::now();
+        *background_recv_state.answering_timestamp.write().await = now;
+
         // Don't remove this seperate thread, otherwise it will break
         tokio::spawn(async move {
             let (send, recv): (Sender<bool>, Receiver<bool>) = mpsc::channel();
@@ -1081,11 +1210,63 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
 
             let question_index = background_recv_state.question_index.load(Ordering::Relaxed);
             let question = &background_recv_state.quiz.questions[question_index as usize];
+            let internal_question_advancements =
+                background_recv_state.question_advancements.lock().await;
+
+            let quick_advancement = match &internal_question_advancements.quick {
+                Some(quick_advancement) => quick_advancement.clone(),
+                None => {
+                    let user_stat = leaderboard.users.first();
+                    let user = match user_stat {
+                        Some(user_id) => user_id.id,
+                        None => UserId::new(1), // Fabricate UserId
+                    };
+
+                    let question_index =
+                        background_recv_state.question_index.load(Ordering::Relaxed);
+                    let time =
+                        &background_recv_state.quiz.questions[question_index as usize].answer_milis;
+
+                    // Fabricated QuickAdvancement
+                    QuickAdvancement { user, time: *time }
+                }
+            };
+
+            drop(internal_question_advancements);
+
+            let game_advancements = background_recv_state.advancements.lock().await;
+            let streak_leaderboard = game_advancements
+                .streak
+                .iter()
+                .max_by(|a, b| a.1.cmp(b.1))
+                .map(|(user, streak)| StreakAdvancement {
+                    user: *user,
+                    streak: *streak,
+                });
+
+            let streak_advancement = match streak_leaderboard {
+                Some(streak_advancement) => streak_advancement,
+                None => {
+                    let user_stat = leaderboard.users.first();
+                    let user = match user_stat {
+                        Some(user_id) => user_id.id,
+                        None => UserId::new(1), // Fabricate UserId
+                    };
+
+                    StreakAdvancement { user, streak: 0 }
+                }
+            };
+
+            let advancements = structs::QuestionAdvancements {
+                quickest: quick_advancement,
+                streak: streak_advancement,
+            };
             let stats = QuestionStatsPacket {
                 num_of_answers: question.answers.len() as u8,
                 answers_answered: vec,
                 leaderboard,
                 correct_answer_mask: question.correct_answer_mask,
+                advancements,
             };
 
             // NOTE: Sending QuestionStatsPacket makes senders individually send
