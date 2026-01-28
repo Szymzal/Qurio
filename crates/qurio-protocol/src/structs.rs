@@ -88,9 +88,22 @@ pub struct StreakAdvancement {
 }
 
 #[derive(Debug, Clone, PartialEq, BinWrite)]
+pub struct RatioAdvancement {
+    pub user: UserId,
+    pub ratio: u8, // Percents
+}
+
+#[derive(Debug, Clone, PartialEq, BinWrite)]
 pub struct QuestionAdvancements {
     pub quickest: QuickAdvancement,
     pub streak: StreakAdvancement,
+}
+
+#[derive(Debug, Clone, PartialEq, BinWrite)]
+pub struct GameAdvancements {
+    pub quickest: QuickAdvancement,
+    pub streak: StreakAdvancement,
+    pub ratio: RatioAdvancement,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]

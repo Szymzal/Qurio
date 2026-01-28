@@ -117,6 +117,31 @@ const streakTimeElement = document.querySelector(
   "#streakAchievement .row .highStreak",
 );
 
+/** @type HTMLParagraphElement | null */
+const overallQuickPositionElement = document.querySelector(
+  "#overallQuickestAchievement .row .position",
+);
+/** @type HTMLParagraphElement | null */
+const overallQuickUsernameElement = document.querySelector(
+  "#overallQuickestAchievement .row .username",
+);
+/** @type HTMLParagraphElement | null */
+const overallQuickTimeElement = document.querySelector(
+  "#overallQuickestAchievement .row .quickestTime",
+);
+/** @type HTMLParagraphElement | null */
+const overallStreakPositionElement = document.querySelector(
+  "#overallStreakAchievement .row .position",
+);
+/** @type HTMLParagraphElement | null */
+const overallStreakUsernameElement = document.querySelector(
+  "#overallStreakAchievement .row .username",
+);
+/** @type HTMLParagraphElement | null */
+const overallStreakTimeElement = document.querySelector(
+  "#overallStreakAchievement .row .highStreak",
+);
+
 // ====== VARIABLES ======
 
 /**
@@ -615,6 +640,92 @@ function handlePackets(data, ws) {
       } else {
         console.error("No leaderboards!");
       }
+
+      if (
+        overallQuickPositionElement &&
+        overallQuickUsernameElement &&
+        overallQuickTimeElement
+      ) {
+        const quickUserId = gameStatsPacket.advancements.quick.userId;
+        let quickTime = (
+          gameStatsPacket.advancements.quick.time / 1000.0
+        ).toPrecision(3);
+        let quickUsername = users.find(
+          (x) => x.userID === quickUserId,
+        )?.username;
+
+        if (quickUsername == undefined) {
+          quickUsername = "Nobody";
+        }
+
+        if (gameStatsPacket.advancements.quick.time === 4294967295) {
+          quickTime = "None";
+          overallQuickTimeElement.textContent = `${quickTime}`;
+        } else {
+          overallQuickTimeElement.textContent = `${quickTime}s`;
+        }
+
+        // NOTE: Should I care when not found?
+        let quickPosition =
+          gameLeaderboardUsers.findIndex((x) => x.userID === quickUserId) + 1;
+
+        overallQuickPositionElement.textContent = `${quickPosition}.`;
+        overallQuickUsernameElement.textContent = quickUsername;
+      } else {
+        console.error("No overall quickest advancement in game stats?");
+      }
+
+      if (
+        overallStreakPositionElement &&
+        overallStreakUsernameElement &&
+        overallStreakTimeElement
+      ) {
+        const streakUserId = gameStatsPacket.advancements.streak.userId;
+        const streakNumber = gameStatsPacket.advancements.streak.streak;
+        let streakUsername = users.find(
+          (x) => x.userID === streakUserId,
+        )?.username;
+
+        if (streakUsername == undefined) {
+          streakUsername = "Nobody";
+        }
+
+        // NOTE: Should I care when not found?
+        let streakPosition =
+          gameLeaderboardUsers.findIndex((x) => x.userID === streakUserId) + 1;
+
+        overallStreakPositionElement.textContent = `${streakPosition}.`;
+        overallStreakUsernameElement.textContent = streakUsername;
+        overallStreakTimeElement.textContent = streakNumber.toString();
+      } else {
+        console.error("No overall streak advancement in game stats?");
+      }
+
+      // if (
+      //   overallRatioPositionElement &&
+      //   overallRatioUsernameElement &&
+      //   overallRatioNumberElement
+      // ) {
+      //   const ratioUserId = gameStatsPacket.advancements.streak.userId;
+      //   const ratioNumber = gameStatsPacket.advancements.streak.streak;
+      //   let ratioUsername = users.find(
+      //     (x) => x.userID === ratioUserId,
+      //   )?.username;
+      //
+      //   if (ratioUsername == undefined) {
+      //     ratioUsername = "Nobody";
+      //   }
+      //
+      //   // NOTE: Should I care when not found?
+      //   let ratioPosition =
+      //     gameLeaderboardUsers.findIndex((x) => x.userID === ratioUserId) + 1;
+      //
+      //   overallRatioPositionElement.textContent = `${ratioPosition}.`;
+      //   overallRatioUsernameElement.textContent = ratioUsername;
+      //   overallRatioNumberElement.textContent = `${ratioNumber}%`;
+      // } else {
+      //   console.error("No overall ratio advancement in game stats?");
+      // }
 
       switchPages(PagesID.END_GAME);
 

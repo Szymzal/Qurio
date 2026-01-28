@@ -47,6 +47,15 @@ const PROTOCOL_MAGIC_LENGTH = PROTOCOL_MAGIC.length + 1; // Adding one more byte
  */
 
 /**
+ * GameAdvancements
+ *
+ * @typedef {Object} GameAdvancements
+ * @property {QuickAdvancement} quick - Advancement of the quickest answer of the question
+ * @property {StreakAdvancement} streak - Advancement of the biggest streak of the round
+ * @property {RatioAdvancement} ratio - Advancement of the largest ratio of correct and wrong answer in the game
+ */
+
+/**
  * QuestionAdvancements
  *
  * @typedef {Object} QuestionAdvancements
@@ -68,6 +77,14 @@ const PROTOCOL_MAGIC_LENGTH = PROTOCOL_MAGIC.length + 1; // Adding one more byte
  * @typedef {Object} StreakAdvancement
  * @property {number} userId - id of the advancement
  * @property {number} streak - streak number of correct answers of the user
+ */
+
+/**
+ * RatioAdvancement
+ *
+ * @typedef {Object} RatioAdvancement
+ * @property {number} userId - id of the advancement
+ * @property {number} ratio - ratio of correct and wrong in percents
  */
 
 /**
@@ -850,6 +867,7 @@ const gameStatsPacket =
    *
    * @typedef {Object} GameStatsPacket
    * @property {Leaderboard} leaderboard - leaderboards
+   * @property {GameAdvancements} advancements - advancements of the game
    */
 
   /** AWARE: You should not use this function directly only with conjuction with readPacket.
@@ -861,10 +879,43 @@ const gameStatsPacket =
    * @returns {GameStatsPacket}
    */
   (dataView, offset) => {
-    const [leaderboard, _] = readLeaderboards(dataView, offset);
+    const [leaderboard, newOffset] = readLeaderboards(dataView, offset);
+    offset += newOffset;
+
+    const quickUserId = dataView.getUint8(offset);
+    offset++;
+
+    const quickTime = dataView.getUint32(offset);
+    offset += 4;
+
+    const streakUserId = dataView.getUint8(offset);
+    offset++;
+
+    const streakNumber = dataView.getUint8(offset);
+    offset++;
+
+    const ratioUserId = dataView.getUint8(offset);
+    offset++;
+
+    const ratioNumber = dataView.getUint8(offset);
+    offset++;
 
     return {
       leaderboard: leaderboard,
+      advancements: {
+        quick: {
+          userId: quickUserId,
+          time: quickTime,
+        },
+        streak: {
+          userId: streakUserId,
+          streak: streakNumber,
+        },
+        ratio: {
+          userId: ratioUserId,
+          ratio: ratioNumber,
+        },
+      },
     };
   };
 

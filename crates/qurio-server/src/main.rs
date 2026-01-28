@@ -39,7 +39,7 @@ use qurio_protocol::{
     },
     structs::{
         self, HandshakeRejectionReason, KnownPlayerStats, Leaderboard, PlayerLeaderboardStats,
-        QuickAdvancement, StreakAdvancement, User, UserId, UserName, UserStat,
+        QuickAdvancement, RatioAdvancement, StreakAdvancement, User, UserId, UserName, UserStat,
     },
 };
 use thiserror::Error;
@@ -89,22 +89,22 @@ struct RatioMetric {
 }
 
 impl RatioMetric {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             correct: 0,
             wrong: 0,
         }
     }
 
-    pub fn increase_correct(&mut self) {
+    pub const fn increase_correct(&mut self) {
         self.correct += 1;
     }
 
-    pub fn increase_wrong(&mut self) {
+    pub const fn increase_wrong(&mut self) {
         self.wrong += 1;
     }
 
-    pub fn percent(&self) -> f32 {
+    pub const fn percent(&self) -> f32 {
         self.correct as f32 / self.wrong as f32
     }
 }
@@ -708,10 +708,91 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                     if (question_index + 1) >= question_length as u8 {
                         *recv_state.game_state.write().await = GameState::EndGame;
+
+                        let leaderboard = create_leaderboard(recv_state.clone()).await;
+
+                        let game_advancements = recv_state.advancements.lock().await;
+                        let quick_leaderboard = game_advancements
+                            .quick
+                            .iter()
+                            .min_by(|a, b| a.1.cmp(b.1))
+                            .map(|(user, time)| QuickAdvancement {
+                                user: *user,
+                                time: *time,
+                            });
+
+                        let quick_leaderboard = match quick_leaderboard {
+                            Some(quick_leaderboard) => quick_leaderboard,
+                            None => {
+                                let user_stat = leaderboard.users.first();
+                                let user = match user_stat {
+                                    Some(user_id) => user_id.id,
+                                    None => UserId::new(1), // Fabricate UserId
+                                };
+
+                                // Some way to indicate the none value
+                                QuickAdvancement {
+                                    user,
+                                    time: u32::MAX,
+                                }
+                            }
+                        };
+
+                        let streak_leaderboard = game_advancements
+                            .streak
+                            .iter()
+                            .max_by(|a, b| a.1.cmp(b.1))
+                            .map(|(user, streak)| StreakAdvancement {
+                                user: *user,
+                                streak: *streak,
+                            });
+
+                        let streak_advancement = match streak_leaderboard {
+                            Some(streak_advancement) => streak_advancement,
+                            None => {
+                                let user_stat = leaderboard.users.first();
+                                let user = match user_stat {
+                                    Some(user_id) => user_id.id,
+                                    None => UserId::new(1), // Fabricate UserId
+                                };
+
+                                StreakAdvancement { user, streak: 0 }
+                            }
+                        };
+
+                        let ratio_leaderboard = game_advancements
+                            .ratio
+                            .iter()
+                            .max_by(|a, b| a.1.percent().total_cmp(&b.1.percent()))
+                            .map(|(user, ratio)| RatioAdvancement {
+                                user: *user,
+                                ratio: (ratio.percent() * 100.0).floor() as u8,
+                            });
+
+                        let ratio_advancement = match ratio_leaderboard {
+                            Some(streak_advancement) => streak_advancement,
+                            None => {
+                                let user_stat = leaderboard.users.first();
+                                let user = match user_stat {
+                                    Some(user_id) => user_id.id,
+                                    None => UserId::new(1), // Fabricate UserId
+                                };
+
+                                RatioAdvancement { user, ratio: 0u8 }
+                            }
+                        };
+
+                        let game_advancements = qurio_protocol::structs::GameAdvancements {
+                            quickest: quick_leaderboard,
+                            streak: streak_advancement,
+                            ratio: ratio_advancement,
+                        };
+
                         let _ = recv_state.tx.send(S2CPackets::GameEnded);
                         let _ = recv_state.tx.send(
                             GameStatsPacket {
-                                leaderboard: create_leaderboard(recv_state.clone()).await,
+                                leaderboard,
+                                advancements: game_advancements,
                             }
                             .as_packet(),
                         );
