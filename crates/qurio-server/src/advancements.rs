@@ -1,13 +1,21 @@
-use std::sync::Arc;
-
 use qurio_protocol::structs::{
     GameAdvancements, QuickAdvancement, RatioAdvancement, StreakAdvancement, UserId,
 };
 
-use crate::{AppState, InternalGameAdvancements};
+use crate::{InternalGameAdvancements, InternalQuestionAdvancements};
 
 pub trait GameAdvancement {
     fn create_from_game_state(game_advancements: &InternalGameAdvancements) -> Self
+    where
+        Self: Sized;
+
+    fn create_for_user(game_advancements: &InternalGameAdvancements, user_id: UserId) -> Self
+    where
+        Self: Sized;
+}
+
+pub trait QuestionAdvancement {
+    fn create_from_question_state(_question_advancements: &InternalQuestionAdvancements) -> Self
     where
         Self: Sized,
     {
@@ -15,17 +23,8 @@ pub trait GameAdvancement {
     }
 }
 
-pub trait QuestionAdvancement {
-    fn create_from_question_state(_app_state: Arc<AppState>) -> impl Future<Output = Self> + Send
-    where
-        Self: Sized,
-    {
-        async { todo!() }
-    }
-}
-
 pub trait GameGroupAdvancements {
-    fn create_from_internal(internal: &InternalGameAdvancements) -> Self
+    fn create_from_internal(_internal: &InternalGameAdvancements) -> Self
     where
         Self: Sized,
     {
@@ -47,22 +46,32 @@ impl GameAdvancement for QuickAdvancement {
                 time: *time,
             });
 
-        quick_advancement.unwrap_or_else(|| {
-            // Some way to indicate the none value
-            QuickAdvancement {
-                user: UserId::new(0), // Fabricate UserId
-                time: u32::MAX,
-            }
-        })
+        quick_advancement.unwrap_or_default()
+    }
+
+    fn create_for_user(game_advancements: &InternalGameAdvancements, user_id: UserId) -> Self
+    where
+        Self: Sized,
+    {
+        let time = game_advancements
+            .quick
+            .get(&user_id)
+            .cloned()
+            .unwrap_or(u32::MAX);
+
+        Self {
+            user: user_id,
+            time,
+        }
     }
 }
 
 impl QuestionAdvancement for QuickAdvancement {
-    async fn create_from_question_state(app_state: Arc<AppState>) -> Self
+    fn create_from_question_state(question_advancements: &InternalQuestionAdvancements) -> Self
     where
         Self: Sized,
     {
-        std::todo!()
+        question_advancements.quick.clone().unwrap_or_default()
     }
 }
 
@@ -77,15 +86,26 @@ impl GameAdvancement for RatioAdvancement {
             .max_by(|a, b| a.1.percent().total_cmp(&b.1.percent()))
             .map(|(user, ratio)| RatioAdvancement {
                 user: *user,
-                ratio: (ratio.percent() * 100.0).floor() as u8,
+                ratio: ratio.percent_int(),
             });
 
-        ratio_advancement.unwrap_or_else(|| {
-            RatioAdvancement {
-                user: UserId::new(1), // Fabricate UserId
-                ratio: 0u8,
-            }
-        })
+        ratio_advancement.unwrap_or_default()
+    }
+
+    fn create_for_user(game_advancements: &InternalGameAdvancements, user_id: UserId) -> Self
+    where
+        Self: Sized,
+    {
+        let ratio = game_advancements
+            .ratio
+            .get(&user_id)
+            .map(|x| x.percent_int())
+            .unwrap_or(0u8);
+
+        Self {
+            user: user_id,
+            ratio,
+        }
     }
 }
 
@@ -103,21 +123,23 @@ impl GameAdvancement for StreakAdvancement {
                 streak: *streak,
             });
 
-        streak_advancement.unwrap_or_else(|| {
-            StreakAdvancement {
-                user: UserId::new(0), // Fabricate UserId
-                streak: 0,
-            }
-        })
+        streak_advancement.unwrap_or_default()
     }
-}
 
-impl QuestionAdvancement for StreakAdvancement {
-    async fn create_from_question_state(_app_state: Arc<AppState>) -> Self
+    fn create_for_user(game_advancements: &InternalGameAdvancements, user_id: UserId) -> Self
     where
         Self: Sized,
     {
-        std::todo!()
+        let streak = game_advancements
+            .streak
+            .get(&user_id)
+            .cloned()
+            .unwrap_or(0u8);
+
+        Self {
+            user: user_id,
+            streak,
+        }
     }
 }
 

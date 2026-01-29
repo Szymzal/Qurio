@@ -39,8 +39,8 @@ use qurio_protocol::{
     },
     structs::{
         GameAdvancements, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
-        PlayerLeaderboardStats, QuestionAdvancements, QuickAdvancement, RatioAdvancement,
-        StreakAdvancement, User, UserId, UserName, UserStat,
+        PlayerLeaderboardStats, QuestionAdvancements, QuickAdvancement, StreakAdvancement, User,
+        UserId, UserName, UserStat,
     },
 };
 use thiserror::Error;
@@ -55,7 +55,7 @@ use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
-    advancements::{GameAdvancement, GameGroupAdvancements},
+    advancements::{GameAdvancement, GameGroupAdvancements, QuestionAdvancement},
     quiz_file::{Quiz, read_quiz_file},
 };
 
@@ -110,7 +110,11 @@ impl RatioMetric {
     }
 
     pub const fn percent(&self) -> f32 {
-        self.correct as f32 / self.wrong as f32
+        self.correct as f32 / (self.correct + self.wrong) as f32
+    }
+
+    pub const fn percent_int(&self) -> u8 {
+        (self.percent() * 100.0).floor() as u8
     }
 }
 
@@ -470,13 +474,30 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         }
                     };
 
+                    let game_advancements = send_state.advancements.lock().await;
+                    let ratio = game_advancements
+                        .ratio
+                        .get(&user_id)
+                        .map(|x| x.percent_int())
+                        .unwrap_or(0u8);
+                    let quick = game_advancements
+                        .quick
+                        .get(&user_id)
+                        .cloned()
+                        .unwrap_or(u32::MAX);
+                    let streak = game_advancements
+                        .streak
+                        .get(&user_id)
+                        .cloned()
+                        .unwrap_or(0u8);
+
                     send_packet(
                         PlayerOverallStatsPacket {
                             position: get_position_of_player(send_state.clone(), user_id).await,
                             points,
-                            ratio: todo!(),
-                            quick: todo!(),
-                            streak: todo!(),
+                            ratio,
+                            quick,
+                            streak,
                         }
                         .as_packet(),
                         &mut sender,
@@ -1233,49 +1254,15 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
             let internal_question_advancements =
                 background_recv_state.question_advancements.lock().await;
 
-            let quick_advancement = match &internal_question_advancements.quick {
-                Some(quick_advancement) => quick_advancement.clone(),
-                None => {
-                    let user_stat = leaderboard.users.first();
-                    let user = match user_stat {
-                        Some(user_id) => user_id.id,
-                        None => UserId::new(1), // Fabricate UserId
-                    };
-
-                    let question_index =
-                        background_recv_state.question_index.load(Ordering::Relaxed);
-                    let time =
-                        &background_recv_state.quiz.questions[question_index as usize].answer_milis;
-
-                    // Fabricated QuickAdvancement
-                    QuickAdvancement { user, time: *time }
-                }
-            };
+            let quick_advancement =
+                QuickAdvancement::create_from_question_state(&internal_question_advancements);
 
             drop(internal_question_advancements);
 
             let game_advancements = background_recv_state.advancements.lock().await;
-            let streak_leaderboard = game_advancements
-                .streak
-                .iter()
-                .max_by(|a, b| a.1.cmp(b.1))
-                .map(|(user, streak)| StreakAdvancement {
-                    user: *user,
-                    streak: *streak,
-                });
+            let streak_advancement = StreakAdvancement::create_from_game_state(&game_advancements);
 
-            let streak_advancement = match streak_leaderboard {
-                Some(streak_advancement) => streak_advancement,
-                None => {
-                    let user_stat = leaderboard.users.first();
-                    let user = match user_stat {
-                        Some(user_id) => user_id.id,
-                        None => UserId::new(1), // Fabricate UserId
-                    };
-
-                    StreakAdvancement { user, streak: 0 }
-                }
-            };
+            drop(game_advancements);
 
             let advancements = QuestionAdvancements {
                 quickest: quick_advancement,

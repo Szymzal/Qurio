@@ -228,3 +228,30 @@ impl TryInto<BinString> for &str {
         BinString::new(vec)
     }
 }
+
+impl Default for QuickAdvancement {
+    fn default() -> Self {
+        Self {
+            user: UserId(0), // Fabricate UserId
+            time: u32::MAX,
+        }
+    }
+}
+
+impl Default for StreakAdvancement {
+    fn default() -> Self {
+        Self {
+            user: UserId(0),
+            streak: 0,
+        }
+    }
+}
+
+impl Default for RatioAdvancement {
+    fn default() -> Self {
+        Self {
+            user: UserId(0),
+            ratio: 0,
+        }
+    }
+}

@@ -1084,6 +1084,9 @@ const playerOverallStatsPacket =
    * @typedef {Object} PlayerOverallStatsPacket
    * @property {number} position - in which position is the player
    * @property {number} points - how many points does have the player
+   * @property {number} ratio - the ratio of correct answer of the player
+   * @property {number} quick - the quickest correct answer of the player
+   * @property {number} streak - the biggest streak of the player
    */
 
   /** AWARE: You should not use this function directly only with conjuction with readPacket.
@@ -1099,10 +1102,23 @@ const playerOverallStatsPacket =
     offset++;
 
     const points = dataView.getUint16(offset);
+    offset += 2;
+
+    const ratio = dataView.getUint8(offset);
+    offset++;
+
+    const quick = dataView.getUint32(offset);
+    offset += 4;
+
+    const streak = dataView.getUint8(offset);
+    offset++;
 
     return {
       position: position,
       points: points,
+      ratio: ratio,
+      quick: quick,
+      streak: streak,
     };
   };
 

@@ -72,9 +72,9 @@ const belowPoints = document.querySelector(".belowPlace .points");
 /** @type HTMLDivElement | null */
 const gameResults = document.querySelector("#gameResults");
 /** @type HTMLHeadingElement | null */
-const overallPlayerPosition = document.querySelector("#overallPlayerPosition");
+const overallPlayerPosition = document.querySelector(".overallPlayerPosition");
 /** @type HTMLHeadingElement | null */
-const overallPlayerPoints = document.querySelector("#overallPlayerPoints");
+const overallPlayerPoints = document.querySelector(".overallPlayerPoints");
 
 /** @type NodeListOf<HTMLHeadingElement> */
 const neutralTips = document.querySelectorAll(".neutralTips");
@@ -346,10 +346,35 @@ function handlePackets(data) {
       switchPages(PagesID.GAME_RESULTS);
 
       if (overallPlayerPosition && overallPlayerPoints) {
-        overallPlayerPosition.textContent = `${playerOverallStats.position}`;
+        overallPlayerPosition.textContent = `${playerOverallStats.position}.`;
         overallPlayerPoints.textContent = `${playerOverallStats.points}`;
       } else {
         console.error("No overall player position & points");
+      }
+
+      if (ratioAchievement) {
+        ratioAchievement.textContent = `${playerOverallStats.ratio}%`;
+      } else {
+        console.error("No ratio achievement?");
+      }
+
+      if (quickestAchievement) {
+        let textContent = "Too slow!";
+
+        if (playerOverallStats.quick !== 4294967295) {
+          const time = (playerOverallStats.quick / 1000.0).toPrecision(3);
+          textContent = `${time}s`;
+        }
+
+        quickestAchievement.textContent = textContent;
+      } else {
+        console.error("No quickest achievement?");
+      }
+
+      if (streakAchievement) {
+        streakAchievement.textContent = `${playerOverallStats.streak}`;
+      } else {
+        console.error("No streak achievement?");
       }
 
       break;
