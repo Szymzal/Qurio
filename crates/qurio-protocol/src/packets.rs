@@ -135,6 +135,21 @@ pub mod s2c {
     pub struct PlayerOverallStatsPacket {
         pub position: u8,
         pub points: u16,
+        pub ratio: u8, // Percents
+        pub quick: u32,
+        pub streak: u8,
+    }
+
+    impl Default for PlayerOverallStatsPacket {
+        fn default() -> Self {
+            Self {
+                quick: u32::MAX,
+                position: 0,
+                points: 0,
+                ratio: 0,
+                streak: 0,
+            }
+        }
     }
 
     #[derive(BinWrite, Clone, Debug)]

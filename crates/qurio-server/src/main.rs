@@ -38,8 +38,9 @@ use qurio_protocol::{
         },
     },
     structs::{
-        self, HandshakeRejectionReason, KnownPlayerStats, Leaderboard, PlayerLeaderboardStats,
-        QuickAdvancement, RatioAdvancement, StreakAdvancement, User, UserId, UserName, UserStat,
+        GameAdvancements, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
+        PlayerLeaderboardStats, QuestionAdvancements, QuickAdvancement, RatioAdvancement,
+        StreakAdvancement, User, UserId, UserName, UserStat,
     },
 };
 use thiserror::Error;
@@ -53,8 +54,12 @@ use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
 use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::quiz_file::{Quiz, read_quiz_file};
+use crate::{
+    advancements::{GameAdvancement, GameGroupAdvancements},
+    quiz_file::{Quiz, read_quiz_file},
+};
 
+pub mod advancements;
 pub mod quiz_file;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -66,7 +71,7 @@ enum GameState {
     EndGame,
 }
 
-struct AppState {
+pub struct AppState {
     users: RwLock<HashMap<UserId, UserName>>,
     host_joined: AtomicBool,
     game_state: RwLock<GameState>,
@@ -78,12 +83,12 @@ struct AppState {
     correct_answers: Mutex<HashSet<UserId>>,
     tx: broadcast::Sender<S2CPackets>,
     sleep_interrupt: Mutex<Option<Sender<bool>>>,
-    advancements: Mutex<GameAdvancements>,
-    question_advancements: Mutex<QuestionAdvancements>,
+    advancements: Mutex<InternalGameAdvancements>,
+    question_advancements: Mutex<InternalQuestionAdvancements>,
     answering_timestamp: RwLock<Instant>,
 }
 
-struct RatioMetric {
+pub struct RatioMetric {
     correct: u8,
     wrong: u8,
 }
@@ -109,13 +114,19 @@ impl RatioMetric {
     }
 }
 
-struct GameAdvancements {
+impl Default for RatioMetric {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct InternalGameAdvancements {
     pub quick: HashMap<UserId, u32>, // Millis
     pub streak: HashMap<UserId, u8>,
     pub ratio: HashMap<UserId, RatioMetric>,
 }
 
-struct QuestionAdvancements {
+pub struct InternalQuestionAdvancements {
     pub quick: Option<QuickAdvancement>,
 }
 
@@ -154,12 +165,12 @@ async fn main() {
         correct_answers: Mutex::new(HashSet::new()),
         tx,
         sleep_interrupt: Mutex::new(None),
-        advancements: Mutex::new(GameAdvancements {
+        advancements: Mutex::new(InternalGameAdvancements {
             quick: HashMap::new(),
             streak: HashMap::new(),
             ratio: HashMap::new(),
         }),
-        question_advancements: Mutex::new(QuestionAdvancements { quick: None }),
+        question_advancements: Mutex::new(InternalQuestionAdvancements { quick: None }),
         answering_timestamp: RwLock::new(Instant::now()),
     });
 
@@ -463,6 +474,9 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         PlayerOverallStatsPacket {
                             position: get_position_of_player(send_state.clone(), user_id).await,
                             points,
+                            ratio: todo!(),
+                            quick: todo!(),
+                            streak: todo!(),
                         }
                         .as_packet(),
                         &mut sender,
@@ -712,81 +726,8 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         let leaderboard = create_leaderboard(recv_state.clone()).await;
 
                         let game_advancements = recv_state.advancements.lock().await;
-                        let quick_leaderboard = game_advancements
-                            .quick
-                            .iter()
-                            .min_by(|a, b| a.1.cmp(b.1))
-                            .map(|(user, time)| QuickAdvancement {
-                                user: *user,
-                                time: *time,
-                            });
-
-                        let quick_leaderboard = match quick_leaderboard {
-                            Some(quick_leaderboard) => quick_leaderboard,
-                            None => {
-                                let user_stat = leaderboard.users.first();
-                                let user = match user_stat {
-                                    Some(user_id) => user_id.id,
-                                    None => UserId::new(1), // Fabricate UserId
-                                };
-
-                                // Some way to indicate the none value
-                                QuickAdvancement {
-                                    user,
-                                    time: u32::MAX,
-                                }
-                            }
-                        };
-
-                        let streak_leaderboard = game_advancements
-                            .streak
-                            .iter()
-                            .max_by(|a, b| a.1.cmp(b.1))
-                            .map(|(user, streak)| StreakAdvancement {
-                                user: *user,
-                                streak: *streak,
-                            });
-
-                        let streak_advancement = match streak_leaderboard {
-                            Some(streak_advancement) => streak_advancement,
-                            None => {
-                                let user_stat = leaderboard.users.first();
-                                let user = match user_stat {
-                                    Some(user_id) => user_id.id,
-                                    None => UserId::new(1), // Fabricate UserId
-                                };
-
-                                StreakAdvancement { user, streak: 0 }
-                            }
-                        };
-
-                        let ratio_leaderboard = game_advancements
-                            .ratio
-                            .iter()
-                            .max_by(|a, b| a.1.percent().total_cmp(&b.1.percent()))
-                            .map(|(user, ratio)| RatioAdvancement {
-                                user: *user,
-                                ratio: (ratio.percent() * 100.0).floor() as u8,
-                            });
-
-                        let ratio_advancement = match ratio_leaderboard {
-                            Some(streak_advancement) => streak_advancement,
-                            None => {
-                                let user_stat = leaderboard.users.first();
-                                let user = match user_stat {
-                                    Some(user_id) => user_id.id,
-                                    None => UserId::new(1), // Fabricate UserId
-                                };
-
-                                RatioAdvancement { user, ratio: 0u8 }
-                            }
-                        };
-
-                        let game_advancements = qurio_protocol::structs::GameAdvancements {
-                            quickest: quick_leaderboard,
-                            streak: streak_advancement,
-                            ratio: ratio_advancement,
-                        };
+                        let game_advancements =
+                            GameAdvancements::create_from_internal(&game_advancements);
 
                         let _ = recv_state.tx.send(S2CPackets::GameEnded);
                         let _ = recv_state.tx.send(
@@ -806,13 +747,11 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     }
                 }
                 C2SPackets::FinishStats => {
-                    let _ = recv_state.tx.send(
-                        PlayerOverallStatsPacket {
-                            position: 0,
-                            points: 0,
-                        }
-                        .as_packet(),
-                    );
+                    // NOTE: Send a dummy packet to indicate every client to send their individual
+                    // PlayerOverallStatsPacket
+                    let _ = recv_state
+                        .tx
+                        .send(PlayerOverallStatsPacket::default().as_packet());
                 }
                 C2SPackets::ReturnToLobby => {
                     let _ = recv_state.tx.send(S2CPackets::ReturnToLobby);
@@ -823,7 +762,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     recv_state.question_index.store(0, Ordering::Relaxed);
                     recv_state.player_points.write().await.clear();
                     let mut advancements = recv_state.advancements.lock().await;
-                    *advancements = GameAdvancements {
+                    *advancements = InternalGameAdvancements {
                         quick: HashMap::new(),
                         streak: HashMap::new(),
                         ratio: HashMap::new(),
@@ -1338,7 +1277,7 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
                 }
             };
 
-            let advancements = structs::QuestionAdvancements {
+            let advancements = QuestionAdvancements {
                 quickest: quick_advancement,
                 streak: streak_advancement,
             };

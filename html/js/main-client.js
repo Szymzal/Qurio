@@ -81,6 +81,19 @@ const neutralTips = document.querySelectorAll(".neutralTips");
 /** @type NodeListOf<HTMLHeadingElement> */
 const resultTips = document.querySelectorAll(".correctDependentTips");
 
+/** @type HTMLParagraphElement | null */
+const ratioAchievement = document.querySelector(
+  "#ratioAchievement .answerRatio",
+);
+/** @type HTMLParagraphElement | null */
+const quickestAchievement = document.querySelector(
+  "#quickestAchievement .quickestTime",
+);
+/** @type HTMLParagraphElement | null */
+const streakAchievement = document.querySelector(
+  "#streakAchievement .highStreak",
+);
+
 // ====== VARIABLES ======
 
 /**
