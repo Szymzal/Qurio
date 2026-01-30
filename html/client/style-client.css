@@ -542,6 +542,12 @@ canvas {
   background-color: #b93f3f;
 }
 
+#gameResults #positionAchievement > img {
+  justify-self: center;
+  align-self: flex-end;
+  height: 3em;
+}
+
 #gameResults .overallPlayerPosition {
   text-align: center;
 }
@@ -552,6 +558,12 @@ canvas {
 
 #gameResults #ratioAchievement .row {
   background-color: #7019e9;
+}
+
+#gameResults #ratioAchievement > img {
+  justify-self: center;
+  align-self: flex-end;
+  height: 3em;
 }
 
 #gameResults #quickestAchievement .row {

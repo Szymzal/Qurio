@@ -141,6 +141,18 @@ const overallStreakUsernameElement = document.querySelector(
 const overallStreakTimeElement = document.querySelector(
   "#overallStreakAchievement .row .highStreak",
 );
+/** @type HTMLParagraphElement | null */
+const overallRatioPositionElement = document.querySelector(
+  "#overallRatioAchievement .row .position",
+);
+/** @type HTMLParagraphElement | null */
+const overallRatioUsernameElement = document.querySelector(
+  "#overallRatioAchievement .row .username",
+);
+/** @type HTMLParagraphElement | null */
+const overallRatioNumberElement = document.querySelector(
+  "#overallRatioAchievement .row .highStreak",
+);
 
 // ====== VARIABLES ======
 
@@ -701,31 +713,31 @@ function handlePackets(data, ws) {
         console.error("No overall streak advancement in game stats?");
       }
 
-      // if (
-      //   overallRatioPositionElement &&
-      //   overallRatioUsernameElement &&
-      //   overallRatioNumberElement
-      // ) {
-      //   const ratioUserId = gameStatsPacket.advancements.streak.userId;
-      //   const ratioNumber = gameStatsPacket.advancements.streak.streak;
-      //   let ratioUsername = users.find(
-      //     (x) => x.userID === ratioUserId,
-      //   )?.username;
-      //
-      //   if (ratioUsername == undefined) {
-      //     ratioUsername = "Nobody";
-      //   }
-      //
-      //   // NOTE: Should I care when not found?
-      //   let ratioPosition =
-      //     gameLeaderboardUsers.findIndex((x) => x.userID === ratioUserId) + 1;
-      //
-      //   overallRatioPositionElement.textContent = `${ratioPosition}.`;
-      //   overallRatioUsernameElement.textContent = ratioUsername;
-      //   overallRatioNumberElement.textContent = `${ratioNumber}%`;
-      // } else {
-      //   console.error("No overall ratio advancement in game stats?");
-      // }
+      if (
+        overallRatioPositionElement &&
+        overallRatioUsernameElement &&
+        overallRatioNumberElement
+      ) {
+        const ratioUserId = gameStatsPacket.advancements.streak.userId;
+        const ratioNumber = gameStatsPacket.advancements.streak.streak;
+        let ratioUsername = users.find(
+          (x) => x.userID === ratioUserId,
+        )?.username;
+
+        if (ratioUsername == undefined) {
+          ratioUsername = "Nobody";
+        }
+
+        // NOTE: Should I care when not found?
+        let ratioPosition =
+          gameLeaderboardUsers.findIndex((x) => x.userID === ratioUserId) + 1;
+
+        overallRatioPositionElement.textContent = `${ratioPosition}.`;
+        overallRatioUsernameElement.textContent = ratioUsername;
+        overallRatioNumberElement.textContent = `${ratioNumber}%`;
+      } else {
+        console.error("No overall ratio advancement in game stats?");
+      }
 
       switchPages(PagesID.END_GAME);
 

@@ -1106,6 +1106,16 @@ async fn assets(Path(path): Path<String>) -> impl IntoResponse {
             include_str!("../../../html/assets/firesprite.svg"),
         )
             .into_response(),
+        "ratio.svg" => (
+            [(header::CONTENT_TYPE, "image/svg+xml")],
+            include_str!("../../../html/assets/ratio.svg"),
+        )
+            .into_response(),
+        "medal.svg" => (
+            [(header::CONTENT_TYPE, "image/svg+xml")],
+            include_str!("../../../html/assets/medal.svg"),
+        )
+            .into_response(),
         "tips" => (
             [(header::CONTENT_TYPE, "application/json")],
             include_str!("../../../html/assets/tips.json"),

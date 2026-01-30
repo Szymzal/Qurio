@@ -396,6 +396,8 @@ canvas {
   display: flex;
   flex-direction: column;
   align-items: center;
+  max-height: 65vh;
+  overflow-y: scroll;
 }
 
 .leaderboards .achievements {
@@ -503,6 +505,16 @@ canvas {
   justify-self: center;
   align-self: flex-end;
   width: 3em;
+}
+
+.achievements #overallRatioAchievement .row {
+  background-color: #7019e9;
+}
+
+.achievements #overallRatioAchievement > img {
+  justify-self: center;
+  align-self: flex-end;
+  height: 3em;
 }
 
 .achievements .achievement {
