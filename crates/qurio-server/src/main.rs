@@ -637,6 +637,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                     let answer_mask = 1 << answer_packet.index;
                     let correct = question.correct_answer_mask & answer_mask != 0;
+                    // TODO: Make points more based on the time answering
                     let points_to_add = if correct { 1 } else { 0 };
 
                     let mut game_advancements = recv_state.advancements.lock().await;
