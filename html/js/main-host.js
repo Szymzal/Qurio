@@ -604,7 +604,13 @@ function handlePackets(data, ws) {
 
         quickPositionElement.textContent = `${quickPosition}.`;
         quickUsernameElement.textContent = quickUsername;
-        quickTimeElement.textContent = `${quickTime}s`;
+
+        let textContent = "Too slow!";
+        if (questionStatsPacket.advancements.quick.time !== 4294967295) {
+          textContent = `${quickTime}s`;
+        }
+
+        quickTimeElement.textContent = `${textContent}`;
       } else {
         console.error("No quickest advancement in question stats?");
       }
