@@ -26,7 +26,7 @@ const questionInProgress = document.querySelector("#questionInProgress");
 /** @type HTMLHeadingElement | null */
 const quizTitle = document.querySelector("#quizTitle");
 /** @type NodeListOf<HTMLElement> */
-const question = document.querySelectorAll(".question");
+const question = document.querySelectorAll(".questionText");
 /** @type HTMLHeadingElement | null */
 const questionNum = document.querySelector(".questionNum");
 /** @type HTMLHeadingElement | null */
@@ -440,6 +440,8 @@ function handlePackets(data, ws) {
       if (question.length > 0) {
         question.forEach((q) => {
           q.textContent = questionInfoPacket.question;
+          const textLength = questionInfoPacket.question.length;
+          q.style.setProperty("--chars", `${textLength}`);
         });
       } else {
         console.error("No questions!");
@@ -468,6 +470,8 @@ function handlePackets(data, ws) {
 
         for (let i = 0; i < numOfAnswers; i++) {
           answers[i].textContent = questionInfoPacket.answers[i];
+          const textLength = questionInfoPacket.answers[i].length;
+          answers[i].style.setProperty("--chars", `${textLength}`);
         }
 
         switch (numOfAnswers) {

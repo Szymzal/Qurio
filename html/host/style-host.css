@@ -181,6 +181,7 @@ canvas {
   text-align: center;
   margin: auto;
   font-size: 4rem;
+  overflow-wrap: break-word;
 }
 
 @property --percentage {
@@ -188,16 +189,6 @@ canvas {
   initial-value: 0%;
   inherits: false;
 }
-
-/* @keyframes progress { */
-/*   from { */
-/*     --percentage: 0%; */
-/*   } */
-/**/
-/*   to { */
-/*     --percentage: 103%; */
-/*   } */
-/* } */
 
 .progressBar {
   grid-area: progress;
@@ -227,10 +218,12 @@ canvas {
   grid-area: question;
   margin: 0;
   text-align: center;
+  word-break: break-all;
 }
 
 #answers .question {
-  font-size: 2.8rem;
+  --chars: 255;
+  font-size: clamp(2.21rem, 5.5rem - calc(var(--chars) * 0.02rem), 5.5rem);
 }
 
 #answers .answersWithText {
@@ -281,14 +274,23 @@ canvas {
   font-size: 5rem;
   color: black;
   display: flex;
+  overflow-wrap: break-word;
 }
 
 .answerText > p {
-  font-size: 2.3rem;
   align-self: center;
   padding: 0.8rem;
   text-align: center;
   margin: auto;
+}
+
+#answer0Text,
+#answer1Text,
+#answer2Text,
+#answer3Text {
+  max-width: 87%;
+  --chars: 255;
+  font-size: clamp(1.654rem, 5rem - calc(var(--chars) * 0.01rem), 5rem);
 }
 
 #answer0Text {
