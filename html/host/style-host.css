@@ -204,6 +204,15 @@ canvas {
   );
 }
 
+#questionStats {
+  position: relative;
+  display: grid;
+  grid-template-rows: 15rem calc(100% - 15rem - 1rem);
+  grid-template-areas:
+    "question"
+    "answers";
+}
+
 #answers {
   position: relative;
   display: grid;
@@ -214,14 +223,12 @@ canvas {
     "progress";
 }
 
-#answers .question {
+#answers .question,
+#questionStats .question {
   grid-area: question;
   margin: 0;
   text-align: center;
   word-break: break-all;
-}
-
-#answers .question {
   --chars: 255;
   font-size: clamp(2.21rem, 5.5rem - calc(var(--chars) * 0.02rem), 5.5rem);
 }
@@ -230,7 +237,8 @@ canvas {
   grid-area: answers;
 }
 
-#answers .compactTitle {
+#answers .compactTitle,
+#questionStats .compactTitle {
   position: unset;
   float: left;
   margin-left: 0.5rem;
@@ -239,20 +247,53 @@ canvas {
   height: 4rem;
 }
 
-#answers .compactTitle h1 {
+#answers .compactTitle h1,
+#questionStats .compactTitle h1 {
   font-size: 5rem;
 }
 
-#answers .compactTitle h6 {
+#answers .compactTitle h6,
+#questionStats .compactTitle h6 {
   font-size: 0.8rem;
 }
 
-#answers .wellIDontReallyKnowHowToNameThis {
+#answers .wellIDontReallyKnowHowToNameThis,
+#questionStats .rightSide {
   position: unset;
   float: right;
   margin: 0.5rem;
   margin-left: 1rem;
   margin-bottom: 1rem;
+}
+
+#questionStats .wellIDontReallyKnowHowToNameThis {
+  position: unset;
+}
+
+#questionStats .rightSide {
+  display: flex;
+}
+
+#questionStats #toLeaderboards {
+  margin-right: 1rem;
+}
+
+#questionStats button {
+  margin: 0.5rem;
+  margin-top: 0.2rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  font-size: 2rem;
+  border-radius: 3rem;
+  color: white;
+  cursor: pointer;
+  justify-self: flex-end;
+  border: 0.5rem solid #202338;
+  background-color: #2c2e43;
+}
+
+#questionStats button:hover {
+  filter: grayscale(50%);
 }
 
 .answersWithText {
