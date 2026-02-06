@@ -519,6 +519,7 @@ name = "qurio-protocol"
 version = "0.1.0"
 dependencies = [
  "binrw",
+ "bytes",
  "thiserror",
  "tracing",
 ]
