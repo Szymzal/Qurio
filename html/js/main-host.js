@@ -40,14 +40,14 @@ const progressBars = document.querySelectorAll(".progressBar");
 
 /** @type HTMLDivElement | null */
 const answersPage = document.querySelector("#answers");
-/** @type HTMLParagraphElement | null */
-const answer0 = document.querySelector("#answer0");
-/** @type HTMLParagraphElement | null */
-const answer1 = document.querySelector("#answer1");
-/** @type HTMLParagraphElement | null */
-const answer2 = document.querySelector("#answer2");
-/** @type HTMLParagraphElement | null */
-const answer3 = document.querySelector("#answer3");
+/** @type NodeListOf<HTMLParagraphElement> */
+const answer0 = document.querySelectorAll(".answer0");
+/** @type NodeListOf<HTMLParagraphElement> */
+const answer1 = document.querySelectorAll(".answer1");
+/** @type NodeListOf<HTMLParagraphElement> */
+const answer2 = document.querySelectorAll(".answer2");
+/** @type NodeListOf<HTMLParagraphElement> */
+const answer3 = document.querySelectorAll(".answer3");
 
 /** @type HTMLDivElement | null */
 const questionStats = document.querySelector("#questionStats");
@@ -469,50 +469,52 @@ function handlePackets(data, ws) {
         const answers = [answer0, answer1, answer2, answer3];
 
         for (let i = 0; i < numOfAnswers; i++) {
-          answers[i].textContent = questionInfoPacket.answers[i];
-          const textLength = questionInfoPacket.answers[i].length;
-          answers[i].style.setProperty("--chars", `${textLength}`);
+          for (let answer of answers[i]) {
+            answer.textContent = questionInfoPacket.answers[i];
+            const textLength = questionInfoPacket.answers[i].length;
+            answer.style.setProperty("--chars", `${textLength}`);
+          }
         }
 
         switch (numOfAnswers) {
           case 1:
-            answer0.style.display = "";
+            answer0.forEach((answer) => (answer.style.display = ""));
             numOfAnswers0.style.display = "";
-            answer1.style.display = "none";
+            answer1.forEach((answer) => (answer.style.display = "none"));
             numOfAnswers1.style.display = "none";
-            answer2.style.display = "none";
+            answer2.forEach((answer) => (answer.style.display = "none"));
             numOfAnswers2.style.display = "none";
-            answer3.style.display = "none";
+            answer3.forEach((answer) => (answer.style.display = "none"));
             numOfAnswers3.style.display = "none";
             break;
           case 2:
-            answer0.style.display = "";
+            answer0.forEach((answer) => (answer.style.display = ""));
             numOfAnswers0.style.display = "";
-            answer1.style.display = "";
+            answer1.forEach((answer) => (answer.style.display = ""));
             numOfAnswers1.style.display = "";
-            answer2.style.display = "none";
+            answer2.forEach((answer) => (answer.style.display = "none"));
             numOfAnswers2.style.display = "none";
-            answer3.style.display = "none";
+            answer3.forEach((answer) => (answer.style.display = "none"));
             numOfAnswers3.style.display = "none";
             break;
           case 3:
-            answer0.style.display = "";
+            answer0.forEach((answer) => (answer.style.display = ""));
             numOfAnswers0.style.display = "";
-            answer1.style.display = "";
+            answer1.forEach((answer) => (answer.style.display = ""));
             numOfAnswers1.style.display = "";
-            answer2.style.display = "";
+            answer2.forEach((answer) => (answer.style.display = ""));
             numOfAnswers2.style.display = "";
-            answer3.style.display = "none";
+            answer3.forEach((answer) => (answer.style.display = "none"));
             numOfAnswers3.style.display = "none";
             break;
           case 4:
-            answer0.style.display = "";
+            answer0.forEach((answer) => (answer.style.display = ""));
             numOfAnswers0.style.display = "";
-            answer1.style.display = "";
+            answer1.forEach((answer) => (answer.style.display = ""));
             numOfAnswers1.style.display = "";
-            answer2.style.display = "";
+            answer2.forEach((answer) => (answer.style.display = ""));
             numOfAnswers2.style.display = "";
-            answer3.style.display = "";
+            answer3.forEach((answer) => (answer.style.display = ""));
             numOfAnswers3.style.display = "";
             break;
           default:

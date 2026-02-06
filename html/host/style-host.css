@@ -207,7 +207,8 @@ canvas {
 #questionStats {
   position: relative;
   display: grid;
-  grid-template-rows: 15rem calc(100% - 15rem - 1rem);
+  max-height: 100vh;
+  grid-template-rows: 10rem 2fr 1fr;
   grid-template-areas:
     "question"
     "answers";
@@ -229,8 +230,16 @@ canvas {
   margin: 0;
   text-align: center;
   word-break: break-all;
+}
+
+#answers .question {
   --chars: 255;
   font-size: clamp(2.21rem, 5.5rem - calc(var(--chars) * 0.02rem), 5.5rem);
+}
+
+#questionStats .question {
+  --chars: 255;
+  font-size: clamp(1.66rem, 5.5rem - calc(var(--chars) * 0.02rem), 5.5rem);
 }
 
 #answers .answersWithText {
@@ -325,31 +334,40 @@ canvas {
   margin: auto;
 }
 
-#answer0Text,
-#answer1Text,
-#answer2Text,
-#answer3Text {
+.answer0,
+.answer1,
+.answer2,
+.answer3 {
   max-width: 87%;
-  --chars: 255;
+  --chars: 15;
   font-size: clamp(1.654rem, 5rem - calc(var(--chars) * 0.01rem), 5rem);
 }
 
-#answer0Text {
+#questionStats .answer0,
+#questionStats .answer1,
+#questionStats .answer2,
+#questionStats .answer3 {
+  max-width: 87%;
+  --chars: 15;
+  font-size: clamp(1.03rem, 3.2rem - calc(var(--chars) * 0.02rem), 3.2rem);
+}
+
+.answer0Text {
   grid-area: a;
   background-color: #b93f3f;
 }
 
-#answer1Text {
+.answer1Text {
   grid-area: b;
   background-color: #7019e9;
 }
 
-#answer2Text {
+.answer2Text {
   grid-area: c;
   background-color: #81e819;
 }
 
-#answer3Text {
+.answer3Text {
   grid-area: d;
   background-color: #e9ce19;
 }
@@ -358,29 +376,42 @@ canvas {
   margin: 0;
   font-weight: 400;
   align-self: center;
+  margin-left: 0.3rem;
 }
 
-.answersWithText:has(#answer3Text:is(.hidden)) > .answerText {
+#questionStats .answerText h2 {
+  font-size: 4rem;
+}
+
+#questionStats .stats {
+  border: 0.1rem solid black;
+  margin-top: 1.5rem;
+  margin-right: 2rem;
+  margin-left: 2rem;
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.answersWithText:has(.answer3Text:is(.hidden)) > .answerText {
   flex-direction: column;
 }
 
-.answersWithText:has(#answer3Text:is(.hidden)) {
+.answersWithText:has(.answer3Text:is(.hidden)) {
   grid-template-areas:
     "a a b b c c"
     "a a b b c c";
 }
 
-.answersWithText:has(#answer3Text:is(.hidden)) .answerText > p {
+.answersWithText:has(.answer3Text:is(.hidden)) .answerText > p {
   font-size: 2.5rem;
 }
 
-.answersWithText:has(#answer2Text:is(.hidden)) {
+.answersWithText:has(.answer2Text:is(.hidden)) {
   grid-template-areas:
     "a a a b b b"
     "a a a b b b";
 }
 
-.answersWithText:has(#answer2Text:is(.hidden)) .answerText > p {
+.answersWithText:has(.answer2Text:is(.hidden)) .answerText > p {
   font-size: 3rem;
 }
 
