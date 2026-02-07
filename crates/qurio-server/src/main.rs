@@ -154,6 +154,8 @@ async fn main() {
         Err(err) => panic!("Error: {}", err),
     };
 
+    info!("Starting Qurio Server v{}", env!("CARGO_PKG_VERSION"));
+
     info!("quiz: {:?}", quiz);
 
     let (tx, _rx) = broadcast::channel(100);

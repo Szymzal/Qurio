@@ -1,10 +1,10 @@
 [package]
 name = "qurio-protocol"
-version = "0.1.0"
+version = "1.0.0-dev"
 edition = "2024"
 
 [dependencies]
-binrw = "0.15"
-thiserror = "2.0"
-tracing = "0.1"
+binrw = "0.15.0"
+thiserror = "2.0.18"
+tracing = "0.1.44"
 bytes = "1.11.1"

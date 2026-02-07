@@ -390,7 +390,7 @@ canvas {
 .answer1,
 .answer2,
 .answer3 {
-  max-width: 80%;
+  max-width: 87%;
   --chars: 15;
   font-size: clamp(1.654rem, 4rem - calc(var(--chars) * 0.02rem), 4rem);
 }
