@@ -11,7 +11,7 @@
 
 	<body>
 		<div class="container" id="background">
-			<div class="page" id="lobby" style="display: none;">
+			<div class="page" id="lobby">
 				<div class="compactTitle">
 					<h1 translate="no">Qurio</h1>
 					<h6>definitely not kahoot!</h6>
@@ -78,7 +78,7 @@
 				</div>
 				<div class="progressBar"></div>
 			</div>
-			<div class="page" id="questionStats">
+			<div class="page" id="questionStats" style="display: none;">
 				<div class="question">
 					<div class="compactTitle">
 						<h1 translate="no">Qurio</h1>
@@ -98,24 +98,28 @@
 				</div>
 				<div class="stats">
 					<div id="stats0">
-						<h3>Answer 1:</h3>
+						<div class="column"></div>
+						<h3>A:</h3>
 						<p id="numOfAnswers0"></p>
-						<h4 id="stats0correct">Correct Answer!</h4>
+						<h4 id="stats0correct">✓</h4>
 					</div>
 					<div id="stats1">
-						<h3>Answer 2:</h3>
+						<div class="column"></div>
+						<h3>B:</h3>
 						<p id="numOfAnswers1"></p>
-						<h4 id="stats1correct">Correct Answer!</h4>
+						<h4 id="stats1correct">✓</h4>
 					</div>
 					<div id="stats2">
-						<h3>Answer 3:</h3>
+						<div class="column"></div>
+						<h3>C:</h3>
 						<p id="numOfAnswers2"></p>
-						<h4 id="stats2correct">Correct Answer!</h4>
+						<h4 id="stats2correct">✓</h4>
 					</div>
 					<div id="stats3">
-						<h3>Answer 4:</h3>
+						<div class="column"></div>
+						<h3>D:</h3>
 						<p id="numOfAnswers3"></p>
-						<h4 id="stats3correct">Correct Answer!</h4>
+						<h4 id="stats3correct">✓</h4>
 					</div>
 				</div>
 				<div class="answersWithText">

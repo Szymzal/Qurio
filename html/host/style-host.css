@@ -214,6 +214,58 @@ canvas {
     "answers";
 }
 
+.stats {
+  --allAnswers: 10;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  padding-bottom: 1rem;
+}
+
+#stats0 .column {
+  background-color: #b93f3f;
+}
+
+#stats1 .column {
+  background-color: #7019e9;
+}
+
+#stats2 .column {
+  background-color: #81e819;
+}
+
+#stats3 .column {
+  background-color: #e9ce19;
+}
+
+#stats0,
+#stats1,
+#stats2,
+#stats3 {
+  text-align: center;
+}
+
+#stats0 > *,
+#stats1 > *,
+#stats2 > *,
+#stats3 > * {
+  display: inline;
+  font-size: 1.8rem;
+}
+
+#stats0 .column,
+#stats1 .column,
+#stats2 .column,
+#stats3 .column {
+  display: block;
+  height: calc(
+    var(--answers) / var(--allAnswers) *
+      calc(100vh - 10rem - calc(100vh * calc(1 / 3)) - 5rem)
+  );
+  width: 8vw;
+  margin-bottom: 1rem;
+}
+
 #answers {
   position: relative;
   display: grid;
@@ -338,9 +390,9 @@ canvas {
 .answer1,
 .answer2,
 .answer3 {
-  max-width: 87%;
+  max-width: 80%;
   --chars: 15;
-  font-size: clamp(1.654rem, 5rem - calc(var(--chars) * 0.01rem), 5rem);
+  font-size: clamp(1.654rem, 4rem - calc(var(--chars) * 0.02rem), 4rem);
 }
 
 #questionStats .answer0,

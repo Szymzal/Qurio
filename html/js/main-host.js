@@ -52,6 +52,8 @@ const answer3 = document.querySelectorAll(".answer3");
 /** @type HTMLDivElement | null */
 const questionStats = document.querySelector("#questionStats");
 /** @type HTMLDivElement | null */
+const statsElement = document.querySelector(".stats");
+/** @type HTMLDivElement | null */
 const stats0 = document.querySelector("#stats0");
 /** @type HTMLDivElement | null */
 const stats1 = document.querySelector("#stats1");
@@ -262,7 +264,27 @@ if (playerBoard !== null) {
   console.error("No player board!");
 }
 
+addEventListener("resize", (_) => {
+  resizeButtons();
+});
+
+resizeButtons();
+
 // ====== FUNCTIONS ======
+
+function resizeButtons() {
+  const answers = [answer0, answer1, answer2, answer3];
+  answers.forEach((answerList) => {
+    answerList.forEach((answer) => {
+      if (answer.parentElement) {
+        const width = answer.parentElement.offsetWidth;
+        if (width !== 0) {
+          answer.style.maxWidth = `${width}px`;
+        }
+      }
+    });
+  });
+}
 
 /**
  * @param {WebSocket} ws
@@ -479,43 +501,43 @@ function handlePackets(data, ws) {
         switch (numOfAnswers) {
           case 1:
             answer0.forEach((answer) => (answer.style.display = ""));
-            numOfAnswers0.style.display = "";
+            stats0.style.display = "";
             answer1.forEach((answer) => (answer.style.display = "none"));
-            numOfAnswers1.style.display = "none";
+            stats1.style.display = "none";
             answer2.forEach((answer) => (answer.style.display = "none"));
-            numOfAnswers2.style.display = "none";
+            stats2.style.display = "none";
             answer3.forEach((answer) => (answer.style.display = "none"));
-            numOfAnswers3.style.display = "none";
+            stats3.style.display = "none";
             break;
           case 2:
             answer0.forEach((answer) => (answer.style.display = ""));
-            numOfAnswers0.style.display = "";
+            stats0.style.display = "";
             answer1.forEach((answer) => (answer.style.display = ""));
-            numOfAnswers1.style.display = "";
+            stats1.style.display = "";
             answer2.forEach((answer) => (answer.style.display = "none"));
-            numOfAnswers2.style.display = "none";
+            stats2.style.display = "none";
             answer3.forEach((answer) => (answer.style.display = "none"));
-            numOfAnswers3.style.display = "none";
+            stats3.style.display = "none";
             break;
           case 3:
             answer0.forEach((answer) => (answer.style.display = ""));
-            numOfAnswers0.style.display = "";
+            stats0.style.display = "";
             answer1.forEach((answer) => (answer.style.display = ""));
-            numOfAnswers1.style.display = "";
+            stats1.style.display = "";
             answer2.forEach((answer) => (answer.style.display = ""));
-            numOfAnswers2.style.display = "";
+            stats2.style.display = "";
             answer3.forEach((answer) => (answer.style.display = "none"));
-            numOfAnswers3.style.display = "none";
+            stats3.style.display = "none";
             break;
           case 4:
             answer0.forEach((answer) => (answer.style.display = ""));
-            numOfAnswers0.style.display = "";
+            stats0.style.display = "";
             answer1.forEach((answer) => (answer.style.display = ""));
-            numOfAnswers1.style.display = "";
+            stats1.style.display = "";
             answer2.forEach((answer) => (answer.style.display = ""));
-            numOfAnswers2.style.display = "";
+            stats2.style.display = "";
             answer3.forEach((answer) => (answer.style.display = ""));
-            numOfAnswers3.style.display = "";
+            stats3.style.display = "";
             break;
           default:
             console.error("More than 4?");
@@ -562,7 +584,17 @@ function handlePackets(data, ws) {
         console.error("No indication of correct answer?");
       }
 
-      if (numOfAnswers0 && numOfAnswers1 && numOfAnswers2 && numOfAnswers3) {
+      if (
+        numOfAnswers0 &&
+        numOfAnswers1 &&
+        numOfAnswers2 &&
+        numOfAnswers3 &&
+        stats0 &&
+        stats1 &&
+        stats2 &&
+        stats3 &&
+        statsElement
+      ) {
         const numOfAnswers = [
           numOfAnswers0,
           numOfAnswers1,
@@ -570,10 +602,18 @@ function handlePackets(data, ws) {
           numOfAnswers3,
         ];
 
+        const stats = [stats0, stats1, stats2, stats3];
+
+        let allAnswers = 0;
+
         for (let i = 0; i < questionStatsPacket.numOfAnswers.length; i++) {
-          numOfAnswers[i].textContent =
-            questionStatsPacket.numOfAnswers[i].toString();
+          const numOfAnswer = questionStatsPacket.numOfAnswers[i];
+          allAnswers += numOfAnswer;
+          numOfAnswers[i].textContent = numOfAnswer.toString();
+          stats[i].style.setProperty("--answers", numOfAnswer.toString());
         }
+
+        statsElement.style.setProperty("--allAnswers", allAnswers.toString());
       } else {
         console.error("No statistics about question?");
       }
