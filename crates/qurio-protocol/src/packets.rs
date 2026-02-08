@@ -68,7 +68,11 @@ pub mod s2c {
         /// Client Packet
         HostLeft,
         #[bw(magic = 19u8)]
+        /// Client Packet
         Advance,
+        #[bw(magic = 20u8)]
+        /// Host Packet
+        GoAhead,
     }
 
     #[derive(BinWrite, Clone, Debug)]

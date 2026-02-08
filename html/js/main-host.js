@@ -249,7 +249,6 @@ if (playerBoard !== null) {
       toLeaderboardsBtn.disabled = true;
       nextQuestionBtn.disabled = false;
       websocket.send(advanceClientsPacket());
-      switchPages(PagesID.LEADERBOARD);
     });
 
     nextQuestionBtn.addEventListener("click", (event) => {
@@ -796,6 +795,9 @@ function handlePackets(data, ws) {
       switchPages(PagesID.END_GAME);
 
       ws.send(finishStatsPacket());
+      break;
+    case S2CPacketID.GoAhead:
+      switchPages(PagesID.LEADERBOARD);
       break;
     default:
       break;

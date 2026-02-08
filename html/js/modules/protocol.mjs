@@ -130,6 +130,7 @@ export const S2CPacketID = {
   HostJoined: 17,
   HostLeft: 18,
   Advance: 19,
+  GoAhead: 20,
 };
 
 const readLeaderboards =
@@ -526,7 +527,8 @@ export const readPacket =
    *            StartAnsweringPacket|
    *            HostJoinedPacket|
    *            HostLeftPacket|
-   *            AdvancePacket} value - value of the packet
+   *            AdvancePacket|
+   *            GoAheadPacket} value - value of the packet
    */
 
   /**
@@ -610,6 +612,9 @@ export const readPacket =
         returnValue.value = {};
         return returnValue;
       case S2CPacketID.Advance:
+        returnValue.value = {};
+        return returnValue;
+      case S2CPacketID.GoAhead:
         returnValue.value = {};
         return returnValue;
       default:
@@ -1218,4 +1223,11 @@ const gameDetailsPacket =
  * A Server to Client Packet
  *
  * @typedef {Object} AdvancePacket
+ */
+
+/**
+ * Indication to game not ending and host can show question statistics instead of end game statistics
+ * A Server to Host Packet
+ *
+ * @typedef {Object} GoAheadPacket
  */

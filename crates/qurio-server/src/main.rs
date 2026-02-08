@@ -534,6 +534,13 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                     send_packet(S2CPackets::Advance, &mut sender).await;
                 }
+                S2CPackets::GoAhead => {
+                    if !is_host {
+                        continue;
+                    }
+
+                    send_packet(S2CPackets::GoAhead, &mut sender).await;
+                }
             }
         }
     });
@@ -752,23 +759,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     let question_length = recv_state.quiz.questions.len();
 
                     if (question_index + 1) >= question_length as u8 {
-                        *recv_state.game_state.write().await = GameState::EndGame;
-
-                        let leaderboard = create_leaderboard(recv_state.clone()).await;
-
-                        let game_advancements = recv_state.advancements.lock().await;
-                        let game_advancements =
-                            GameAdvancements::create_from_internal(&game_advancements);
-
-                        let _ = recv_state.tx.send(S2CPackets::GameEnded);
-                        let _ = recv_state.tx.send(
-                            GameStatsPacket {
-                                leaderboard,
-                                advancements: game_advancements,
-                            }
-                            .as_packet(),
-                        );
-
+                        end_game(recv_state.clone()).await;
                         continue;
                     }
 
@@ -802,8 +793,16 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     *recv_state.game_state.write().await = GameState::Lobby;
                 }
                 C2SPackets::AdvanceClients => {
-                    // A passthrough packet
+                    let question_index = recv_state.question_index.load(Ordering::Relaxed);
+                    let question_length = recv_state.quiz.questions.len();
+
+                    if (question_index + 1) >= question_length as u8 {
+                        end_game(recv_state.clone()).await;
+                        continue;
+                    }
+
                     let _ = recv_state.tx.send(S2CPackets::Advance);
+                    let _ = recv_state.tx.send(S2CPackets::GoAhead);
                 }
             }
         }
@@ -1347,4 +1346,22 @@ async fn get_position_of_player(state: Arc<AppState>, user_id: UserId) -> u8 {
         .expect("You got inserted few lines before. HOW DID YOU DISAPREAR?");
 
     (index + 1) as u8
+}
+
+async fn end_game(state: Arc<AppState>) {
+    *state.game_state.write().await = GameState::EndGame;
+
+    let leaderboard = create_leaderboard(state.clone()).await;
+
+    let game_advancements = state.advancements.lock().await;
+    let game_advancements = GameAdvancements::create_from_internal(&game_advancements);
+
+    let _ = state.tx.send(S2CPackets::GameEnded);
+    let _ = state.tx.send(
+        GameStatsPacket {
+            leaderboard,
+            advancements: game_advancements,
+        }
+        .as_packet(),
+    );
 }
