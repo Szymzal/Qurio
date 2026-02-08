@@ -129,6 +129,7 @@ export const S2CPacketID = {
   StartAnswering: 16,
   HostJoined: 17,
   HostLeft: 18,
+  Advance: 19,
 };
 
 const readLeaderboards =
@@ -474,6 +475,30 @@ export const answerPacket =
     return buffer;
   };
 
+const ADVANCE_CLIENTS_PACKET_ID = 7;
+export const advanceClientsPacket =
+  /**
+   * Client to Server Packet
+   * Instructs clients to advance to the next page (depending on the context)
+   *
+   * Binary layout:
+   * - 3 bytes (Magic)
+   * - 1 byte  (Packet ID)
+   *
+   * @param {number} answer_index
+   * @returns {ArrayBuffer}
+   */
+  () => {
+    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH);
+    const dataView = new DataView(buffer, 0, buffer.byteLength);
+
+    // Offset from start of the buffer
+    let offset = writeMagic(dataView);
+    dataView.setUint8(offset, ADVANCE_CLIENTS_PACKET_ID);
+
+    return buffer;
+  };
+
 // ======== S2C ========
 
 export const readPacket =
@@ -500,7 +525,8 @@ export const readPacket =
    *            GameStatsPacket|
    *            StartAnsweringPacket|
    *            HostJoinedPacket|
-   *            HostLeftPacket} value - value of the packet
+   *            HostLeftPacket|
+   *            AdvancePacket} value - value of the packet
    */
 
   /**
@@ -581,6 +607,9 @@ export const readPacket =
         returnValue.value = {};
         return returnValue;
       case S2CPacketID.HostLeft:
+        returnValue.value = {};
+        return returnValue;
+      case S2CPacketID.Advance:
         returnValue.value = {};
         return returnValue;
       default:
@@ -1182,4 +1211,11 @@ const gameDetailsPacket =
  * A Server to Client Packet
  *
  * @typedef {Object} HostLeftPacket
+ */
+
+/**
+ * Indication to move to the next page (depending on the context)
+ * A Server to Client Packet
+ *
+ * @typedef {Object} AdvancePacket
  */

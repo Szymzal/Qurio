@@ -527,6 +527,13 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                     send_packet(S2CPackets::HostLeft, &mut sender).await;
                 }
+                S2CPackets::Advance => {
+                    if is_host {
+                        continue;
+                    }
+
+                    send_packet(S2CPackets::Advance, &mut sender).await;
+                }
             }
         }
     });
@@ -793,6 +800,10 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     };
 
                     *recv_state.game_state.write().await = GameState::Lobby;
+                }
+                C2SPackets::AdvanceClients => {
+                    // A passthrough packet
+                    let _ = recv_state.tx.send(S2CPackets::Advance);
                 }
             }
         }

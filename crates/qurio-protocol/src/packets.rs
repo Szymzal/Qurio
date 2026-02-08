@@ -62,9 +62,13 @@ pub mod s2c {
         /// Client/Host Packet
         StartAnswering,
         #[bw(magic = 17u8)]
+        /// Client Packet
         HostJoined,
         #[bw(magic = 18u8)]
+        /// Client Packet
         HostLeft,
+        #[bw(magic = 19u8)]
+        Advance,
     }
 
     #[derive(BinWrite, Clone, Debug)]
@@ -347,6 +351,9 @@ pub mod c2s {
         #[br(magic = 6u8)]
         /// Client Packet
         Answer(AnswerPacket),
+        #[br(magic = 7u8)]
+        /// Host Packet
+        AdvanceClients,
     }
 
     #[derive(BinRead, Clone, Debug)]

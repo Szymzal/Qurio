@@ -3,6 +3,7 @@
 // ====== IMPORTS ======
 
 import {
+  advanceClientsPacket,
   finishStatsPacket,
   initializeHostHandshakePacket,
   nextQuestionPacket,
@@ -247,6 +248,7 @@ if (playerBoard !== null) {
 
       toLeaderboardsBtn.disabled = true;
       nextQuestionBtn.disabled = false;
+      websocket.send(advanceClientsPacket());
       switchPages(PagesID.LEADERBOARD);
     });
 

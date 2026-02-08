@@ -68,6 +68,10 @@ const belowPosition = document.querySelector(".belowPlace .position");
 const belowUsername = document.querySelector(".belowPlace .otherUsername");
 /** @type HTMLHeadingElement | null */
 const belowPoints = document.querySelector(".belowPlace .points");
+/** @type HTMLDivElement | null */
+const smolLeaderboard = document.querySelector(
+  "#questionableResults .smolLeaderboard",
+);
 
 /** @type HTMLDivElement | null */
 const gameResults = document.querySelector("#gameResults");
@@ -279,7 +283,16 @@ function handlePackets(data) {
         /** @type {import("./modules/protocol.mjs").PlayerStatsPacket} */ (
           packet.value
         );
+
       switchPages(PagesID.QUESTIONABLE_RESULTS);
+
+      if (smolLeaderboard) {
+        if (currentPage === PagesID.QUESTIONABLE_RESULTS) {
+          smolLeaderboard.style.visibility = "hidden";
+        }
+      } else {
+        console.error("No smolLeaderboard?");
+      }
 
       const backgroundColorElement = document.body;
       if (playerStatsPacket.correct) {
@@ -399,6 +412,16 @@ function handlePackets(data) {
       }
 
       switchPages(PagesID.WAIT);
+      break;
+    case S2CPacketID.Advance:
+      if (smolLeaderboard) {
+        if (currentPage === PagesID.QUESTIONABLE_RESULTS) {
+          smolLeaderboard.style.visibility = "";
+        }
+      } else {
+        console.error("No smolLeaderboard?");
+      }
+
       break;
     default:
   }
