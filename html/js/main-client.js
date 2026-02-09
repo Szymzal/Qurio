@@ -288,7 +288,7 @@ function handlePackets(data) {
 
       if (smolLeaderboard) {
         if (currentPage === PagesID.QUESTIONABLE_RESULTS) {
-          smolLeaderboard.style.visibility = "hidden";
+          smolLeaderboard.style.display = "none";
         }
       } else {
         console.error("No smolLeaderboard?");
@@ -416,7 +416,7 @@ function handlePackets(data) {
     case S2CPacketID.Advance:
       if (smolLeaderboard) {
         if (currentPage === PagesID.QUESTIONABLE_RESULTS) {
-          smolLeaderboard.style.visibility = "";
+          smolLeaderboard.style.display = "";
         }
       } else {
         console.error("No smolLeaderboard?");
