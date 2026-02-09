@@ -771,8 +771,8 @@ function handlePackets(data, ws) {
         overallRatioUsernameElement &&
         overallRatioNumberElement
       ) {
-        const ratioUserId = gameStatsPacket.advancements.streak.userId;
-        const ratioNumber = gameStatsPacket.advancements.streak.streak;
+        const ratioUserId = gameStatsPacket.advancements.ratio.userId;
+        const ratioNumber = gameStatsPacket.advancements.ratio.ratio;
         let ratioUsername = users.find(
           (x) => x.userID === ratioUserId,
         )?.username;
