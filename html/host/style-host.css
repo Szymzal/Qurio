@@ -665,3 +665,51 @@ canvas {
 .achievements .achievement > .row {
   grid-area: achievement;
 }
+
+#podiumPage .avatar {
+  width: 192px;
+  height: 192px;
+  background-color: white;
+  border-radius: 2rem;
+  margin: auto;
+  margin-bottom: 1rem;
+}
+
+#podiumPage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+#podiumPage .username {
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+#toEndStatistics {
+  margin: 0.5rem;
+  margin-top: 0.2rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  font-size: 2rem;
+  border-radius: 3rem;
+  color: white;
+  cursor: pointer;
+  justify-self: flex-end;
+  border: 0.5rem solid #202338;
+  background-color: #2c2e43;
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+#toEndStatistics:hover {
+  filter: grayscale(50%);
+}

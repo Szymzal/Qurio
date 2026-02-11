@@ -95,6 +95,41 @@ const gameLeaderboard = document.querySelector("#gameLeaderboard");
 /** @type HTMLButtonElement | null */
 const toTheLobbyBtn = document.querySelector("#toTheLobby");
 
+/** @type HTMLDivElement | null */
+const podiumPage = document.querySelector("#podiumPage");
+/** @type HTMLParagraphElement | null */
+const firstPlaceUsername = document.querySelector(
+  "#podiumPage .firstPlace .username",
+);
+/** @type HTMLDivElement | null */
+const firstPlaceAvatar = document.querySelector(
+  "#podiumPage .firstPlace .avatar",
+);
+/** @type HTMLDivElement | null */
+const firstPlacePodium = document.querySelector("#podiumPage .firstPlace");
+/** @type HTMLParagraphElement | null */
+const secondPlaceUsername = document.querySelector(
+  "#podiumPage .secondPlace .username",
+);
+/** @type HTMLDivElement | null */
+const secondPlaceAvatar = document.querySelector(
+  "#podiumPage .secondPlace .avatar",
+);
+/** @type HTMLDivElement | null */
+const secondPlacePodium = document.querySelector("#podiumPage .secondPlace");
+/** @type HTMLParagraphElement | null */
+const thirdPlaceUsername = document.querySelector(
+  "#podiumPage .thirdPlace .username",
+);
+/** @type HTMLDivElement | null */
+const thirdPlaceAvatar = document.querySelector(
+  "#podiumPage .thirdPlace .avatar",
+);
+/** @type HTMLDivElement | null */
+const thirdPlacePodium = document.querySelector("#podiumPage .thirdPlace");
+/** @type HTMLButtonElement | null */
+const toEndStatisticsButton = document.querySelector("#toEndStatistics");
+
 /** @type HTMLParagraphElement | null */
 const quickPositionElement = document.querySelector(
   "#quickestAchievement .row .position",
@@ -171,7 +206,8 @@ const PagesID = {
   ANSWERS: 2,
   QUESTION_STATS: 3,
   LEADERBOARD: 4,
-  END_GAME: 5,
+  PODIUM: 5,
+  END_GAME: 6,
 };
 
 /**
@@ -183,6 +219,7 @@ const pages = [
   answersPage,
   questionStats,
   leaderboardPage,
+  podiumPage,
   endGame,
 ];
 
@@ -242,7 +279,7 @@ if (playerBoard !== null) {
     console.error("No start game or return to lobby button!");
   }
 
-  if (toLeaderboardsBtn && nextQuestionBtn) {
+  if (toLeaderboardsBtn && nextQuestionBtn && toEndStatisticsButton) {
     toLeaderboardsBtn.addEventListener("click", (event) => {
       event.preventDefault();
 
@@ -257,6 +294,14 @@ if (playerBoard !== null) {
       nextQuestionBtn.disabled = true;
       toLeaderboardsBtn.disabled = false;
       websocket.send(nextQuestionPacket());
+    });
+
+    toEndStatisticsButton.addEventListener("click", (event) => {
+      event.preventDefault();
+
+      toEndStatisticsButton.disabled = true;
+      websocket.send(finishStatsPacket());
+      switchPages(PagesID.END_GAME);
     });
   } else {
     console.error("No leaderboard or next question button!");
@@ -706,6 +751,67 @@ function handlePackets(data, ws) {
         console.error("No leaderboards!");
       }
 
+      if (firstPlaceUsername && firstPlacePodium && firstPlaceAvatar) {
+        const firstUser = gameLeaderboardUsers[0];
+        let firstUsernameString = users.find(
+          (x) => x.userID === firstUser.userID,
+        )?.username;
+
+        if (firstUsernameString === undefined) {
+          firstUsernameString = "_ERROR_";
+        }
+
+        firstPlaceUsername.textContent = firstUsernameString;
+        firstPlaceUsername.style.visibility = "hidden";
+        firstPlaceAvatar.style.visibility = "hidden";
+      } else {
+        console.error("No first place podium?");
+      }
+
+      if (secondPlaceUsername && secondPlacePodium && secondPlaceAvatar) {
+        if (gameLeaderboardUsers.length > 1) {
+          secondPlacePodium.style.display = "";
+          const secondUser = gameLeaderboardUsers[1];
+          let secondUsernameString = users.find(
+            (x) => x.userID === secondUser.userID,
+          )?.username;
+
+          if (secondUsernameString === undefined) {
+            secondUsernameString = "_ERROR_";
+          }
+
+          secondPlaceUsername.textContent = secondUsernameString;
+          secondPlaceUsername.style.visibility = "hidden";
+          secondPlaceAvatar.style.visibility = "hidden";
+        } else {
+          secondPlacePodium.style.display = "none";
+        }
+      } else {
+        console.error("No second place podium?");
+      }
+
+      if (thirdPlaceUsername && thirdPlacePodium && thirdPlaceAvatar) {
+        if (gameLeaderboardUsers.length > 2) {
+          thirdPlacePodium.style.display = "";
+          const thirdUser = gameLeaderboardUsers[2];
+          let thirdUsernameString = users.find(
+            (x) => x.userID === thirdUser.userID,
+          )?.username;
+
+          if (thirdUsernameString === undefined) {
+            thirdUsernameString = "_ERROR_";
+          }
+
+          thirdPlaceUsername.textContent = thirdUsernameString;
+          thirdPlaceUsername.style.visibility = "hidden";
+          thirdPlaceAvatar.style.visibility = "hidden";
+        } else {
+          thirdPlacePodium.style.display = "none";
+        }
+      } else {
+        console.error("No second place podium?");
+      }
+
       if (
         overallQuickPositionElement &&
         overallQuickUsernameElement &&
@@ -792,9 +898,64 @@ function handlePackets(data, ws) {
         console.error("No overall ratio advancement in game stats?");
       }
 
-      switchPages(PagesID.END_GAME);
+      if (toEndStatisticsButton) {
+        toEndStatisticsButton.style.display = "none";
+        toEndStatisticsButton.disabled = true;
+      } else {
+        console.error("No to end statistics button?");
+      }
 
-      ws.send(finishStatsPacket());
+      switchPages(PagesID.PODIUM);
+
+      const timeChangeMilis = 1000;
+
+      const firstPlaceFun = () => {
+        if (firstPlaceUsername && firstPlaceAvatar) {
+          firstPlaceUsername.style.visibility = "";
+          firstPlaceAvatar.style.visibility = "";
+        } else {
+          console.error("No first place username and avatar?");
+        }
+      };
+      const secondPlaceFun = () => {
+        if (secondPlaceUsername && secondPlaceAvatar) {
+          secondPlaceUsername.style.visibility = "";
+          secondPlaceAvatar.style.visibility = "";
+        } else {
+          console.error("No second place username and avatar?");
+        }
+      };
+      const thirdPlaceFun = () => {
+        if (thirdPlaceUsername && thirdPlaceAvatar) {
+          thirdPlaceUsername.style.visibility = "";
+          thirdPlaceAvatar.style.visibility = "";
+        } else {
+          console.error("No third place username and avatar?");
+        }
+      };
+      const finishIt = () => {
+        if (toEndStatisticsButton) {
+          toEndStatisticsButton.style.display = "";
+          toEndStatisticsButton.disabled = false;
+        } else {
+          console.error("No end statistics button?");
+        }
+      };
+
+      if (gameLeaderboardUsers.length > 2) {
+        setTimeout(thirdPlaceFun, timeChangeMilis);
+        setTimeout(secondPlaceFun, timeChangeMilis * 2);
+        setTimeout(firstPlaceFun, timeChangeMilis * 3);
+        setTimeout(finishIt, timeChangeMilis * 4);
+      } else if (gameLeaderboardUsers.length > 1) {
+        setTimeout(secondPlaceFun, timeChangeMilis);
+        setTimeout(firstPlaceFun, timeChangeMilis * 2);
+        setTimeout(finishIt, timeChangeMilis * 3);
+      } else {
+        setTimeout(firstPlaceFun, timeChangeMilis);
+        setTimeout(finishIt, timeChangeMilis * 2);
+      }
+
       break;
     case S2CPacketID.GoAhead:
       switchPages(PagesID.LEADERBOARD);
