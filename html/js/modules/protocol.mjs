@@ -131,6 +131,7 @@ export const S2CPacketID = {
   HostLeft: 18,
   Advance: 19,
   GoAhead: 20,
+  GameStateInfo: 21,
 };
 
 const readLeaderboards =
@@ -528,7 +529,7 @@ export const readPacket =
    *            HostJoinedPacket|
    *            HostLeftPacket|
    *            AdvancePacket|
-   *            GoAheadPacket} value - value of the packet
+   *            GoAheadPacket|GameStateInfoPacket} value - value of the packet
    */
 
   /**
@@ -616,6 +617,9 @@ export const readPacket =
         return returnValue;
       case S2CPacketID.GoAhead:
         returnValue.value = {};
+        return returnValue;
+      case S2CPacketID.GameStateInfo:
+        returnValue.value = gameStateInfoPacket(dataView, offset);
         return returnValue;
       default:
         console.error("Packet ID not matched");
@@ -1231,3 +1235,108 @@ const gameDetailsPacket =
  *
  * @typedef {Object} GoAheadPacket
  */
+
+/**
+ * Provides easy to use enum to decode game state ID
+ *
+ * @readonly
+ * @enum {number}
+ */
+export const gameStateID = {
+  Lobby: 0,
+  Question: 1,
+  Answering: 2,
+  Stats: 3,
+  End: 4,
+};
+
+const gameStateInfoPacket =
+  /**
+   * Information about game in Lobby state
+   *
+   * @typedef {Object} GameStateInfoLobby
+   */
+
+  /**
+   * Information about game in Question state
+   *
+   * @typedef {Object} GameStateInfoQuestion
+   * @property {AnswerDetailsPacket} answerDetails - Information about answering
+   */
+
+  /**
+   * Information about game in Answering state
+   *
+   * @typedef {Object} GameStateInfoAnswering
+   * @property {boolean} answered - Did user already answered?
+   * @property {AnswerDetailsPacket} answerDetails - Information about answering
+   */
+
+  /**
+   * Information about game in Stats state
+   *
+   * @typedef {Object} GameStateInfoStats
+   * @property {PlayerStatsPacket} playerStats - Information about player stats
+   */
+
+  /**
+   * Information about game in End Game state
+   *
+   * @typedef {Object} GameStateInfoEnd
+   * @property {PlayerOverallStatsPacket} playerStats - Information about overall player stats
+   */
+
+  /**
+   * Information about game to join mid-game
+   * A Server to Client Packet
+   *
+   * @typedef {Object} GameStateInfoPacket
+   * @property {gameStateID} id - ID of the State
+   * @property {GameStateInfoLobby|GameStateInfoQuestion|GameStateInfoAnswering|GameStateInfoStats|GameStateInfoEnd} value - Information about Game State
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {GameStateInfoPacket}
+   */
+  (dataView, offset) => {
+    let gameState = dataView.getUint8(offset);
+    offset++;
+
+    let returnValue = {};
+    if (gameState === gameStateID.Lobby) {
+      returnValue = {};
+    } else if (gameState === gameStateID.Question) {
+      returnValue = {
+        answerDetails: answerDetailsPacket(dataView, offset),
+      };
+    } else if (gameState === gameStateID.Answering) {
+      let answered = dataView.getUint8(offset) !== 0;
+      offset++;
+
+      returnValue = {
+        answered: answered,
+        answerDetails: answerDetailsPacket(dataView, offset),
+      };
+    } else if (gameState === gameStateID.Stats) {
+      returnValue = {
+        playerStats: playerStatsPacket(dataView, offset),
+      };
+    } else if (gameState === gameStateID.End) {
+      returnValue = {
+        playerStats: playerOverallStatsPacket(dataView, offset),
+      };
+    } else {
+      console.error(`Unknown gameState of ID: ${gameState}!`);
+      returnValue = {};
+    }
+
+    return {
+      id: gameState,
+      value: returnValue,
+    };
+  };

@@ -31,10 +31,10 @@ use qurio_protocol::{
     packets::{
         c2s::C2SPackets,
         s2c::{
-            AnswerDetailsPacket, GameDetailsPacket, GameStatsPacket, HandshakeAcceptedPacket,
-            HandshakeRejectedPacket, HostHandshakeAcceptedPacket, PlayerOverallStatsPacket,
-            PlayerStatsPacket, QuestionInfoPacket, QuestionStatsPacket, S2CPackets,
-            UserJoinedPacket, UserLeftPacket,
+            AnswerDetailsPacket, GameDetailsPacket, GameStateInfoClient, GameStateInfoPacket,
+            GameStatsPacket, HandshakeAcceptedPacket, HandshakeRejectedPacket,
+            HostHandshakeAcceptedPacket, PlayerOverallStatsPacket, PlayerStatsPacket,
+            QuestionInfoPacket, QuestionStatsPacket, S2CPackets, UserJoinedPacket, UserLeftPacket,
         },
     },
     structs::{
@@ -541,6 +541,13 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                     send_packet(S2CPackets::GoAhead, &mut sender).await;
                 }
+                S2CPackets::GameStateInfo(game_state_info_packet) => {
+                    if !is_host {
+                        continue;
+                    }
+
+                    send_packet(game_state_info_packet.as_packet(), &mut sender).await;
+                }
             }
         }
     });
@@ -934,12 +941,6 @@ async fn initialize_handshake(
                         return Err(HandshakeInitializationError::UsernameTaken);
                     }
 
-                    if *state.game_state.read().await != GameState::Lobby {
-                        // TODO:
-                        tracing::info!("Player trying to join during the game. TO be implemented!");
-                        return Err(HandshakeInitializationError::IllegalState);
-                    }
-
                     // Checks were passed
                     // Now get new id and add to users
 
@@ -968,6 +969,7 @@ async fn initialize_handshake(
 
                     send_packet(HandshakeAcceptedPacket { id: user_id }, sender).await;
                     users.insert(user.id, user.username);
+                    drop(users);
 
                     if state.host_joined.load(Ordering::Relaxed) {
                         send_packet(S2CPackets::HostJoined, sender).await;
@@ -975,6 +977,138 @@ async fn initialize_handshake(
 
                     let mut player_points = state.player_points.write().await;
                     player_points.insert(user.id, 0);
+                    drop(player_points);
+
+                    let game_state = *state.game_state.read().await;
+                    let packet = match game_state {
+                        GameState::Lobby => GameStateInfoPacket(GameStateInfoClient::LobbyState),
+                        GameState::Question => {
+                            let question_index = state.question_index.load(Ordering::Relaxed);
+                            let question = &state.quiz.questions[question_index as usize];
+
+                            GameStateInfoPacket(GameStateInfoClient::QuestionState {
+                                answer_details: AnswerDetailsPacket {
+                                    num_of_answers: question.answers.len() as u8,
+                                },
+                            })
+                        }
+                        GameState::Answering => {
+                            let question_index = state.question_index.load(Ordering::Relaxed);
+                            let question = &state.quiz.questions[question_index as usize];
+                            let answered = state.answered.lock().await.contains(&user_id);
+
+                            GameStateInfoPacket(GameStateInfoClient::AnsweringState {
+                                answered: answered.into(),
+                                answer_details: AnswerDetailsPacket {
+                                    num_of_answers: question.answers.len() as u8,
+                                },
+                            })
+                        }
+                        GameState::Stats => {
+                            // TODO: Claim _ERROR_ as invalid username
+                            let error_username =
+                                UserName::new("_ERROR_").expect("_ERROR_ to be parsed");
+                            let leaderboard = create_leaderboard(state.clone()).await;
+
+                            let current_player =
+                                match leaderboard.users.iter().position(|x| x.id == user_id) {
+                                    Some(position) => {
+                                        let player = leaderboard.users.index(position);
+                                        KnownPlayerStats {
+                                            position: position as u8 + 1,
+                                            points: player.points,
+                                        }
+                                    }
+                                    None => {
+                                        warn!("User didn't exist creating...");
+                                        state.player_points.write().await.insert(user_id, 0);
+                                        KnownPlayerStats {
+                                            position: leaderboard.num_users + 1,
+                                            points: 0,
+                                        }
+                                    }
+                                };
+
+                            let above_player = if current_player.position > 1 {
+                                let position = current_player.position - 1;
+                                let user_stat = leaderboard.users.index(position as usize - 1);
+                                let reader = state.users.read().await;
+                                let username = reader.get(&user_stat.id).unwrap_or(&error_username);
+
+                                Some(PlayerLeaderboardStats {
+                                    position,
+                                    username: username.clone(),
+                                    points: user_stat.points,
+                                })
+                            } else {
+                                None
+                            };
+
+                            let below_player = if current_player.position < leaderboard.num_users {
+                                let position = current_player.position + 1;
+                                let user_stat = leaderboard.users.index(position as usize - 1);
+                                let reader = state.users.read().await;
+                                let username = reader.get(&user_stat.id).unwrap_or(&error_username);
+
+                                Some(PlayerLeaderboardStats {
+                                    position,
+                                    username: username.clone(),
+                                    points: user_stat.points,
+                                })
+                            } else {
+                                None
+                            };
+
+                            let correct = state.correct_answers.lock().await.contains(&user_id);
+
+                            GameStateInfoPacket(GameStateInfoClient::StatsState {
+                                player_stats: PlayerStatsPacket {
+                                    correct: correct.into(),
+                                    player: current_player,
+                                    above_player,
+                                    below_player,
+                                },
+                            })
+                        }
+                        GameState::EndGame => {
+                            let points = match state.player_points.read().await.get(&user_id) {
+                                Some(value) => *value,
+                                None => {
+                                    state.player_points.write().await.insert(user_id, 0);
+                                    0
+                                }
+                            };
+
+                            let game_advancements = state.advancements.lock().await;
+                            let ratio = game_advancements
+                                .ratio
+                                .get(&user_id)
+                                .map(|x| x.percent_int())
+                                .unwrap_or(0u8);
+                            let quick = game_advancements
+                                .quick
+                                .get(&user_id)
+                                .cloned()
+                                .unwrap_or(u32::MAX);
+                            let streak = game_advancements
+                                .streak
+                                .get(&user_id)
+                                .cloned()
+                                .unwrap_or(0u8);
+
+                            GameStateInfoPacket(GameStateInfoClient::EndGameState {
+                                player_stats: PlayerOverallStatsPacket {
+                                    position: get_position_of_player(state.clone(), user_id).await,
+                                    points,
+                                    ratio,
+                                    quick,
+                                    streak,
+                                },
+                            })
+                        }
+                    };
+
+                    send_packet(packet.as_packet(), sender).await;
 
                     return Ok(user.id);
                 }
@@ -1272,6 +1406,7 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
             let mut vec = Vec::new();
             let answers = background_recv_state.answers.lock().await;
             answers.iter().for_each(|&x| vec.push(x));
+            drop(answers);
 
             let leaderboard = create_leaderboard(background_recv_state.clone()).await;
 
@@ -1314,10 +1449,8 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
 }
 
 async fn create_leaderboard(state: Arc<AppState>) -> Leaderboard {
-    let mut list: Vec<UserStat> = state
-        .player_points
-        .read()
-        .await
+    let player_points = state.player_points.read().await;
+    let mut list: Vec<UserStat> = player_points
         .iter()
         .map(|(id, points)| UserStat {
             id: *id,

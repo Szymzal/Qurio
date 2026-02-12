@@ -73,6 +73,9 @@ pub mod s2c {
         #[bw(magic = 20u8)]
         /// Host Packet
         GoAhead,
+        #[bw(magic = 21u8)]
+        /// Client Packet
+        GameStateInfo(GameStateInfoPacket),
     }
 
     #[derive(BinWrite, Clone, Debug)]
@@ -158,6 +161,28 @@ pub mod s2c {
                 streak: 0,
             }
         }
+    }
+
+    #[derive(BinWrite, Clone, Debug)]
+    pub struct GameStateInfoPacket(pub GameStateInfoClient);
+
+    #[derive(BinWrite, Clone, Debug)]
+    pub enum GameStateInfoClient {
+        #[bw(magic = 0u8)]
+        LobbyState,
+        #[bw(magic = 1u8)]
+        QuestionState { answer_details: AnswerDetailsPacket },
+        #[bw(magic = 2u8)]
+        AnsweringState {
+            answered: BinBool,
+            answer_details: AnswerDetailsPacket,
+        },
+        #[bw(magic = 3u8)]
+        StatsState { player_stats: PlayerStatsPacket },
+        #[bw(magic = 4u8)]
+        EndGameState {
+            player_stats: PlayerOverallStatsPacket,
+        },
     }
 
     #[derive(BinWrite, Clone, Debug)]
@@ -251,6 +276,12 @@ pub mod s2c {
         }
     }
 
+    impl From<GameStateInfoPacket> for S2CPackets {
+        fn from(val: GameStateInfoPacket) -> Self {
+            S2CPackets::GameStateInfo(val)
+        }
+    }
+
     impl HandshakeAcceptedPacket {
         pub fn as_packet(self) -> S2CPackets {
             self.into()
@@ -318,6 +349,12 @@ pub mod s2c {
     }
 
     impl GameDetailsPacket {
+        pub fn as_packet(self) -> S2CPackets {
+            self.into()
+        }
+    }
+
+    impl GameStateInfoPacket {
         pub fn as_packet(self) -> S2CPackets {
             self.into()
         }

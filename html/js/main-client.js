@@ -4,6 +4,7 @@
 
 import {
   answerPacket,
+  gameStateID,
   initializeHandshakePacket,
   readPacket,
   S2CPacketID,
@@ -420,6 +421,210 @@ function handlePackets(data) {
         }
       } else {
         console.error("No smolLeaderboard?");
+      }
+
+      break;
+    case S2CPacketID.GameStateInfo:
+      const gameStateInfoPacket =
+        /** @type {import("./modules/protocol.mjs").GameStateInfoPacket} */ (
+          packet.value
+        );
+
+      console.dir(gameStateInfoPacket);
+
+      switch (gameStateInfoPacket.id) {
+        case gameStateID.Lobby:
+          switchPages(PagesID.WAIT);
+          break;
+        case gameStateID.Question:
+          const answerDetailsBefore =
+            /** @type {import("./modules/protocol.mjs").GameStateInfoQuestion} */ (
+              gameStateInfoPacket.value
+            );
+
+          numberOfAnswers = answerDetailsBefore.answerDetails.numOfAnswers;
+
+          if (answer0 && answer1 && answer2 && answer3) {
+            const answers = [answer0, answer1, answer2, answer3];
+            answers.forEach((answer) => {
+              answer.disabled = false;
+            });
+
+            switch (numberOfAnswers) {
+              case 1:
+                console.error("What? Why only one answer?");
+                break;
+              case 2:
+                answer2.className = "hidden";
+                answer3.className = "hidden";
+                break;
+              case 3:
+                answer2.className = "";
+                answer3.className = "hidden";
+                break;
+              case 4:
+                answer2.className = "";
+                answer3.className = "";
+                break;
+              default:
+                console.error("More than 4?");
+                break;
+            }
+          } else {
+            console.error("No buttons!");
+          }
+
+          switchPages(PagesID.WAIT_FOR_QUESTION);
+          break;
+        case gameStateID.Answering:
+          const answerDetails =
+            /** @type {import("./modules/protocol.mjs").GameStateInfoAnswering} */ (
+              gameStateInfoPacket.value
+            );
+
+          if (answerDetails.answered) {
+            setNeutralTips();
+            switchPages(PagesID.WAITING_FOR_ANSWERS);
+          } else {
+            numberOfAnswers = answerDetails.answerDetails.numOfAnswers;
+
+            if (answer0 && answer1 && answer2 && answer3) {
+              const answers = [answer0, answer1, answer2, answer3];
+              answers.forEach((answer) => {
+                answer.disabled = false;
+              });
+
+              switch (numberOfAnswers) {
+                case 1:
+                  console.error("What? Why only one answer?");
+                  break;
+                case 2:
+                  answer2.className = "hidden";
+                  answer3.className = "hidden";
+                  break;
+                case 3:
+                  answer2.className = "";
+                  answer3.className = "hidden";
+                  break;
+                case 4:
+                  answer2.className = "";
+                  answer3.className = "";
+                  break;
+                default:
+                  console.error("More than 4?");
+                  break;
+              }
+            } else {
+              console.error("No buttons!");
+            }
+
+            switchPages(PagesID.ANSWER);
+          }
+
+          break;
+        case gameStateID.Stats:
+          const playerStats =
+            /** @type {import("./modules/protocol.mjs").GameStateInfoStats} */ (
+              gameStateInfoPacket.value
+            );
+
+          if (smolLeaderboard) {
+            smolLeaderboard.style.display = "none";
+          } else {
+            console.error("No smolLeaderboard?");
+          }
+
+          const backgroundColorElement = document.body;
+          if (playerStats.playerStats.correct) {
+            backgroundColorElement.classList.add("correctAnswer");
+            backgroundColorElement.classList.remove("wrongAnswer");
+          } else {
+            backgroundColorElement.classList.add("wrongAnswer");
+            backgroundColorElement.classList.remove("correctAnswer");
+          }
+
+          setResultTips(playerStats.playerStats.correct);
+
+          if (playerPosition && playerPoints) {
+            playerPosition.textContent = `${playerStats.playerStats.player.position}.`;
+            playerPoints.textContent = `${playerStats.playerStats.player.points}`;
+          } else {
+            console.error("No player position & points");
+          }
+
+          if (abovePoints && aboveUsername && abovePosition && aboveDiv) {
+            if (playerStats.playerStats.above_player === null) {
+              aboveDiv.style.visibility = "hidden";
+            } else {
+              aboveDiv.style.visibility = "visible";
+              abovePosition.textContent = `${playerStats.playerStats.above_player.position}.`;
+              aboveUsername.textContent = `${playerStats.playerStats.above_player.username}`;
+              abovePoints.textContent = `${playerStats.playerStats.above_player.points}`;
+            }
+          } else {
+            console.error("No above player leaderboards!");
+          }
+
+          if (belowPoints && belowUsername && belowPosition && belowDiv) {
+            if (playerStats.playerStats.below_player === null) {
+              belowDiv.style.visibility = "hidden";
+            } else {
+              belowDiv.style.visibility = "visible";
+              belowPosition.textContent = `${playerStats.playerStats.below_player.position}.`;
+              belowUsername.textContent = `${playerStats.playerStats.below_player.username}`;
+              belowPoints.textContent = `${playerStats.playerStats.below_player.points}`;
+            }
+          } else {
+            console.error("No below player leaderboards!");
+          }
+
+          switchPages(PagesID.QUESTIONABLE_RESULTS);
+          break;
+        case gameStateID.End:
+          const playerOverallStats =
+            /** @type {import("./modules/protocol.mjs").GameStateInfoEnd} */ (
+              gameStateInfoPacket.value
+            );
+
+          if (overallPlayerPosition && overallPlayerPoints) {
+            overallPlayerPosition.textContent = `${playerOverallStats.playerStats.position}.`;
+            overallPlayerPoints.textContent = `${playerOverallStats.playerStats.points}`;
+          } else {
+            console.error("No overall player position & points");
+          }
+
+          if (ratioAchievement) {
+            ratioAchievement.textContent = `${playerOverallStats.playerStats.ratio}%`;
+          } else {
+            console.error("No ratio achievement?");
+          }
+
+          if (quickestAchievement) {
+            let textContent = "Too slow!";
+
+            if (playerOverallStats.playerStats.quick !== 4294967295) {
+              const time = (
+                playerOverallStats.playerStats.quick / 1000.0
+              ).toPrecision(3);
+              textContent = `${time}s`;
+            }
+
+            quickestAchievement.textContent = textContent;
+          } else {
+            console.error("No quickest achievement?");
+          }
+
+          if (streakAchievement) {
+            streakAchievement.textContent = `${playerOverallStats.playerStats.streak}`;
+          } else {
+            console.error("No streak achievement?");
+          }
+
+          switchPages(PagesID.GAME_RESULTS);
+          break;
+        default:
+          console.error("Unkown game state ID! Disconnecting...");
+          return;
       }
 
       break;
