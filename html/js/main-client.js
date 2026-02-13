@@ -969,11 +969,11 @@ function setResultTips(correct) {
  */
 function updateUserAvatar(avatar) {
   bodyAvatar.forEach((x) => {
-    x.src = `../assets/avatar1${avatar.body}`;
+    x.src = `../assets/avatar1${avatar.body}1`;
   });
 
   headAvatar.forEach((x) => {
-    x.src = `../assets/avatar2${avatar.head}`;
+    x.src = `../assets/avatar2${avatar.head}1`;
   });
 
   eyesAvatar.forEach((x) => {
@@ -997,7 +997,7 @@ function updateOtherUserAvatar(element, avatar) {
       x.style.display = "none";
     } else {
       x.style.display = "";
-      x.src = `../assets/avatar1${avatar.body}`;
+      x.src = `../assets/avatar1${avatar.body}1`;
     }
   });
 
@@ -1008,7 +1008,7 @@ function updateOtherUserAvatar(element, avatar) {
       x.style.display = "none";
     } else {
       x.style.display = "";
-      x.src = `../assets/avatar2${avatar.head}`;
+      x.src = `../assets/avatar2${avatar.head}1`;
     }
   });
 

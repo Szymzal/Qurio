@@ -1109,12 +1109,12 @@ function createPlayer(user) {
 
   const body = document.createElement("img");
   body.className = "body";
-  body.src = `../assets/avatar1${user.avatar.body}`;
+  body.src = `../assets/avatar1${user.avatar.body}1`;
   body.alt = "Body";
 
   const head = document.createElement("img");
   head.className = "head";
-  head.src = `../assets/avatar2${user.avatar.head}`;
+  head.src = `../assets/avatar2${user.avatar.head}1`;
   head.alt = "Head";
 
   const eyes = document.createElement("img");
@@ -1190,12 +1190,12 @@ function setLeaderboard(leaderboard, players) {
 
       const body = document.createElement("img");
       body.className = "body";
-      body.src = `../assets/avatar1${userInfo.avatar.body}`;
+      body.src = `../assets/avatar1${userInfo.avatar.body}1`;
       body.alt = "Body";
 
       const head = document.createElement("img");
       head.className = "head";
-      head.src = `../assets/avatar2${userInfo.avatar.head}`;
+      head.src = `../assets/avatar2${userInfo.avatar.head}1`;
       head.alt = "Head";
 
       const eyes = document.createElement("img");
@@ -1246,7 +1246,7 @@ function updateUserAvatar(element, avatar) {
       x.style.display = "none";
     } else {
       x.style.display = "";
-      x.src = `../assets/avatar1${avatar.body}`;
+      x.src = `../assets/avatar1${avatar.body}1`;
     }
   });
 
@@ -1257,7 +1257,7 @@ function updateUserAvatar(element, avatar) {
       x.style.display = "none";
     } else {
       x.style.display = "";
-      x.src = `../assets/avatar2${avatar.head}`;
+      x.src = `../assets/avatar2${avatar.head}1`;
     }
   });
 

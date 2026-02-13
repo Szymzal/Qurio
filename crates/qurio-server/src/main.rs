@@ -1350,54 +1350,54 @@ async fn js_host() -> impl IntoResponse {
 
 async fn assets(Path(path): Path<String>) -> impl IntoResponse {
     match path.as_str() {
-        "avatar11" => (
+        "avatar111" => (
             [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar11.png"),
+            include_bytes!("../../../html/assets/avatar/avatar111.png"),
         )
             .into_response(),
-        "avatar12" => (
+        "avatar121" => (
             [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar12.png"),
+            include_bytes!("../../../html/assets/avatar/avatar121.png"),
         )
             .into_response(),
-        "avatar13" => (
+        "avatar131" => (
             [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar13.png"),
+            include_bytes!("../../../html/assets/avatar/avatar131.png"),
         )
             .into_response(),
-        "avatar14" => (
+        "avatar141" => (
             [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar14.png"),
+            include_bytes!("../../../html/assets/avatar/avatar141.png"),
         )
             .into_response(),
-        "avatar15" => (
+        "avatar151" => (
             [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar15.png"),
+            include_bytes!("../../../html/assets/avatar/avatar151.png"),
         )
             .into_response(),
-        "avatar21" => (
+        "avatar211" => (
             [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar21.png"),
+            include_bytes!("../../../html/assets/avatar/avatar211.png"),
         )
             .into_response(),
-        "avatar22" => (
+        "avatar221" => (
             [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar22.png"),
+            include_bytes!("../../../html/assets/avatar/avatar221.png"),
         )
             .into_response(),
-        "avatar23" => (
+        "avatar231" => (
             [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar23.png"),
+            include_bytes!("../../../html/assets/avatar/avatar231.png"),
         )
             .into_response(),
-        "avatar24" => (
+        "avatar241" => (
             [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar24.png"),
+            include_bytes!("../../../html/assets/avatar/avatar241.png"),
         )
             .into_response(),
-        "avatar25" => (
+        "avatar251" => (
             [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar25.png"),
+            include_bytes!("../../../html/assets/avatar/avatar251.png"),
         )
             .into_response(),
         "avatar31" => (
