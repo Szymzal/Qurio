@@ -293,6 +293,7 @@ if (playerBoard !== null) {
         startGameBtn.disabled = true;
         toTheLobbyBtn.disabled = false;
         websocket.send(startGamePacket());
+        stopBackgroundMusic();
       } else {
         console.error("You need at least 1 player!");
       }
@@ -305,6 +306,7 @@ if (playerBoard !== null) {
       toTheLobbyBtn.disabled = true;
       websocket.send(returnToLobbyPacket());
       switchPages(PagesID.LOBBY);
+      startBackgroundMusic();
     });
   } else {
     console.error("No start game or return to lobby button!");
@@ -1299,31 +1301,37 @@ function startBackgroundMusic() {
     backgroundMusic.volume = 0.1;
   }
 
+  if (backgroundMusicList[0].currentTime !== 0) {
+    backgroundMusicList[0].currentTime = 0;
+  }
+
   backgroundMusicList[0].play();
 }
 
 function stopBackgroundMusic() {
   for (let backgroundMusic of backgroundMusicList) {
     backgroundMusic.pause();
-    backgroundMusic.currentTime = 0;
   }
 }
 
-backgroundMusicList[0].addEventListener("canplaythrough", (event) => {
+backgroundMusicList[0].addEventListener("canplaythrough", (_) => {
   startBackgroundMusic();
 });
 
-backgroundMusicList[0].addEventListener("ended", (event) => {
+backgroundMusicList[0].addEventListener("ended", (_) => {
   stopBackgroundMusic();
   backgroundMusicList[1].play();
+  backgroundMusicList[1].currentTime = 0;
 });
 
-backgroundMusicList[1].addEventListener("ended", (event) => {
+backgroundMusicList[1].addEventListener("ended", (_) => {
   stopBackgroundMusic();
   backgroundMusicList[2].play();
+  backgroundMusicList[2].currentTime = 0;
 });
 
-backgroundMusicList[2].addEventListener("ended", (event) => {
+backgroundMusicList[2].addEventListener("ended", (_) => {
   stopBackgroundMusic();
   backgroundMusicList[0].play();
+  backgroundMusicList[0].currentTime = 0;
 });
