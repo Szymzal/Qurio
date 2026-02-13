@@ -213,7 +213,17 @@ const overallRatioAvatarElement = document.querySelector(
   "#overallRatioAchievement .row .miniAvatar",
 );
 
+const backgroundMusic1 = new Audio("../assets/sound-background-music1");
+const backgroundMusic2 = new Audio("../assets/sound-background-music2");
+const backgroundMusic3 = new Audio("../assets/sound-background-music3");
+
 // ====== VARIABLES ======
+
+const backgroundMusicList = [
+  backgroundMusic1,
+  backgroundMusic2,
+  backgroundMusic3,
+];
 
 /**
  * Provides easy to use enum to decode reason ID
@@ -1283,3 +1293,37 @@ function updateUserAvatar(element, avatar) {
     }
   });
 }
+
+function startBackgroundMusic() {
+  for (let backgroundMusic of backgroundMusicList) {
+    backgroundMusic.volume = 0.1;
+  }
+
+  backgroundMusicList[0].play();
+}
+
+function stopBackgroundMusic() {
+  for (let backgroundMusic of backgroundMusicList) {
+    backgroundMusic.pause();
+    backgroundMusic.currentTime = 0;
+  }
+}
+
+backgroundMusicList[0].addEventListener("canplaythrough", (event) => {
+  startBackgroundMusic();
+});
+
+backgroundMusicList[0].addEventListener("ended", (event) => {
+  stopBackgroundMusic();
+  backgroundMusicList[1].play();
+});
+
+backgroundMusicList[1].addEventListener("ended", (event) => {
+  stopBackgroundMusic();
+  backgroundMusicList[2].play();
+});
+
+backgroundMusicList[2].addEventListener("ended", (event) => {
+  stopBackgroundMusic();
+  backgroundMusicList[0].play();
+});

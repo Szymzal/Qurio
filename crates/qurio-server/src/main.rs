@@ -1510,6 +1510,21 @@ async fn assets(Path(path): Path<String>) -> impl IntoResponse {
             include_str!("../../../html/assets/medal.svg"),
         )
             .into_response(),
+        "sound-background-music1" => (
+            [(header::CONTENT_TYPE, "audio/mpeg")],
+            include_bytes!("../../../html/assets/sound/background-music1.mp3"),
+        )
+            .into_response(),
+        "sound-background-music2" => (
+            [(header::CONTENT_TYPE, "audio/mpeg")],
+            include_bytes!("../../../html/assets/sound/background-music2.mp3"),
+        )
+            .into_response(),
+        "sound-background-music3" => (
+            [(header::CONTENT_TYPE, "audio/mpeg")],
+            include_bytes!("../../../html/assets/sound/background-music3.mp3"),
+        )
+            .into_response(),
         "tips" => (
             [(header::CONTENT_TYPE, "application/json")],
             include_str!("../../../html/assets/tips.json"),
