@@ -142,6 +142,11 @@ const quickUsernameElement = document.querySelector(
 const quickTimeElement = document.querySelector(
   "#quickestAchievement .row .quickestTime",
 );
+/** @type HTMLDivElement | null */
+const quickAvatarElement = document.querySelector(
+  "#quickestAchievement .row .miniAvatar",
+);
+
 /** @type HTMLParagraphElement | null */
 const streakPositionElement = document.querySelector(
   "#streakAchievement .row .position",
@@ -153,6 +158,10 @@ const streakUsernameElement = document.querySelector(
 /** @type HTMLParagraphElement | null */
 const streakTimeElement = document.querySelector(
   "#streakAchievement .row .highStreak",
+);
+/** @type HTMLDivElement | null */
+const streakAvatarElement = document.querySelector(
+  "#streakAchievement .row .miniAvatar",
 );
 
 /** @type HTMLParagraphElement | null */
@@ -168,6 +177,10 @@ const overallQuickTimeElement = document.querySelector(
   "#overallQuickestAchievement .row .quickestTime",
 );
 /** @type HTMLParagraphElement | null */
+const overallQuickAvatarElement = document.querySelector(
+  "#overallQuickestAchievement .row .miniAvatar",
+);
+/** @type HTMLParagraphElement | null */
 const overallStreakPositionElement = document.querySelector(
   "#overallStreakAchievement .row .position",
 );
@@ -180,6 +193,10 @@ const overallStreakTimeElement = document.querySelector(
   "#overallStreakAchievement .row .highStreak",
 );
 /** @type HTMLParagraphElement | null */
+const overallStreakAvatarElement = document.querySelector(
+  "#overallStreakAchievement .row .miniAvatar",
+);
+/** @type HTMLParagraphElement | null */
 const overallRatioPositionElement = document.querySelector(
   "#overallRatioAchievement .row .position",
 );
@@ -190,6 +207,10 @@ const overallRatioUsernameElement = document.querySelector(
 /** @type HTMLParagraphElement | null */
 const overallRatioNumberElement = document.querySelector(
   "#overallRatioAchievement .row .highStreak",
+);
+/** @type HTMLParagraphElement | null */
+const overallRatioAvatarElement = document.querySelector(
+  "#overallRatioAchievement .row .miniAvatar",
 );
 
 // ====== VARIABLES ======
@@ -673,17 +694,24 @@ function handlePackets(data, ws) {
         console.error("No leaderboards!");
       }
 
-      if (quickPositionElement && quickUsernameElement && quickTimeElement) {
+      if (
+        quickPositionElement &&
+        quickUsernameElement &&
+        quickTimeElement &&
+        quickAvatarElement
+      ) {
         const quickUserId = questionStatsPacket.advancements.quick.userId;
         const quickTime = (
           questionStatsPacket.advancements.quick.time / 1000.0
         ).toPrecision(3);
-        let quickUsername = users.find(
-          (x) => x.userID === quickUserId,
-        )?.username;
+        let quickUser = users.find((x) => x.userID === quickUserId);
 
-        if (quickUsername == undefined) {
-          quickUsername = "Nobody";
+        if (quickUser == undefined) {
+          quickUser = {
+            userID: 0,
+            username: "Nobody",
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+          };
         }
 
         // NOTE: Should I care when not found?
@@ -691,7 +719,9 @@ function handlePackets(data, ws) {
           leaderboardUsers.findIndex((x) => x.userID === quickUserId) + 1;
 
         quickPositionElement.textContent = `${quickPosition}.`;
-        quickUsernameElement.textContent = quickUsername;
+        quickUsernameElement.textContent = quickUser.username;
+
+        updateUserAvatar(quickAvatarElement, quickUser.avatar);
 
         let textContent = "Too slow!";
         if (questionStatsPacket.advancements.quick.time !== 4294967295) {
@@ -703,15 +733,22 @@ function handlePackets(data, ws) {
         console.error("No quickest advancement in question stats?");
       }
 
-      if (streakPositionElement && streakUsernameElement && streakTimeElement) {
+      if (
+        streakPositionElement &&
+        streakUsernameElement &&
+        streakTimeElement &&
+        streakAvatarElement
+      ) {
         const streakUserId = questionStatsPacket.advancements.streak.userId;
         const streakNumber = questionStatsPacket.advancements.streak.streak;
-        let streakUsername = users.find(
-          (x) => x.userID === streakUserId,
-        )?.username;
+        let streakUser = users.find((x) => x.userID === streakUserId);
 
-        if (streakUsername == undefined) {
-          streakUsername = "Nobody";
+        if (streakUser == undefined) {
+          streakUser = {
+            userID: 0,
+            username: "Nobody",
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+          };
         }
 
         // NOTE: Should I care when not found?
@@ -719,8 +756,10 @@ function handlePackets(data, ws) {
           leaderboardUsers.findIndex((x) => x.userID === streakUserId) + 1;
 
         streakPositionElement.textContent = `${streakPosition}.`;
-        streakUsernameElement.textContent = streakUsername;
+        streakUsernameElement.textContent = streakUser.username;
         streakTimeElement.textContent = streakNumber.toString();
+
+        updateUserAvatar(streakAvatarElement, streakUser.avatar);
       } else {
         console.error("No streak advancement in question stats?");
       }
@@ -753,16 +792,21 @@ function handlePackets(data, ws) {
 
       if (firstPlaceUsername && firstPlacePodium && firstPlaceAvatar) {
         const firstUser = gameLeaderboardUsers[0];
-        let firstUsernameString = users.find(
-          (x) => x.userID === firstUser.userID,
-        )?.username;
+        let firstRealUser = users.find((x) => x.userID === firstUser.userID);
 
-        if (firstUsernameString === undefined) {
-          firstUsernameString = "_ERROR_";
+        if (firstRealUser === undefined) {
+          firstRealUser = {
+            userID: 0,
+            username: "_ERROR_",
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+          };
         }
 
-        firstPlaceUsername.textContent = firstUsernameString;
+        firstPlaceUsername.textContent = firstRealUser.username;
         firstPlaceUsername.style.visibility = "hidden";
+
+        updateUserAvatar(firstPlaceAvatar, firstRealUser.avatar);
+
         firstPlaceAvatar.style.visibility = "hidden";
       } else {
         console.error("No first place podium?");
@@ -772,16 +816,23 @@ function handlePackets(data, ws) {
         if (gameLeaderboardUsers.length > 1) {
           secondPlacePodium.style.display = "";
           const secondUser = gameLeaderboardUsers[1];
-          let secondUsernameString = users.find(
+          let secondRealUser = users.find(
             (x) => x.userID === secondUser.userID,
-          )?.username;
+          );
 
-          if (secondUsernameString === undefined) {
-            secondUsernameString = "_ERROR_";
+          if (secondRealUser === undefined) {
+            secondRealUser = {
+              userID: 0,
+              username: "_ERROR_",
+              avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+            };
           }
 
-          secondPlaceUsername.textContent = secondUsernameString;
+          secondPlaceUsername.textContent = secondRealUser.username;
           secondPlaceUsername.style.visibility = "hidden";
+
+          updateUserAvatar(secondPlaceAvatar, secondRealUser.avatar);
+
           secondPlaceAvatar.style.visibility = "hidden";
         } else {
           secondPlacePodium.style.display = "none";
@@ -794,16 +845,21 @@ function handlePackets(data, ws) {
         if (gameLeaderboardUsers.length > 2) {
           thirdPlacePodium.style.display = "";
           const thirdUser = gameLeaderboardUsers[2];
-          let thirdUsernameString = users.find(
-            (x) => x.userID === thirdUser.userID,
-          )?.username;
+          let thirdRealUser = users.find((x) => x.userID === thirdUser.userID);
 
-          if (thirdUsernameString === undefined) {
-            thirdUsernameString = "_ERROR_";
+          if (thirdRealUser === undefined) {
+            thirdRealUser = {
+              userID: 0,
+              username: "_ERROR_",
+              avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+            };
           }
 
-          thirdPlaceUsername.textContent = thirdUsernameString;
+          thirdPlaceUsername.textContent = thirdRealUser.username;
           thirdPlaceUsername.style.visibility = "hidden";
+
+          updateUserAvatar(thirdPlaceAvatar, thirdRealUser.avatar);
+
           thirdPlaceAvatar.style.visibility = "hidden";
         } else {
           thirdPlacePodium.style.display = "none";
@@ -815,18 +871,21 @@ function handlePackets(data, ws) {
       if (
         overallQuickPositionElement &&
         overallQuickUsernameElement &&
-        overallQuickTimeElement
+        overallQuickTimeElement &&
+        overallQuickAvatarElement
       ) {
         const quickUserId = gameStatsPacket.advancements.quick.userId;
         let quickTime = (
           gameStatsPacket.advancements.quick.time / 1000.0
         ).toPrecision(3);
-        let quickUsername = users.find(
-          (x) => x.userID === quickUserId,
-        )?.username;
+        let quickUser = users.find((x) => x.userID === quickUserId);
 
-        if (quickUsername == undefined) {
-          quickUsername = "Nobody";
+        if (quickUser == undefined) {
+          quickUser = {
+            userID: 0,
+            username: "Nobody",
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+          };
         }
 
         if (gameStatsPacket.advancements.quick.time === 4294967295) {
@@ -841,7 +900,9 @@ function handlePackets(data, ws) {
           gameLeaderboardUsers.findIndex((x) => x.userID === quickUserId) + 1;
 
         overallQuickPositionElement.textContent = `${quickPosition}.`;
-        overallQuickUsernameElement.textContent = quickUsername;
+        overallQuickUsernameElement.textContent = quickUser.username;
+
+        updateUserAvatar(overallQuickAvatarElement, quickUser.avatar);
       } else {
         console.error("No overall quickest advancement in game stats?");
       }
@@ -849,16 +910,19 @@ function handlePackets(data, ws) {
       if (
         overallStreakPositionElement &&
         overallStreakUsernameElement &&
-        overallStreakTimeElement
+        overallStreakTimeElement &&
+        overallStreakAvatarElement
       ) {
         const streakUserId = gameStatsPacket.advancements.streak.userId;
         const streakNumber = gameStatsPacket.advancements.streak.streak;
-        let streakUsername = users.find(
-          (x) => x.userID === streakUserId,
-        )?.username;
+        let streakUser = users.find((x) => x.userID === streakUserId);
 
-        if (streakUsername == undefined) {
-          streakUsername = "Nobody";
+        if (streakUser == undefined) {
+          streakUser = {
+            userID: 0,
+            username: "Nobody",
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+          };
         }
 
         // NOTE: Should I care when not found?
@@ -866,8 +930,10 @@ function handlePackets(data, ws) {
           gameLeaderboardUsers.findIndex((x) => x.userID === streakUserId) + 1;
 
         overallStreakPositionElement.textContent = `${streakPosition}.`;
-        overallStreakUsernameElement.textContent = streakUsername;
+        overallStreakUsernameElement.textContent = streakUser.username;
         overallStreakTimeElement.textContent = streakNumber.toString();
+
+        updateUserAvatar(overallStreakAvatarElement, streakUser.avatar);
       } else {
         console.error("No overall streak advancement in game stats?");
       }
@@ -875,16 +941,19 @@ function handlePackets(data, ws) {
       if (
         overallRatioPositionElement &&
         overallRatioUsernameElement &&
-        overallRatioNumberElement
+        overallRatioNumberElement &&
+        overallRatioAvatarElement
       ) {
         const ratioUserId = gameStatsPacket.advancements.ratio.userId;
         const ratioNumber = gameStatsPacket.advancements.ratio.ratio;
-        let ratioUsername = users.find(
-          (x) => x.userID === ratioUserId,
-        )?.username;
+        let ratioUser = users.find((x) => x.userID === ratioUserId);
 
-        if (ratioUsername == undefined) {
-          ratioUsername = "Nobody";
+        if (ratioUser == undefined) {
+          ratioUser = {
+            userID: 0,
+            username: "Nobody",
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+          };
         }
 
         // NOTE: Should I care when not found?
@@ -892,8 +961,10 @@ function handlePackets(data, ws) {
           gameLeaderboardUsers.findIndex((x) => x.userID === ratioUserId) + 1;
 
         overallRatioPositionElement.textContent = `${ratioPosition}.`;
-        overallRatioUsernameElement.textContent = ratioUsername;
+        overallRatioUsernameElement.textContent = ratioUser.username;
         overallRatioNumberElement.textContent = `${ratioNumber}%`;
+
+        updateUserAvatar(overallRatioAvatarElement, ratioUser.avatar);
       } else {
         console.error("No overall ratio advancement in game stats?");
       }
@@ -960,6 +1031,28 @@ function handlePackets(data, ws) {
     case S2CPacketID.GoAhead:
       switchPages(PagesID.LEADERBOARD);
       break;
+    case S2CPacketID.UpdateClientAvatar:
+      const updateClientAvatar =
+        /** @type {import("./modules/protocol.mjs").UpdateClientAvatar} */ (
+          packet.value
+        );
+
+      const userAvatarIndex = users.findIndex(
+        (x) => x.userID === updateClientAvatar.userID,
+      );
+
+      if (userAvatarIndex === -1) {
+        console.warn("User does not exist");
+        break;
+      }
+
+      const userOfAvatar = users[userAvatarIndex];
+      userOfAvatar.avatar = updateClientAvatar.avatar;
+      users[userAvatarIndex] = userOfAvatar;
+
+      updatePlayerBoard();
+
+      break;
     default:
       break;
   }
@@ -991,7 +1084,7 @@ function updatePlayerBoard() {
   const players = [];
 
   for (let user of users) {
-    players.push(createPlayer(user.username));
+    players.push(createPlayer(user));
   }
 
   removeAllChilds(playerBoard);
@@ -1004,19 +1097,44 @@ function updatePlayerBoard() {
 /**
  * Creates player HTML element and returns it
  *
- * @param {string} username
+ * @param {import("./modules/protocol.mjs").User} user
  * @returns {Element}
  */
-function createPlayer(username) {
+function createPlayer(user) {
   const playerDiv = document.createElement("div");
   playerDiv.className = "player";
 
   const avatar = document.createElement("div");
   avatar.className = "avatar";
 
+  const body = document.createElement("img");
+  body.className = "body";
+  body.src = `../assets/avatar1${user.avatar.body}`;
+  body.alt = "Body";
+
+  const head = document.createElement("img");
+  head.className = "head";
+  head.src = `../assets/avatar2${user.avatar.head}`;
+  head.alt = "Head";
+
+  const eyes = document.createElement("img");
+  eyes.className = "eyes";
+  eyes.src = `../assets/avatar3${user.avatar.eyes}`;
+  eyes.alt = "Eyes";
+
+  const lips = document.createElement("img");
+  lips.className = "lips";
+  lips.src = `../assets/avatar4${user.avatar.lips}`;
+  lips.alt = "Lips";
+
+  avatar.append(body);
+  avatar.append(head);
+  avatar.append(lips);
+  avatar.append(eyes);
+
   const usernameElement = document.createElement("p");
   usernameElement.className = "username";
-  usernameElement.textContent = username;
+  usernameElement.textContent = user.username;
 
   playerDiv.append(avatar);
   playerDiv.append(usernameElement);
@@ -1059,21 +1177,49 @@ function setLeaderboard(leaderboard, players) {
 
     const element = document.createElement("div");
     element.className = "player";
+
     const miniAvatar = document.createElement("div");
     miniAvatar.className = "miniAvatar";
-    const position = document.createElement("p");
-    position.textContent = `${i + 1}.`;
-    position.className = "position";
 
     const username = document.createElement("p");
     username.className = "username";
+
     const userInfo = users.find((x) => x.userID == userStat.userID);
     if (userInfo) {
       username.textContent = userInfo.username;
+
+      const body = document.createElement("img");
+      body.className = "body";
+      body.src = `../assets/avatar1${userInfo.avatar.body}`;
+      body.alt = "Body";
+
+      const head = document.createElement("img");
+      head.className = "head";
+      head.src = `../assets/avatar2${userInfo.avatar.head}`;
+      head.alt = "Head";
+
+      const eyes = document.createElement("img");
+      eyes.className = "eyes";
+      eyes.src = `../assets/avatar3${userInfo.avatar.eyes}`;
+      eyes.alt = "Eyes";
+
+      const lips = document.createElement("img");
+      lips.className = "lips";
+      lips.src = `../assets/avatar4${userInfo.avatar.lips}`;
+      lips.alt = "Lips";
+
+      miniAvatar.append(body);
+      miniAvatar.append(head);
+      miniAvatar.append(lips);
+      miniAvatar.append(eyes);
     } else {
       console.error("User does not exist! Leaderboards will be unfinished!");
       username.textContent = "ERROR";
     }
+
+    const position = document.createElement("p");
+    position.textContent = `${i + 1}.`;
+    position.className = "position";
 
     const points = document.createElement("p");
     points.textContent = userStat.points.toString();
@@ -1086,4 +1232,54 @@ function setLeaderboard(leaderboard, players) {
 
     leaderboard.appendChild(element);
   }
+}
+
+/**
+ * @param {Element} element
+ * @param {import("./modules/protocol.mjs").AvatarInfo} avatar
+ */
+function updateUserAvatar(element, avatar) {
+  /** @type NodeListOf<HTMLImageElement> */
+  const bodyAvatar = element.querySelectorAll(".body");
+  bodyAvatar.forEach((x) => {
+    if (avatar.body === 0) {
+      x.style.display = "none";
+    } else {
+      x.style.display = "";
+      x.src = `../assets/avatar1${avatar.body}`;
+    }
+  });
+
+  /** @type NodeListOf<HTMLImageElement> */
+  const headAvatar = element.querySelectorAll(".head");
+  headAvatar.forEach((x) => {
+    if (avatar.head === 0) {
+      x.style.display = "none";
+    } else {
+      x.style.display = "";
+      x.src = `../assets/avatar2${avatar.head}`;
+    }
+  });
+
+  /** @type NodeListOf<HTMLImageElement> */
+  const eyesAvatar = element.querySelectorAll(".eyes");
+  eyesAvatar.forEach((x) => {
+    if (avatar.eyes === 0) {
+      x.style.display = "none";
+    } else {
+      x.style.display = "";
+      x.src = `../assets/avatar3${avatar.eyes}`;
+    }
+  });
+
+  /** @type NodeListOf<HTMLImageElement> */
+  const lipsAvatar = element.querySelectorAll(".lips");
+  lipsAvatar.forEach((x) => {
+    if (avatar.lips === 0) {
+      x.style.display = "none";
+    } else {
+      x.style.display = "";
+      x.src = `../assets/avatar4${avatar.lips}`;
+    }
+  });
 }

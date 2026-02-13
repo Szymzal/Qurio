@@ -11,7 +11,18 @@ const PROTOCOL_MAGIC_LENGTH = PROTOCOL_MAGIC.length + 1; // Adding one more byte
  *
  * @typedef {Object} User
  * @property {number} userID - ID of the user
- * @property {string} username - username of the user
+ * @property {string} username - Username of the user
+ * @property {AvatarInfo} avatar - Information about avatar
+ */
+
+/**
+ * AvatarInfo
+ *
+ * @typedef {Object} AvatarInfo
+ * @property {number} body - ID of the body
+ * @property {number} head - ID of the head
+ * @property {number} eyes - ID of the eyes
+ * @property {number} lips - ID of the lips
  */
 
 /**
@@ -37,6 +48,7 @@ const PROTOCOL_MAGIC_LENGTH = PROTOCOL_MAGIC.length + 1; // Adding one more byte
  * @property {number} position - position on leaderboard
  * @property {string} username - username of this player
  * @property {number} points - how many points does user have
+ * @property {AvatarInfo} avatar - information about avatar
  */
 
 /**
@@ -132,6 +144,7 @@ export const S2CPacketID = {
   Advance: 19,
   GoAhead: 20,
   GameStateInfo: 21,
+  UpdateClientAvatar: 22,
 };
 
 const readLeaderboards =
@@ -178,10 +191,45 @@ const readUser =
     const [username, newOffset] = readUserName(dataView, offset);
     offset += newOffset;
 
+    const [avatar, newNewOffset] = readAvatar(dataView, offset);
+    offset += newNewOffset;
+
     return [
       {
         userID: userID,
         username: username,
+        avatar: avatar,
+      },
+      offset - oldOffset,
+    ];
+  };
+
+const readAvatar =
+  /**
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {AvatarInfo}
+   */
+  (dataView, offset) => {
+    const oldOffset = offset;
+    const body = dataView.getUint8(offset);
+    offset++;
+
+    const head = dataView.getUint8(offset);
+    offset++;
+
+    const eyes = dataView.getUint8(offset);
+    offset++;
+
+    const lips = dataView.getUint8(offset);
+    offset++;
+
+    return [
+      {
+        body: body,
+        head: head,
+        eyes: eyes,
+        lips: lips,
       },
       offset - oldOffset,
     ];
@@ -501,6 +549,43 @@ export const advanceClientsPacket =
     return buffer;
   };
 
+const UPDATE_AVATAR_PACKET_ID = 8;
+export const updateAvatarPacket =
+  /**
+   * Client to Server Packet
+   * Indicates that Client changed his avatar
+   *
+   * Binary layout:
+   * - 3 bytes (Magic)
+   * - 1 byte  (Packet ID)
+   * - 4 bytes (AvatarInfo)
+   *
+   * @param {AvatarInfo} avatar
+   * @returns {ArrayBuffer}
+   */
+  (avatar) => {
+    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH + 4);
+    const dataView = new DataView(buffer, 0, buffer.byteLength);
+
+    // Offset from start of the buffer
+    let offset = writeMagic(dataView);
+    dataView.setUint8(offset, UPDATE_AVATAR_PACKET_ID);
+    offset++;
+
+    dataView.setUint8(offset, avatar.body);
+    offset++;
+
+    dataView.setUint8(offset, avatar.head);
+    offset++;
+
+    dataView.setUint8(offset, avatar.eyes);
+    offset++;
+
+    dataView.setUint8(offset, avatar.lips);
+
+    return buffer;
+  };
+
 // ======== S2C ========
 
 export const readPacket =
@@ -529,7 +614,9 @@ export const readPacket =
    *            HostJoinedPacket|
    *            HostLeftPacket|
    *            AdvancePacket|
-   *            GoAheadPacket|GameStateInfoPacket} value - value of the packet
+   *            GoAheadPacket|
+   *            GameStateInfoPacket|
+   *            UpdateClientAvatar} value - value of the packet
    */
 
   /**
@@ -621,6 +708,9 @@ export const readPacket =
       case S2CPacketID.GameStateInfo:
         returnValue.value = gameStateInfoPacket(dataView, offset);
         return returnValue;
+      case S2CPacketID.UpdateClientAvatar:
+        returnValue.value = updateClientAvatar(dataView, offset);
+        return returnValue;
       default:
         console.error("Packet ID not matched");
         return {};
@@ -634,6 +724,7 @@ const handshakeAcceptedPacket =
    *
    * @typedef {Object} HandshakeAcceptedPacket
    * @property {number} userID - provides ID of the newly created user
+   * @property {AvatarInfo} randomAvatar - Information about random avatar
    */
 
   /** AWARE: You should not use this function directly only with conjuction with readPacket.
@@ -646,8 +737,13 @@ const handshakeAcceptedPacket =
    */
   (dataView, offset) => {
     const userID = dataView.getUint8(offset);
+    offset++;
+
+    const [randomAvatar, _] = readAvatar(dataView, offset);
+
     return {
       userID: userID,
+      randomAvatar: randomAvatar,
     };
   };
 
@@ -1026,7 +1122,7 @@ const playerStatsPacket =
     const points = dataView.getUint16(offset);
     offset += 2;
 
-    if (offset + dataView.byteOffset + 4 < dataView.byteLength) {
+    if (offset + dataView.byteOffset + 8 < dataView.byteLength) {
       const other_position = dataView.getUint8(offset);
       offset++;
 
@@ -1036,15 +1132,24 @@ const playerStatsPacket =
       const other_points = dataView.getUint16(offset);
       offset += 2;
 
-      if (offset + dataView.byteOffset + 4 < dataView.byteLength) {
+      const [other_avatar, newNewOffset] = readAvatar(dataView, offset);
+      offset += newNewOffset;
+
+      if (offset + dataView.byteOffset + 8 < dataView.byteLength) {
         const below_position = dataView.getUint8(offset);
         offset++;
 
-        const [below_username, newNewOffset] = readUserName(dataView, offset);
-        offset += newNewOffset;
+        const [below_username, newNewNewOffset] = readUserName(
+          dataView,
+          offset,
+        );
+        offset += newNewNewOffset;
 
         const below_points = dataView.getUint16(offset);
         offset += 2;
+
+        const [below_avatar, newNewNewNewOffset] = readAvatar(dataView, offset);
+        offset += newNewNewNewOffset;
 
         return {
           correct: correct,
@@ -1056,11 +1161,13 @@ const playerStatsPacket =
             position: other_position,
             username: other_username,
             points: other_points,
+            avatar: other_avatar,
           },
           below_player: {
             position: below_position,
             username: below_username,
             points: below_points,
+            avatar: below_avatar,
           },
         };
       }
@@ -1077,6 +1184,7 @@ const playerStatsPacket =
             position: other_position,
             username: other_username,
             points: other_points,
+            avatar: other_avatar,
           },
         };
       }
@@ -1091,6 +1199,7 @@ const playerStatsPacket =
           position: other_position,
           username: other_username,
           points: other_points,
+          avatar: other_avatar,
         },
         below_player: null,
       };
@@ -1338,5 +1447,36 @@ const gameStateInfoPacket =
     return {
       id: gameState,
       value: returnValue,
+    };
+  };
+
+const updateClientAvatar =
+  /**
+   * Indication to update client avatar
+   * A Server to Host Packet
+   *
+   * @typedef {Object} UpdateClientAvatar
+   * @property {number} userID - ID of the user changing avatar
+   * @property {AvatarInfo} avatar - Information about avatar
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {UpdateClientAvatar}
+   */
+  (dataView, offset) => {
+    const userID = dataView.getUint8(offset);
+    offset++;
+
+    const [avatar, newOffset] = readAvatar(dataView, offset);
+    offset += newOffset;
+
+    return {
+      userID: userID,
+      avatar: avatar,
     };
   };

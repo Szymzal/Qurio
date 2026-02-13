@@ -648,3 +648,25 @@ canvas {
     font-size: 0.8rem;
   }
 }
+
+.avatar,
+.miniAvatar {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.avatar > *,
+.miniAvatar > * {
+  grid-row-start: 1;
+  grid-row-end: 2;
+  grid-column-start: 1;
+  grid-column-end: 2;
+  width: 192px;
+  height: 192px;
+}
+
+.miniAvatar > * {
+  width: 64px;
+  height: 64px;
+}

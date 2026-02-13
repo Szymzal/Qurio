@@ -34,11 +34,12 @@ use qurio_protocol::{
             AnswerDetailsPacket, GameDetailsPacket, GameStateInfoClient, GameStateInfoPacket,
             GameStatsPacket, HandshakeAcceptedPacket, HandshakeRejectedPacket,
             HostHandshakeAcceptedPacket, PlayerOverallStatsPacket, PlayerStatsPacket,
-            QuestionInfoPacket, QuestionStatsPacket, S2CPackets, UserJoinedPacket, UserLeftPacket,
+            QuestionInfoPacket, QuestionStatsPacket, S2CPackets, UpdateClientAvatarPacket,
+            UserJoinedPacket, UserLeftPacket,
         },
     },
     structs::{
-        GameAdvancements, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
+        AvatarInfo, GameAdvancements, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
         PlayerLeaderboardStats, QuestionAdvancements, QuickAdvancement, StreakAdvancement, User,
         UserId, UserName, UserStat,
     },
@@ -51,7 +52,7 @@ use tokio::{
     time::Instant,
 };
 use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
@@ -86,6 +87,7 @@ pub struct AppState {
     advancements: Mutex<InternalGameAdvancements>,
     question_advancements: Mutex<InternalQuestionAdvancements>,
     answering_timestamp: RwLock<Instant>,
+    avatars: RwLock<HashMap<UserId, AvatarInfo>>,
 }
 
 pub struct RatioMetric {
@@ -178,6 +180,7 @@ async fn main() {
         }),
         question_advancements: Mutex::new(InternalQuestionAdvancements { quick: None }),
         answering_timestamp: RwLock::new(Instant::now()),
+        avatars: RwLock::new(HashMap::new()),
     });
 
     let app = Router::new()
@@ -283,11 +286,17 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
         match users.get(&user_id) {
             Some(username) => {
+                let avatars = state.avatars.read().await;
+                let avatar = avatars
+                    .get(&user_id)
+                    .cloned()
+                    .unwrap_or(AvatarInfo::random());
                 let _ = state.tx.send(
                     UserJoinedPacket {
                         user: User {
                             id: user_id,
                             username: username.clone(),
+                            avatar,
                         },
                     }
                     .as_packet(),
@@ -398,11 +407,19 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                             let user_stat = leaderboard.users.index(position as usize - 1);
                             let reader = send_state.users.read().await;
                             let username = reader.get(&user_stat.id).unwrap_or(&error_username);
+                            let avatar = send_state
+                                .avatars
+                                .read()
+                                .await
+                                .get(&user_stat.id)
+                                .cloned()
+                                .unwrap_or(AvatarInfo::random());
 
                             Some(PlayerLeaderboardStats {
                                 position,
                                 username: username.clone(),
                                 points: user_stat.points,
+                                avatar,
                             })
                         } else {
                             None
@@ -413,11 +430,19 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                             let user_stat = leaderboard.users.index(position as usize - 1);
                             let reader = send_state.users.read().await;
                             let username = reader.get(&user_stat.id).unwrap_or(&error_username);
+                            let avatar = send_state
+                                .avatars
+                                .read()
+                                .await
+                                .get(&user_stat.id)
+                                .cloned()
+                                .unwrap_or(AvatarInfo::random());
 
                             Some(PlayerLeaderboardStats {
                                 position,
                                 username: username.clone(),
                                 points: user_stat.points,
+                                avatar,
                             })
                         } else {
                             None
@@ -547,6 +572,13 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     }
 
                     send_packet(game_state_info_packet.as_packet(), &mut sender).await;
+                }
+                S2CPackets::UpdateClientAvatar(update_client_avatar_packet) => {
+                    if !is_host {
+                        continue;
+                    }
+
+                    send_packet(update_client_avatar_packet.as_packet(), &mut sender).await;
                 }
             }
         }
@@ -779,6 +811,10 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     }
                 }
                 C2SPackets::FinishStats => {
+                    if !is_host {
+                        continue;
+                    }
+
                     // NOTE: Send a dummy packet to indicate every client to send their individual
                     // PlayerOverallStatsPacket
                     let _ = recv_state
@@ -813,6 +849,39 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
                     let _ = recv_state.tx.send(S2CPackets::Advance);
                     let _ = recv_state.tx.send(S2CPackets::GoAhead);
+                }
+                C2SPackets::UpdateAvatar(update_avatar_packet) => {
+                    if is_host {
+                        continue;
+                    }
+
+                    if *recv_state.game_state.read().await != GameState::Lobby {
+                        warn!("User wanted to change avatar mid-game!");
+                        continue;
+                    }
+
+                    let avatar_info: Result<AvatarInfo, _> = update_avatar_packet.0.try_into();
+                    let avatar_info = match avatar_info {
+                        Ok(value) => value,
+                        Err(err) => {
+                            error!("Client send wrong avatar info: {err}. Disconnecting");
+                            return;
+                        }
+                    };
+
+                    recv_state
+                        .avatars
+                        .write()
+                        .await
+                        .insert(user_id, avatar_info);
+
+                    let _ = recv_state.tx.send(
+                        UpdateClientAvatarPacket {
+                            user_id,
+                            avatar: avatar_info,
+                        }
+                        .as_packet(),
+                    );
                 }
             }
         }
@@ -956,9 +1025,11 @@ async fn initialize_handshake(
                             + 1,
                     );
 
+                    let random_avatar = AvatarInfo::random();
                     let user = User {
                         id: user_id,
                         username: username.clone(),
+                        avatar: random_avatar,
                     };
 
                     tracing::info!(
@@ -967,9 +1038,20 @@ async fn initialize_handshake(
                         user.username.clone()
                     );
 
-                    send_packet(HandshakeAcceptedPacket { id: user_id }, sender).await;
+                    send_packet(
+                        HandshakeAcceptedPacket {
+                            id: user_id,
+                            random_avatar: user.avatar,
+                        },
+                        sender,
+                    )
+                    .await;
                     users.insert(user.id, user.username);
                     drop(users);
+
+                    let mut avatars = state.avatars.write().await;
+                    avatars.insert(user.id, user.avatar);
+                    drop(avatars);
 
                     if state.host_joined.load(Ordering::Relaxed) {
                         send_packet(S2CPackets::HostJoined, sender).await;
@@ -1034,11 +1116,19 @@ async fn initialize_handshake(
                                 let user_stat = leaderboard.users.index(position as usize - 1);
                                 let reader = state.users.read().await;
                                 let username = reader.get(&user_stat.id).unwrap_or(&error_username);
+                                let avatar = state
+                                    .avatars
+                                    .read()
+                                    .await
+                                    .get(&user_stat.id)
+                                    .cloned()
+                                    .unwrap_or(AvatarInfo::random());
 
                                 Some(PlayerLeaderboardStats {
                                     position,
                                     username: username.clone(),
                                     points: user_stat.points,
+                                    avatar,
                                 })
                             } else {
                                 None
@@ -1049,11 +1139,19 @@ async fn initialize_handshake(
                                 let user_stat = leaderboard.users.index(position as usize - 1);
                                 let reader = state.users.read().await;
                                 let username = reader.get(&user_stat.id).unwrap_or(&error_username);
+                                let avatar = state
+                                    .avatars
+                                    .read()
+                                    .await
+                                    .get(&user_stat.id)
+                                    .cloned()
+                                    .unwrap_or(AvatarInfo::random());
 
                                 Some(PlayerLeaderboardStats {
                                     position,
                                     username: username.clone(),
                                     points: user_stat.points,
+                                    avatar,
                                 })
                             } else {
                                 None
@@ -1152,14 +1250,19 @@ async fn initialize_handshake(
 
                     tracing::info!("Host joined");
                     let users = state.users.read().await.clone();
+                    let avatars = state.avatars.read().await;
                     state.host_joined.store(true, Ordering::Relaxed);
                     let _ = state.tx.send(S2CPackets::HostJoined);
 
                     let users_vec = users
                         .iter()
-                        .map(|(id, username)| User {
-                            id: *id,
-                            username: username.clone(),
+                        .map(|(id, username)| {
+                            let avatar = avatars.get(id).cloned().unwrap_or(AvatarInfo::random());
+                            User {
+                                id: *id,
+                                username: username.clone(),
+                                avatar,
+                            }
                         })
                         .collect::<Vec<_>>();
 
@@ -1167,7 +1270,8 @@ async fn initialize_handshake(
                         HostHandshakeAcceptedPacket {
                             users_count: users.len() as u8,
                             users: users_vec,
-                        },
+                        }
+                        .as_packet(),
                         sender,
                     )
                     .await;
@@ -1246,6 +1350,146 @@ async fn js_host() -> impl IntoResponse {
 
 async fn assets(Path(path): Path<String>) -> impl IntoResponse {
     match path.as_str() {
+        "avatar11" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar11.png"),
+        )
+            .into_response(),
+        "avatar12" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar12.png"),
+        )
+            .into_response(),
+        "avatar13" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar13.png"),
+        )
+            .into_response(),
+        "avatar14" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar14.png"),
+        )
+            .into_response(),
+        "avatar15" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar15.png"),
+        )
+            .into_response(),
+        "avatar21" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar21.png"),
+        )
+            .into_response(),
+        "avatar22" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar22.png"),
+        )
+            .into_response(),
+        "avatar23" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar23.png"),
+        )
+            .into_response(),
+        "avatar24" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar24.png"),
+        )
+            .into_response(),
+        "avatar25" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar25.png"),
+        )
+            .into_response(),
+        "avatar31" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar31.png"),
+        )
+            .into_response(),
+        "avatar32" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar32.png"),
+        )
+            .into_response(),
+        "avatar33" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar33.png"),
+        )
+            .into_response(),
+        "avatar34" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar34.png"),
+        )
+            .into_response(),
+        "avatar35" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar35.png"),
+        )
+            .into_response(),
+        "avatar36" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar36.png"),
+        )
+            .into_response(),
+        "avatar37" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar37.png"),
+        )
+            .into_response(),
+        "avatar38" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar38.png"),
+        )
+            .into_response(),
+        "avatar39" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar39.png"),
+        )
+            .into_response(),
+        "avatar41" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar41.png"),
+        )
+            .into_response(),
+        "avatar42" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar42.png"),
+        )
+            .into_response(),
+        "avatar43" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar43.png"),
+        )
+            .into_response(),
+        "avatar44" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar44.png"),
+        )
+            .into_response(),
+        "avatar45" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar45.png"),
+        )
+            .into_response(),
+        "avatar46" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar46.png"),
+        )
+            .into_response(),
+        "avatar47" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar47.png"),
+        )
+            .into_response(),
+        "avatar48" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar48.png"),
+        )
+            .into_response(),
+        "avatar49" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatar49.png"),
+        )
+            .into_response(),
         "stopwatch.svg" => (
             [(header::CONTENT_TYPE, "image/svg+xml")],
             include_str!("../../../html/assets/stopwatch.svg"),

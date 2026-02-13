@@ -2,8 +2,8 @@ pub mod s2c {
     use std::io::Cursor;
 
     use crate::structs::{
-        BinBool, BinString, GameAdvancements, HandshakeRejectionReason, KnownPlayerStats,
-        Leaderboard, PlayerLeaderboardStats, QuestionAdvancements, User, UserId,
+        AvatarInfo, BinBool, BinString, GameAdvancements, HandshakeRejectionReason,
+        KnownPlayerStats, Leaderboard, PlayerLeaderboardStats, QuestionAdvancements, User, UserId,
     };
     use binrw::BinWrite;
 
@@ -76,11 +76,15 @@ pub mod s2c {
         #[bw(magic = 21u8)]
         /// Client Packet
         GameStateInfo(GameStateInfoPacket),
+        #[bw(magic = 22u8)]
+        /// Host Packet
+        UpdateClientAvatar(UpdateClientAvatarPacket),
     }
 
     #[derive(BinWrite, Clone, Debug)]
     pub struct HandshakeAcceptedPacket {
         pub id: UserId,
+        pub random_avatar: AvatarInfo,
     }
 
     #[derive(BinWrite, Clone, Debug)]
@@ -192,6 +196,12 @@ pub mod s2c {
         pub num_of_questions: u8,
     }
 
+    #[derive(BinWrite, Clone, Debug)]
+    pub struct UpdateClientAvatarPacket {
+        pub user_id: UserId,
+        pub avatar: AvatarInfo,
+    }
+
     impl S2CPackets {
         pub fn write_as_binary(self) -> Result<Vec<u8>, binrw::Error> {
             let mut writer = Cursor::new(Vec::new());
@@ -204,161 +214,36 @@ pub mod s2c {
         }
     }
 
-    impl From<HandshakeAcceptedPacket> for S2CPackets {
-        fn from(val: HandshakeAcceptedPacket) -> Self {
-            S2CPackets::HandshakeAccepted(val)
-        }
+    macro_rules! packet {
+        ($packet_struct:ident, $packet_name:ident) => {
+            impl From<$packet_struct> for S2CPackets {
+                fn from(val: $packet_struct) -> Self {
+                    S2CPackets::$packet_name(val)
+                }
+            }
+
+            impl $packet_struct {
+                pub fn as_packet(self) -> S2CPackets {
+                    self.into()
+                }
+            }
+        };
     }
 
-    impl From<HandshakeRejectedPacket> for S2CPackets {
-        fn from(val: HandshakeRejectedPacket) -> Self {
-            S2CPackets::HandshakeRejected(val)
-        }
-    }
-
-    impl From<HostHandshakeAcceptedPacket> for S2CPackets {
-        fn from(val: HostHandshakeAcceptedPacket) -> Self {
-            S2CPackets::HostHandshakeAccepted(val)
-        }
-    }
-
-    impl From<UserJoinedPacket> for S2CPackets {
-        fn from(val: UserJoinedPacket) -> Self {
-            S2CPackets::UserJoined(val)
-        }
-    }
-
-    impl From<UserLeftPacket> for S2CPackets {
-        fn from(val: UserLeftPacket) -> Self {
-            S2CPackets::UserLeft(val)
-        }
-    }
-
-    impl From<QuestionInfoPacket> for S2CPackets {
-        fn from(val: QuestionInfoPacket) -> Self {
-            S2CPackets::QuestionInfo(val)
-        }
-    }
-
-    impl From<QuestionStatsPacket> for S2CPackets {
-        fn from(val: QuestionStatsPacket) -> Self {
-            S2CPackets::QuestionStats(val)
-        }
-    }
-
-    impl From<GameStatsPacket> for S2CPackets {
-        fn from(val: GameStatsPacket) -> Self {
-            S2CPackets::GameStats(val)
-        }
-    }
-
-    impl From<AnswerDetailsPacket> for S2CPackets {
-        fn from(val: AnswerDetailsPacket) -> Self {
-            S2CPackets::AnswerDetails(val)
-        }
-    }
-
-    impl From<PlayerStatsPacket> for S2CPackets {
-        fn from(val: PlayerStatsPacket) -> Self {
-            S2CPackets::PlayerStats(val)
-        }
-    }
-
-    impl From<PlayerOverallStatsPacket> for S2CPackets {
-        fn from(val: PlayerOverallStatsPacket) -> Self {
-            S2CPackets::PlayerOverallStats(val)
-        }
-    }
-
-    impl From<GameDetailsPacket> for S2CPackets {
-        fn from(val: GameDetailsPacket) -> Self {
-            S2CPackets::GameDetails(val)
-        }
-    }
-
-    impl From<GameStateInfoPacket> for S2CPackets {
-        fn from(val: GameStateInfoPacket) -> Self {
-            S2CPackets::GameStateInfo(val)
-        }
-    }
-
-    impl HandshakeAcceptedPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl HandshakeRejectedPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl HostHandshakeAcceptedPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl UserJoinedPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl UserLeftPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl QuestionInfoPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl QuestionStatsPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl GameStatsPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl AnswerDetailsPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl PlayerStatsPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl PlayerOverallStatsPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl GameDetailsPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
-
-    impl GameStateInfoPacket {
-        pub fn as_packet(self) -> S2CPackets {
-            self.into()
-        }
-    }
+    packet!(HandshakeAcceptedPacket, HandshakeAccepted);
+    packet!(HandshakeRejectedPacket, HandshakeRejected);
+    packet!(HostHandshakeAcceptedPacket, HostHandshakeAccepted);
+    packet!(UserJoinedPacket, UserJoined);
+    packet!(UserLeftPacket, UserLeft);
+    packet!(QuestionInfoPacket, QuestionInfo);
+    packet!(QuestionStatsPacket, QuestionStats);
+    packet!(GameStatsPacket, GameStats);
+    packet!(AnswerDetailsPacket, AnswerDetails);
+    packet!(PlayerStatsPacket, PlayerStats);
+    packet!(PlayerOverallStatsPacket, PlayerOverallStats);
+    packet!(GameDetailsPacket, GameDetails);
+    packet!(GameStateInfoPacket, GameStateInfo);
+    packet!(UpdateClientAvatarPacket, UpdateClientAvatar);
 }
 
 pub mod c2s {
@@ -366,7 +251,7 @@ pub mod c2s {
 
     use binrw::BinRead;
 
-    use crate::structs::UncheckedUserName;
+    use crate::structs::{UncheckedAvatarInfo, UncheckedUserName};
 
     #[derive(BinRead, Clone, Debug)]
     #[br(big, magic = b"Qiz")]
@@ -395,6 +280,9 @@ pub mod c2s {
         #[br(magic = 7u8)]
         /// Host Packet
         AdvanceClients,
+        #[br(magic = 8u8)]
+        /// Client Packet
+        UpdateAvatar(UpdateAvatarPacket),
     }
 
     #[derive(BinRead, Clone, Debug)]
@@ -412,6 +300,9 @@ pub mod c2s {
     pub struct AnswerPacket {
         pub index: u8,
     }
+
+    #[derive(BinRead, Clone, Debug)]
+    pub struct UpdateAvatarPacket(pub UncheckedAvatarInfo);
 
     impl C2SPackets {
         pub fn read_from_binary(bytes: &mut Cursor<&[u8]>) -> Result<Self, binrw::Error> {

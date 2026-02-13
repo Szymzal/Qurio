@@ -8,6 +8,7 @@ import {
   initializeHandshakePacket,
   readPacket,
   S2CPacketID,
+  updateAvatarPacket,
 } from "./modules/protocol.mjs";
 
 // ====== IMPORTS FROM DOCUMENT ======
@@ -20,6 +21,32 @@ const join_btn = document.querySelector("#join");
 const error_box = document.querySelector("#errorBox");
 /** @type HTMLDivElement | null */
 const loginPage = document.querySelector("#login");
+
+/** @type NodeListOf<HTMLImageElement> */
+const bodyAvatar = document.querySelectorAll(".avatar .body");
+/** @type NodeListOf<HTMLImageElement> */
+const headAvatar = document.querySelectorAll(".avatar .head");
+/** @type NodeListOf<HTMLImageElement> */
+const eyesAvatar = document.querySelectorAll(".avatar .eyes");
+/** @type NodeListOf<HTMLImageElement> */
+const lipsAvatar = document.querySelectorAll(".avatar .lips");
+
+/** @type NodeListOf<HTMLParagraphElement> */
+const prevBodyBtns = document.querySelectorAll(".prevBody");
+/** @type NodeListOf<HTMLParagraphElement> */
+const nextBodyBtns = document.querySelectorAll(".nextBody");
+/** @type NodeListOf<HTMLParagraphElement> */
+const prevHeadBtns = document.querySelectorAll(".prevHead");
+/** @type NodeListOf<HTMLParagraphElement> */
+const nextHeadBtns = document.querySelectorAll(".nextHead");
+/** @type NodeListOf<HTMLParagraphElement> */
+const prevEyesBtns = document.querySelectorAll(".prevEyes");
+/** @type NodeListOf<HTMLParagraphElement> */
+const nextEyesBtns = document.querySelectorAll(".nextEyes");
+/** @type NodeListOf<HTMLParagraphElement> */
+const prevLipsBtns = document.querySelectorAll(".prevLips");
+/** @type NodeListOf<HTMLParagraphElement> */
+const nextLipsBtns = document.querySelectorAll(".nextLips");
 
 /** @type HTMLDivElement | null */
 const wait = document.querySelector("#wait");
@@ -53,6 +80,8 @@ const questionableResults = document.querySelector("#questionableResults");
 const playerPosition = document.querySelector("#playerPosition");
 /** @type HTMLHeadingElement | null */
 const playerPoints = document.querySelector("#playerPoints");
+/** @type HTMLDivElement | null */
+const playerAvatar = document.querySelector(".player .miniAvatar");
 /** @type HTMLHeadingElement | null */
 const aboveDiv = document.querySelector(".abovePlace");
 /** @type HTMLHeadingElement | null */
@@ -61,6 +90,8 @@ const abovePosition = document.querySelector(".abovePlace .position");
 const aboveUsername = document.querySelector(".abovePlace .otherUsername");
 /** @type HTMLHeadingElement | null */
 const abovePoints = document.querySelector(".abovePlace .points");
+/** @type HTMLDivElement | null */
+const aboveAvatar = document.querySelector(".abovePlace .miniAvatar");
 /** @type HTMLHeadingElement | null */
 const belowDiv = document.querySelector(".belowPlace");
 /** @type HTMLHeadingElement | null */
@@ -69,6 +100,8 @@ const belowPosition = document.querySelector(".belowPlace .position");
 const belowUsername = document.querySelector(".belowPlace .otherUsername");
 /** @type HTMLHeadingElement | null */
 const belowPoints = document.querySelector(".belowPlace .points");
+/** @type HTMLDivElement | null */
+const belowAvatar = document.querySelector(".belowPlace .miniAvatar");
 /** @type HTMLDivElement | null */
 const smolLeaderboard = document.querySelector(
   "#questionableResults .smolLeaderboard",
@@ -136,6 +169,15 @@ let numberOfAnswers = 0;
 let user_id = -1;
 let username = "";
 
+const maxBody = 5;
+let body = 1;
+const maxHead = 5;
+let head = 1;
+const maxEyes = 9;
+let eyes = 1;
+const maxLips = 9;
+let lips = 1;
+
 // ====== WEBSOCKET CONNECTION ======
 if (join_btn && usernameInput && error_box) {
   join_btn.addEventListener("click", function (e) {
@@ -187,6 +229,214 @@ if (join_btn && usernameInput && error_box) {
     } else {
       console.error("No answer buttons!");
     }
+
+    if (prevBodyBtns && nextBodyBtns) {
+      prevBodyBtns.forEach((x) => {
+        x.addEventListener("click", (event) => {
+          event.preventDefault();
+
+          let nextValue = body - 1;
+
+          if (nextValue < 1) {
+            nextValue = maxBody;
+          }
+
+          body = nextValue;
+
+          /** @type {import("./modules/protocol.mjs").AvatarInfo} */
+          const avatar = {
+            body: body,
+            head: head,
+            eyes: eyes,
+            lips: lips,
+          };
+          websocket.send(updateAvatarPacket(avatar));
+          updateUserAvatar(avatar);
+        });
+      });
+
+      nextBodyBtns.forEach((x) => {
+        x.addEventListener("click", (event) => {
+          event.preventDefault();
+
+          let nextValue = body + 1;
+
+          if (nextValue > maxBody) {
+            nextValue = 1;
+          }
+
+          body = nextValue;
+
+          /** @type {import("./modules/protocol.mjs").AvatarInfo} */
+          const avatar = {
+            body: body,
+            head: head,
+            eyes: eyes,
+            lips: lips,
+          };
+          websocket.send(updateAvatarPacket(avatar));
+          updateUserAvatar(avatar);
+        });
+      });
+    } else {
+      console.error("No body buttons!");
+    }
+
+    if (prevHeadBtns && nextHeadBtns) {
+      prevHeadBtns.forEach((x) => {
+        x.addEventListener("click", (event) => {
+          event.preventDefault();
+
+          let nextValue = head - 1;
+
+          if (nextValue < 1) {
+            nextValue = maxHead;
+          }
+
+          head = nextValue;
+
+          /** @type {import("./modules/protocol.mjs").AvatarInfo} */
+          const avatar = {
+            body: body,
+            head: head,
+            eyes: eyes,
+            lips: lips,
+          };
+          websocket.send(updateAvatarPacket(avatar));
+          updateUserAvatar(avatar);
+        });
+      });
+
+      nextHeadBtns.forEach((x) => {
+        x.addEventListener("click", (event) => {
+          event.preventDefault();
+
+          let nextValue = head + 1;
+
+          if (nextValue > maxHead) {
+            nextValue = 1;
+          }
+
+          head = nextValue;
+
+          /** @type {import("./modules/protocol.mjs").AvatarInfo} */
+          const avatar = {
+            body: body,
+            head: head,
+            eyes: eyes,
+            lips: lips,
+          };
+          websocket.send(updateAvatarPacket(avatar));
+          updateUserAvatar(avatar);
+        });
+      });
+    } else {
+      console.error("No head buttons!");
+    }
+
+    if (prevEyesBtns && nextEyesBtns) {
+      prevEyesBtns.forEach((x) => {
+        x.addEventListener("click", (event) => {
+          event.preventDefault();
+
+          let nextValue = eyes - 1;
+
+          if (nextValue < 1) {
+            nextValue = maxEyes;
+          }
+
+          eyes = nextValue;
+
+          /** @type {import("./modules/protocol.mjs").AvatarInfo} */
+          const avatar = {
+            body: body,
+            head: head,
+            eyes: eyes,
+            lips: lips,
+          };
+          websocket.send(updateAvatarPacket(avatar));
+          updateUserAvatar(avatar);
+        });
+      });
+
+      nextEyesBtns.forEach((x) => {
+        x.addEventListener("click", (event) => {
+          event.preventDefault();
+
+          let nextValue = eyes + 1;
+
+          if (nextValue > maxEyes) {
+            nextValue = 1;
+          }
+
+          eyes = nextValue;
+
+          /** @type {import("./modules/protocol.mjs").AvatarInfo} */
+          const avatar = {
+            body: body,
+            head: head,
+            eyes: eyes,
+            lips: lips,
+          };
+          websocket.send(updateAvatarPacket(avatar));
+          updateUserAvatar(avatar);
+        });
+      });
+    } else {
+      console.error("No eyes buttons!");
+    }
+
+    if (prevLipsBtns && nextLipsBtns) {
+      prevLipsBtns.forEach((x) => {
+        x.addEventListener("click", (event) => {
+          event.preventDefault();
+
+          let nextValue = lips - 1;
+
+          if (nextValue < 1) {
+            nextValue = maxLips;
+          }
+
+          lips = nextValue;
+
+          /** @type {import("./modules/protocol.mjs").AvatarInfo} */
+          const avatar = {
+            body: body,
+            head: head,
+            eyes: eyes,
+            lips: lips,
+          };
+          websocket.send(updateAvatarPacket(avatar));
+          updateUserAvatar(avatar);
+        });
+      });
+
+      nextLipsBtns.forEach((x) => {
+        x.addEventListener("click", (event) => {
+          event.preventDefault();
+
+          let nextValue = lips + 1;
+
+          if (nextValue > maxLips) {
+            nextValue = 1;
+          }
+
+          lips = nextValue;
+
+          /** @type {import("./modules/protocol.mjs").AvatarInfo} */
+          const avatar = {
+            body: body,
+            head: head,
+            eyes: eyes,
+            lips: lips,
+          };
+          websocket.send(updateAvatarPacket(avatar));
+          updateUserAvatar(avatar);
+        });
+      });
+    } else {
+      console.error("No lips buttons!");
+    }
   });
 } else {
   console.error("Missing join button or username input or error box element!");
@@ -213,6 +463,13 @@ function handlePackets(data) {
           packet.value
         );
       user_id = handshakeAcceptedPacket.userID;
+
+      updateUserAvatar(handshakeAcceptedPacket.randomAvatar);
+
+      body = handshakeAcceptedPacket.randomAvatar.body;
+      head = handshakeAcceptedPacket.randomAvatar.head;
+      eyes = handshakeAcceptedPacket.randomAvatar.eyes;
+      lips = handshakeAcceptedPacket.randomAvatar.lips;
 
       if (usernameTexts && usernameTexts.length > 0) {
         usernameTexts.forEach((x) => {
@@ -285,6 +542,8 @@ function handlePackets(data) {
           packet.value
         );
 
+      console.dir(playerStatsPacket);
+
       switchPages(PagesID.QUESTIONABLE_RESULTS);
 
       if (smolLeaderboard) {
@@ -306,14 +565,27 @@ function handlePackets(data) {
 
       setResultTips(playerStatsPacket.correct);
 
-      if (playerPosition && playerPoints) {
+      if (playerPosition && playerPoints && playerAvatar) {
         playerPosition.textContent = `${playerStatsPacket.player.position}.`;
         playerPoints.textContent = `${playerStatsPacket.player.points}`;
+
+        updateOtherUserAvatar(playerAvatar, {
+          body: body,
+          head: head,
+          eyes: eyes,
+          lips: lips,
+        });
       } else {
         console.error("No player position & points");
       }
 
-      if (abovePoints && aboveUsername && abovePosition && aboveDiv) {
+      if (
+        abovePoints &&
+        aboveUsername &&
+        abovePosition &&
+        aboveDiv &&
+        aboveAvatar
+      ) {
         if (playerStatsPacket.above_player === null) {
           aboveDiv.style.visibility = "hidden";
         } else {
@@ -321,12 +593,23 @@ function handlePackets(data) {
           abovePosition.textContent = `${playerStatsPacket.above_player.position}.`;
           aboveUsername.textContent = `${playerStatsPacket.above_player.username}`;
           abovePoints.textContent = `${playerStatsPacket.above_player.points}`;
+
+          updateOtherUserAvatar(
+            aboveAvatar,
+            playerStatsPacket.above_player.avatar,
+          );
         }
       } else {
         console.error("No above player leaderboards!");
       }
 
-      if (belowPoints && belowUsername && belowPosition && belowDiv) {
+      if (
+        belowPoints &&
+        belowUsername &&
+        belowPosition &&
+        belowDiv &&
+        belowAvatar
+      ) {
         if (playerStatsPacket.below_player === null) {
           belowDiv.style.visibility = "hidden";
         } else {
@@ -334,6 +617,11 @@ function handlePackets(data) {
           belowPosition.textContent = `${playerStatsPacket.below_player.position}.`;
           belowUsername.textContent = `${playerStatsPacket.below_player.username}`;
           belowPoints.textContent = `${playerStatsPacket.below_player.points}`;
+
+          updateOtherUserAvatar(
+            belowAvatar,
+            playerStatsPacket.below_player.avatar,
+          );
         }
       } else {
         console.error("No below player leaderboards!");
@@ -673,6 +961,77 @@ function setResultTips(correct) {
 
   resultTips.forEach((resultTip) => {
     resultTip.textContent = randomTip;
+  });
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").AvatarInfo} avatar
+ */
+function updateUserAvatar(avatar) {
+  bodyAvatar.forEach((x) => {
+    x.src = `../assets/avatar1${avatar.body}`;
+  });
+
+  headAvatar.forEach((x) => {
+    x.src = `../assets/avatar2${avatar.head}`;
+  });
+
+  eyesAvatar.forEach((x) => {
+    x.src = `../assets/avatar3${avatar.eyes}`;
+  });
+
+  lipsAvatar.forEach((x) => {
+    x.src = `../assets/avatar4${avatar.lips}`;
+  });
+}
+
+/**
+ * @param {Element} element
+ * @param {import("./modules/protocol.mjs").AvatarInfo} avatar
+ */
+function updateOtherUserAvatar(element, avatar) {
+  /** @type NodeListOf<HTMLImageElement> */
+  const bodyAvatar = element.querySelectorAll(".body");
+  bodyAvatar.forEach((x) => {
+    if (avatar.body === 0) {
+      x.style.display = "none";
+    } else {
+      x.style.display = "";
+      x.src = `../assets/avatar1${avatar.body}`;
+    }
+  });
+
+  /** @type NodeListOf<HTMLImageElement> */
+  const headAvatar = element.querySelectorAll(".head");
+  headAvatar.forEach((x) => {
+    if (avatar.head === 0) {
+      x.style.display = "none";
+    } else {
+      x.style.display = "";
+      x.src = `../assets/avatar2${avatar.head}`;
+    }
+  });
+
+  /** @type NodeListOf<HTMLImageElement> */
+  const eyesAvatar = element.querySelectorAll(".eyes");
+  eyesAvatar.forEach((x) => {
+    if (avatar.eyes === 0) {
+      x.style.display = "none";
+    } else {
+      x.style.display = "";
+      x.src = `../assets/avatar3${avatar.eyes}`;
+    }
+  });
+
+  /** @type NodeListOf<HTMLImageElement> */
+  const lipsAvatar = element.querySelectorAll(".lips");
+  lipsAvatar.forEach((x) => {
+    if (avatar.lips === 0) {
+      x.style.display = "none";
+    } else {
+      x.style.display = "";
+      x.src = `../assets/avatar4${avatar.lips}`;
+    }
   });
 }
 

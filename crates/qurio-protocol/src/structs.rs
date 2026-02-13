@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use binrw::{BinRead, BinWrite};
 
-use crate::error::{BinStringError, UserNameConstructError};
+use crate::error::{AvatarError, BinStringError, UserNameConstructError};
 
 // ======= STRUCT DEFINITIONS =======
 
@@ -34,6 +34,7 @@ pub struct BinString {
 pub struct User {
     pub id: UserId,
     pub username: UserName,
+    pub avatar: AvatarInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, BinWrite)]
@@ -73,6 +74,7 @@ pub struct PlayerLeaderboardStats {
     pub position: u8,
     pub username: UserName,
     pub points: u16,
+    pub avatar: AvatarInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, BinWrite)]
@@ -109,31 +111,25 @@ pub struct GameAdvancements {
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct BinBool(bool);
 
-impl BinWrite for BinBool {
-    type Args<'a> = ();
+pub const AVATAR_LAYERS: u8 = 4;
 
-    fn write_options<W: std::io::Write + std::io::Seek>(
-        &self,
-        writer: &mut W,
-        endian: binrw::Endian,
-        _args: Self::Args<'_>,
-    ) -> binrw::BinResult<()> {
-        let value = if self.0 { 1u8 } else { 0u8 };
-        value.write_options(writer, endian, ())
-    }
-}
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct AvatarBodyID(u8);
 
-impl From<BinBool> for bool {
-    fn from(value: BinBool) -> Self {
-        value.0
-    }
-}
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct AvatarEyesID(u8);
 
-impl From<bool> for BinBool {
-    fn from(value: bool) -> Self {
-        BinBool(value)
-    }
-}
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct AvatarHeadID(u8);
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct AvatarLipsID(u8);
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, BinWrite)]
+pub struct AvatarInfo([u8; AVATAR_LAYERS as usize]);
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, BinRead)]
+pub struct UncheckedAvatarInfo([u8; AVATAR_LAYERS as usize]);
 
 // ======= STRUCT IMPLEMENTATIONS =======
 
@@ -253,5 +249,108 @@ impl Default for RatioAdvancement {
             user: UserId(0),
             ratio: 0,
         }
+    }
+}
+
+impl BinWrite for BinBool {
+    type Args<'a> = ();
+
+    fn write_options<W: std::io::Write + std::io::Seek>(
+        &self,
+        writer: &mut W,
+        endian: binrw::Endian,
+        _args: Self::Args<'_>,
+    ) -> binrw::BinResult<()> {
+        let value = if self.0 { 1u8 } else { 0u8 };
+        value.write_options(writer, endian, ())
+    }
+}
+
+impl From<BinBool> for bool {
+    fn from(value: BinBool) -> Self {
+        value.0
+    }
+}
+
+impl From<bool> for BinBool {
+    fn from(value: bool) -> Self {
+        BinBool(value)
+    }
+}
+
+pub trait AvatarID {
+    fn id() -> usize;
+}
+
+macro_rules! avatar_id {
+    ($avatar_type:ident, $max:tt, $id:tt) => {
+        impl $avatar_type {
+            pub const MAX: u8 = $max;
+            pub const ID: u8 = $id;
+
+            pub fn new(id: u8) -> Result<Self, AvatarError> {
+                if id > Self::MAX {
+                    return Err(AvatarError::IDOutsideOfRange(id, Self::MAX));
+                }
+
+                Ok(Self(id))
+            }
+
+            pub fn random() -> Self {
+                let random = rand::random_range(1..=Self::MAX);
+                Self(random)
+            }
+        }
+
+        impl AvatarID for $avatar_type {
+            fn id() -> usize {
+                Self::ID as usize
+            }
+        }
+    };
+}
+
+avatar_id!(AvatarBodyID, 5, 0);
+avatar_id!(AvatarHeadID, 5, 1);
+avatar_id!(AvatarEyesID, 9, 2);
+avatar_id!(AvatarLipsID, 9, 3);
+
+impl AvatarInfo {
+    pub fn new(
+        body: AvatarBodyID,
+        head: AvatarHeadID,
+        eyes: AvatarEyesID,
+        lips: AvatarLipsID,
+    ) -> Self {
+        let mut result_value = [0u8; AVATAR_LAYERS as usize];
+
+        result_value[AvatarBodyID::id()] = body.0;
+        result_value[AvatarHeadID::id()] = head.0;
+        result_value[AvatarEyesID::id()] = eyes.0;
+        result_value[AvatarLipsID::id()] = lips.0;
+
+        Self(result_value)
+    }
+
+    pub fn random() -> Self {
+        let body = AvatarBodyID::random();
+        let head = AvatarHeadID::random();
+        let eyes = AvatarEyesID::random();
+        let lips = AvatarLipsID::random();
+
+        Self::new(body, head, eyes, lips)
+    }
+}
+
+impl TryInto<AvatarInfo> for UncheckedAvatarInfo {
+    type Error = AvatarError;
+
+    fn try_into(self) -> Result<AvatarInfo, Self::Error> {
+        let body = AvatarBodyID::new(self.0[AvatarBodyID::id()])?;
+        let head = AvatarHeadID::new(self.0[AvatarHeadID::id()])?;
+        let eyes = AvatarEyesID::new(self.0[AvatarEyesID::id()])?;
+        let lips = AvatarLipsID::new(self.0[AvatarLipsID::id()])?;
+
+        Ok(AvatarInfo::new(body, head, eyes, lips))
     }
 }

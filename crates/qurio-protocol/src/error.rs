@@ -31,3 +31,9 @@ pub enum BinStringError {
     #[error("Utf8 error: {0}")]
     Utf8Error(Utf8Error),
 }
+
+#[derive(Error, Debug, Clone, PartialEq)]
+pub enum AvatarError {
+    #[error("ID chosen was outside of range 1..={1}, got: {0}")]
+    IDOutsideOfRange(u8, u8),
+}
