@@ -1,21 +1,21 @@
 {
   "neutral": [
-    "I already forgot the question",
-    "Are u sure?",
-    "Nah, I would choose other answer",
-    "Isn't it stressful?",
-    "Doing great! I think...",
-    "Feeling extra lucky?",
-    "Did u even read the question right?"
+    "Już zapomniałem pytanie",
+    "Jesteś pewien?",
+    "Ja bym wybrał inną odpowiedź",
+    "Nie jest to stresujące?",
+    "Idzie dobrze! Tak myślę...",
+    "Czujesz się wyjątkowo fortunny?",
+    "A w ogóle przeczytałeś pytanie poprawnie?"
   ],
   "wrong": [
-    "Never give up!",
-    "That was a missclick",
-    "Unlucky"
+    "Nie poddawaj się!",
+    "To było omyłkowe",
+    "Niefortunny"
   ],
   "correct": [
-    "Keep going!!!",
-    "You are amazing",
-    "Great guess..."
+    "Jedziesz dalej!!!",
+    "Jesteś świetny",
+    "Dobry strzał..."
   ]
 }

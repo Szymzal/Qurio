@@ -721,7 +721,7 @@ function handlePackets(data, ws) {
         if (quickUser == undefined) {
           quickUser = {
             userID: 0,
-            username: "Nobody",
+            username: "Nikt",
             avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
           };
         }
@@ -735,7 +735,7 @@ function handlePackets(data, ws) {
 
         updateUserAvatar(quickAvatarElement, quickUser.avatar);
 
-        let textContent = "Too slow!";
+        let textContent = "Za wolno!";
         if (questionStatsPacket.advancements.quick.time !== 4294967295) {
           textContent = `${quickTime}s`;
         }
@@ -758,7 +758,7 @@ function handlePackets(data, ws) {
         if (streakUser == undefined) {
           streakUser = {
             userID: 0,
-            username: "Nobody",
+            username: "Nikt",
             avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
           };
         }
@@ -895,13 +895,13 @@ function handlePackets(data, ws) {
         if (quickUser == undefined) {
           quickUser = {
             userID: 0,
-            username: "Nobody",
+            username: "Nikt",
             avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
           };
         }
 
         if (gameStatsPacket.advancements.quick.time === 4294967295) {
-          quickTime = "None";
+          quickTime = "Brak";
           overallQuickTimeElement.textContent = `${quickTime}`;
         } else {
           overallQuickTimeElement.textContent = `${quickTime}s`;
@@ -932,7 +932,7 @@ function handlePackets(data, ws) {
         if (streakUser == undefined) {
           streakUser = {
             userID: 0,
-            username: "Nobody",
+            username: "Nikt",
             avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
           };
         }
@@ -963,7 +963,7 @@ function handlePackets(data, ws) {
         if (ratioUser == undefined) {
           ratioUser = {
             userID: 0,
-            username: "Nobody",
+            username: "Nikt",
             avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
           };
         }

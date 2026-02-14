@@ -1,29 +1,29 @@
 {
   "qurioFileVersion": 0,
   "titleScreenWait": 3000,
-  "title": "Test Quiz",
+  "title": "Testowy quiz",
   "questions": [
     {
-      "question": "Is this better than Kahoot?",
+      "question": "Jest to lepsze niż Kahoot?",
       "readQuestionMilis": 3000,
       "answerMilis": 10000,
       "answers": [
-        "Yes",
-        "No",
-        "Maybe",
-        "Well, can we play something else?"
+        "Tak",
+        "Nie",
+        "Może",
+        "W sumie, możemy pograć w coś innego?"
       ],
       "correctAnswerMask": 1
     },
     {
-      "question": "Is this worse than Kahoot?",
+      "question": "Jest to gorsze niż Kahoot?",
       "readQuestionMilis": 3000,
       "answerMilis": 10000,
       "answers": [
-        "Maybe",
-        "No",
-        "Well, can we play something else?",
-        "Yes"
+        "Może",
+        "Nie",
+        "W sumie, możemy pograć w coś innego?",
+        "Tak"
       ],
       "correctAnswerMask": 10
     }
