@@ -9,9 +9,7 @@
       "answerMilis": 10000,
       "answers": [
         "Yes",
-        "No",
-        "Maybe",
-        "Well, can we play something else?"
+        "No"
       ],
       "correctAnswerMask": 1
     },
