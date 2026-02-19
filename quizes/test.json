@@ -9,9 +9,7 @@
       "answerMilis": 10000,
       "answers": [
         "Tak",
-        "Nie",
-        "Może",
-        "W sumie, możemy pograć w coś innego?"
+        "Nie"
       ],
       "correctAnswerMask": 1
     },

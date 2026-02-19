@@ -28,12 +28,12 @@ const questionInProgress = document.querySelector("#questionInProgress");
 const quizTitle = document.querySelector("#quizTitle");
 /** @type NodeListOf<HTMLElement> */
 const question = document.querySelectorAll(".questionText");
-/** @type HTMLHeadingElement | null */
-const questionNum = document.querySelector(".questionNum");
-/** @type HTMLHeadingElement | null */
-const numOfQuestions = document.querySelector(".numOfQuestions");
-/** @type HTMLDivElement | null */
-const wellIDontReallyKnowHowToNameThis = document.querySelector(
+/** @type NodeListOf<HTMLHeadingElement> */
+const questionNum = document.querySelectorAll(".questionNum");
+/** @type NodeListOf<HTMLHeadingElement> */
+const numOfQuestions = document.querySelectorAll(".numOfQuestions");
+/** @type NodeListOf<HTMLDivElement> */
+const wellIDontReallyKnowHowToNameThis = document.querySelectorAll(
   ".wellIDontReallyKnowHowToNameThis",
 );
 /** @type NodeListOf<HTMLDivElement> */
@@ -49,6 +49,14 @@ const answer1 = document.querySelectorAll(".answer1");
 const answer2 = document.querySelectorAll(".answer2");
 /** @type NodeListOf<HTMLParagraphElement> */
 const answer3 = document.querySelectorAll(".answer3");
+/** @type NodeListOf<HTMLParagraphElement> */
+const answer0Text = document.querySelectorAll(".answer0Text");
+/** @type NodeListOf<HTMLParagraphElement> */
+const answer1Text = document.querySelectorAll(".answer1Text");
+/** @type NodeListOf<HTMLParagraphElement> */
+const answer2Text = document.querySelectorAll(".answer2Text");
+/** @type NodeListOf<HTMLParagraphElement> */
+const answer3Text = document.querySelectorAll(".answer3Text");
 
 /** @type HTMLDivElement | null */
 const questionStats = document.querySelector("#questionStats");
@@ -442,7 +450,9 @@ function handlePackets(data, ws) {
         );
 
       if (wellIDontReallyKnowHowToNameThis) {
-        wellIDontReallyKnowHowToNameThis.style.display = "none";
+        wellIDontReallyKnowHowToNameThis.forEach((x) => {
+          x.style.display = "none"
+        });
       } else {
         console.error(
           "HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?",
@@ -457,8 +467,10 @@ function handlePackets(data, ws) {
       }
 
       if (numOfQuestions) {
-        numOfQuestions.textContent =
-          gameDetailsPacket.numOfQuestions.toString();
+        numOfQuestions.forEach((x) => {
+          x.textContent =
+            gameDetailsPacket.numOfQuestions.toString();
+        });
       } else {
         console.error("No number of questions!");
       }
@@ -492,7 +504,9 @@ function handlePackets(data, ws) {
           });
 
           if (wellIDontReallyKnowHowToNameThis) {
-            wellIDontReallyKnowHowToNameThis.style.display = "";
+            wellIDontReallyKnowHowToNameThis.forEach((x) => {
+              x.style.display = "";
+            });
           } else {
             console.error(
               "HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?",
@@ -531,9 +545,11 @@ function handlePackets(data, ws) {
       }
 
       if (questionNum) {
-        questionNum.textContent = (
-          questionInfoPacket.questionIndex + 1
-        ).toString();
+        questionNum.forEach((x) => {
+          x.textContent = (
+            questionInfoPacket.questionIndex + 1
+          ).toString();
+        });
       } else {
         console.error("No question number!");
       }
@@ -579,43 +595,43 @@ function handlePackets(data, ws) {
 
         switch (numOfAnswers) {
           case 1:
-            answer0.forEach((answer) => (answer.style.display = ""));
+            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
             stats0.style.display = "";
-            answer1.forEach((answer) => (answer.style.display = "none"));
+            answer1Text.forEach((answer) => (answer.classList.add("hidden")));
             stats1.style.display = "none";
-            answer2.forEach((answer) => (answer.style.display = "none"));
+            answer2Text.forEach((answer) => (answer.classList.add("hidden")));
             stats2.style.display = "none";
-            answer3.forEach((answer) => (answer.style.display = "none"));
+            answer3Text.forEach((answer) => (answer.classList.add("hidden")));
             stats3.style.display = "none";
             break;
           case 2:
-            answer0.forEach((answer) => (answer.style.display = ""));
+            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
             stats0.style.display = "";
-            answer1.forEach((answer) => (answer.style.display = ""));
+            answer1Text.forEach((answer) => (answer.classList.remove("hidden")));
             stats1.style.display = "";
-            answer2.forEach((answer) => (answer.style.display = "none"));
+            answer2Text.forEach((answer) => (answer.classList.add("hidden")));
             stats2.style.display = "none";
-            answer3.forEach((answer) => (answer.style.display = "none"));
+            answer3Text.forEach((answer) => (answer.classList.add("hidden")));
             stats3.style.display = "none";
             break;
           case 3:
-            answer0.forEach((answer) => (answer.style.display = ""));
+            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
             stats0.style.display = "";
-            answer1.forEach((answer) => (answer.style.display = ""));
+            answer1Text.forEach((answer) => (answer.classList.remove("hidden")));
             stats1.style.display = "";
-            answer2.forEach((answer) => (answer.style.display = ""));
+            answer2Text.forEach((answer) => (answer.classList.remove("hidden")));
             stats2.style.display = "";
-            answer3.forEach((answer) => (answer.style.display = "none"));
+            answer3Text.forEach((answer) => (answer.classList.add("hidden")));
             stats3.style.display = "none";
             break;
           case 4:
-            answer0.forEach((answer) => (answer.style.display = ""));
+            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
             stats0.style.display = "";
-            answer1.forEach((answer) => (answer.style.display = ""));
+            answer1Text.forEach((answer) => (answer.classList.remove("hidden")));
             stats1.style.display = "";
-            answer2.forEach((answer) => (answer.style.display = ""));
+            answer2Text.forEach((answer) => (answer.classList.remove("hidden")));
             stats2.style.display = "";
-            answer3.forEach((answer) => (answer.style.display = ""));
+            answer3Text.forEach((answer) => (answer.classList.remove("hidden")));
             stats3.style.display = "";
             break;
           default:
@@ -752,8 +768,12 @@ function handlePackets(data, ws) {
         streakAvatarElement
       ) {
         const streakUserId = questionStatsPacket.advancements.streak.userId;
-        const streakNumber = questionStatsPacket.advancements.streak.streak;
+        let streakNumber = questionStatsPacket.advancements.streak.streak;
         let streakUser = users.find((x) => x.userID === streakUserId);
+
+        if (streakNumber === 255) {
+          streakNumber = 0;
+        }
 
         if (streakUser == undefined) {
           streakUser = {

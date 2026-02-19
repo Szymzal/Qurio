@@ -1664,13 +1664,17 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
 
             let mut vec = Vec::new();
             let answers = background_recv_state.answers.lock().await;
-            answers.iter().for_each(|&x| vec.push(x));
+            let question_index = background_recv_state.question_index.load(Ordering::Relaxed);
+            let question = &background_recv_state.quiz.questions[question_index as usize];
+            for i in 0..question.answers.len() {
+                let answer = &answers[i];
+                vec.push(answer.clone());
+                // answers.iter().for_each(|&x| vec.push(x));
+            }
             drop(answers);
 
             let leaderboard = create_leaderboard(background_recv_state.clone()).await;
 
-            let question_index = background_recv_state.question_index.load(Ordering::Relaxed);
-            let question = &background_recv_state.quiz.questions[question_index as usize];
             let internal_question_advancements =
                 background_recv_state.question_advancements.lock().await;
 
