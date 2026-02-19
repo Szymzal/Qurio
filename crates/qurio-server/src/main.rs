@@ -693,7 +693,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     let answer_mask = 1 << answer_packet.index;
                     let correct = question.correct_answer_mask & answer_mask != 0;
                     let points_to_add = if correct {
-                        ((answer_time as f32 / question.answer_milis as f32) * 500.0) as u16 + 500
+                        ((1.0 - (answer_time as f32 / question.answer_milis as f32)) * 500.0) as u16 + 500
                     } else {
                         0
                     };
