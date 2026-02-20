@@ -194,6 +194,7 @@ async fn main() {
         .route("/main-host.js", get(js_host))
         .route("/blocks.js", get(js_blocks))
         .route("/particles.min.js", get(js_particles))
+        .route("/nosleep.js", get(js_nosleep))
         .route("/ws", get(websocket_handler))
         .route("/assets/{file}", get(assets))
         .with_state(app_state.clone())
@@ -1338,6 +1339,13 @@ async fn js_particles() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/javascript")],
         include_str!("../../../html/js/particles.js/particles.min.js"),
+    )
+}
+
+async fn js_nosleep() -> impl IntoResponse {
+    (
+        [(header::CONTENT_TYPE, "text/javascript")],
+        include_str!("../../../html/js/NoSleep.js/dist/NoSleep.min.js"),
     )
 }
 
