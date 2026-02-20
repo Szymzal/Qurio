@@ -163,6 +163,9 @@ const pages = [
   waitForQuestion,
 ];
 
+/** @type {import("./NoSleep.js/dist/NoSleep.min.js").NoSleep} */
+const noSleep = new NoSleep();
+
 let tips = null;
 let currentPage = PagesID.LOGIN;
 let numberOfAnswers = 0;
@@ -437,6 +440,8 @@ if (join_btn && usernameInput && error_box) {
     } else {
       console.error("No lips buttons!");
     }
+
+    noSleep.enable();
   });
 } else {
   console.error("Missing join button or username input or error box element!");
@@ -1035,23 +1040,6 @@ function updateOtherUserAvatar(element, avatar) {
   });
 }
 
-function isScreenLockSupported() {
-  return ('wakeLock' in navigator);
-}
-
-async function getScreenLock() {
-  if (isScreenLockSupported()) {
-    let screenLock; 
-    try {
-      screenLock = await navigator.wakeLock.request('screen');
-    } catch (err) {
-      console.error(err.name, err.message);
-    }
-
-    return screenLock;
-  }
-}
-
 // ====== ASSETS INITIALIZATION ======
 
 fetch(new Request(`/assets/tips`))
@@ -1064,14 +1052,6 @@ fetch(new Request(`/assets/tips`))
     return response.json();
   })
   .then((json) => (tips = json));
-
-let screenLock = getScreenLock();
-
-document.addEventListener('visibilitychange', async () => {
-  if (screenLock !== null && document.visibilityState === "visible") {
-    screenLock = await navigator.wakeLock.request("screen");
-  }
-});
 
 window.onbeforeunload = function() {
   return "Jesteś pewny, że chcesz wyjść?";
