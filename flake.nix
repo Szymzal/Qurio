@@ -22,17 +22,26 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
+
+        toolchainW = fenix.packages.${system}.combine [
+          fenix.packages.${system}.stable.toolchain
+          fenix.packages.${system}.targets.x86_64-pc-windows-gnu.stable.rust-std
+        ];
       in
         with pkgs; rec {
           devShells.default = mkShell rec {
             nativeBuildInputs = [
               pkg-config
-              fenix.packages.${system}.stable.toolchain
+              toolchainW
+              pkgs.cargo-cross
+
+              pkgs.pkgsCross.mingwW64.stdenv.cc
             ];
 
             buildInputs = [];
 
             LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath buildInputs;
+            CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER = "${pkgs.pkgsCross.mingwW64.stdenv.cc}/bin/x86_64-w64-mingw32-gcc";
           };
           packages = let
             toolchain = fenix.packages.${system}.stable.toolchain;
