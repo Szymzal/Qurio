@@ -1,7 +1,6 @@
 [submodule "html/js/particles.js"]
 	path = html/js/particles.js
 	url = https://github.com/VincentGarreau/particles.js
-
-[submodule "html/js/NoSleep.js"]
-	path = html/js/NoSleep.js
+[submodule "NoSleep.js"]
+	path = NoSleep.js
 	url = https://github.com/richtr/NoSleep.js
