@@ -33,7 +33,6 @@
             nativeBuildInputs = [
               pkg-config
               toolchainW
-              pkgs.cargo-cross
 
               pkgs.pkgsCross.mingwW64.stdenv.cc
             ];
@@ -42,6 +41,7 @@
 
             LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath buildInputs;
             CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER = "${pkgs.pkgsCross.mingwW64.stdenv.cc}/bin/x86_64-w64-mingw32-gcc";
+            CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUSTFLAGS = "-L native=${pkgs.pkgsCross.mingwW64.windows.pthreads}/lib";
           };
           packages = let
             toolchain = fenix.packages.${system}.stable.toolchain;
