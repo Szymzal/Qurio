@@ -2,5 +2,5 @@
 	path = html/js/particles.js
 	url = https://github.com/VincentGarreau/particles.js
 [submodule "NoSleep.js"]
-	path = NoSleep.js
+	path = html/js/NoSleep.js
 	url = https://github.com/richtr/NoSleep.js
