@@ -451,7 +451,7 @@ function handlePackets(data, ws) {
 
       if (wellIDontReallyKnowHowToNameThis) {
         wellIDontReallyKnowHowToNameThis.forEach((x) => {
-          x.style.display = "none"
+          x.style.display = "none";
         });
       } else {
         console.error(
@@ -468,8 +468,7 @@ function handlePackets(data, ws) {
 
       if (numOfQuestions) {
         numOfQuestions.forEach((x) => {
-          x.textContent =
-            gameDetailsPacket.numOfQuestions.toString();
+          x.textContent = gameDetailsPacket.numOfQuestions.toString();
         });
       } else {
         console.error("No number of questions!");
@@ -546,9 +545,7 @@ function handlePackets(data, ws) {
 
       if (questionNum) {
         questionNum.forEach((x) => {
-          x.textContent = (
-            questionInfoPacket.questionIndex + 1
-          ).toString();
+          x.textContent = (questionInfoPacket.questionIndex + 1).toString();
         });
       } else {
         console.error("No question number!");
@@ -595,43 +592,43 @@ function handlePackets(data, ws) {
 
         switch (numOfAnswers) {
           case 1:
-            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
             stats0.style.display = "";
-            answer1Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer1Text.forEach((answer) => answer.classList.add("hidden"));
             stats1.style.display = "none";
-            answer2Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer2Text.forEach((answer) => answer.classList.add("hidden"));
             stats2.style.display = "none";
-            answer3Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer3Text.forEach((answer) => answer.classList.add("hidden"));
             stats3.style.display = "none";
             break;
           case 2:
-            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
             stats0.style.display = "";
-            answer1Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer1Text.forEach((answer) => answer.classList.remove("hidden"));
             stats1.style.display = "";
-            answer2Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer2Text.forEach((answer) => answer.classList.add("hidden"));
             stats2.style.display = "none";
-            answer3Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer3Text.forEach((answer) => answer.classList.add("hidden"));
             stats3.style.display = "none";
             break;
           case 3:
-            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
             stats0.style.display = "";
-            answer1Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer1Text.forEach((answer) => answer.classList.remove("hidden"));
             stats1.style.display = "";
-            answer2Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer2Text.forEach((answer) => answer.classList.remove("hidden"));
             stats2.style.display = "";
-            answer3Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer3Text.forEach((answer) => answer.classList.add("hidden"));
             stats3.style.display = "none";
             break;
           case 4:
-            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
             stats0.style.display = "";
-            answer1Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer1Text.forEach((answer) => answer.classList.remove("hidden"));
             stats1.style.display = "";
-            answer2Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer2Text.forEach((answer) => answer.classList.remove("hidden"));
             stats2.style.display = "";
-            answer3Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer3Text.forEach((answer) => answer.classList.remove("hidden"));
             stats3.style.display = "";
             break;
           default:
@@ -1355,3 +1352,18 @@ backgroundMusicList[2].addEventListener("ended", (_) => {
   backgroundMusicList[0].play();
   backgroundMusicList[0].currentTime = 0;
 });
+
+// ------ DEBUGGING -------
+
+/** @param {Number} num  */
+function addFakeUsers(num) {
+  for (let i = 0; i < num; i++) {
+    users.push({
+      userID: i,
+      username: `User${i}`,
+      avatar: { body: 1, head: 1, eyes: 1, lips: 1 },
+    });
+  }
+}
+
+// addFakeUsers(50);
