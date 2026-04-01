@@ -257,6 +257,11 @@ async fn js_host() -> impl IntoResponse {
 
 async fn assets(Path(path): Path<String>) -> impl IntoResponse {
     match path.as_str() {
+        "avatars" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatars.png"),
+        )
+            .into_response(),
         "avatar111" => (
             [(header::CONTENT_TYPE, "image/png")],
             include_bytes!("../../../html/assets/avatar/avatar111.png"),
