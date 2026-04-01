@@ -22,6 +22,8 @@ const error_box = document.querySelector("#errorBox");
 /** @type HTMLDivElement | null */
 const loginPage = document.querySelector("#login");
 
+/** @type HTMLCanvasElement | null */
+const avatarCanvas = document.querySelector(".avatarCanvas");
 /** @type NodeListOf<HTMLImageElement> */
 const bodyAvatar = document.querySelectorAll(".avatar .body");
 /** @type NodeListOf<HTMLImageElement> */
@@ -172,6 +174,7 @@ let numberOfAnswers = 0;
 let user_id = -1;
 let username = "";
 
+const maxColor = 9;
 const maxBody = 5;
 let body = 1;
 const maxHead = 5;
@@ -180,6 +183,9 @@ const maxEyes = 9;
 let eyes = 1;
 const maxLips = 9;
 let lips = 1;
+
+const avatarAtlas = new Image();
+avatarAtlas.src = "../assets/avatars";
 
 // ====== WEBSOCKET CONNECTION ======
 if (join_btn && usernameInput && error_box) {
@@ -973,21 +979,115 @@ function setResultTips(correct) {
  * @param {import("./modules/protocol.mjs").AvatarInfo} avatar
  */
 function updateUserAvatar(avatar) {
-  bodyAvatar.forEach((x) => {
-    x.src = `../assets/avatar1${avatar.body}1`;
-  });
+  // bodyAvatar.forEach((x) => {
+  //   x.src = `../assets/avatar1${avatar.body}1`;
+  // });
+  //
+  // headAvatar.forEach((x) => {
+  //   x.src = `../assets/avatar2${avatar.head}1`;
+  // });
+  //
+  // eyesAvatar.forEach((x) => {
+  //   x.src = `../assets/avatar3${avatar.eyes}`;
+  // });
+  //
+  // lipsAvatar.forEach((x) => {
+  //   x.src = `../assets/avatar4${avatar.lips}`;
+  // });
 
-  headAvatar.forEach((x) => {
-    x.src = `../assets/avatar2${avatar.head}1`;
-  });
+  if (avatarCanvas === null) {
+    console.error("No avatarCanvas!");
+    return;
+  }
 
-  eyesAvatar.forEach((x) => {
-    x.src = `../assets/avatar3${avatar.eyes}`;
-  });
+  const ctx = avatarCanvas.getContext("2d");
+  if (ctx === null) {
+    console.error("Failed to get canvas context!");
+    return;
+  }
 
-  lipsAvatar.forEach((x) => {
-    x.src = `../assets/avatar4${avatar.lips}`;
-  });
+  // Prepare new image
+  ctx.clearRect(0, 0, avatarCanvas.width, avatarCanvas.height);
+
+  // Body
+  const bodyIndex = (avatar.body - 1) * maxColor;
+  let imagePos = calculateAtlas(bodyIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    avatarCanvas.width,
+    avatarCanvas.height,
+  );
+
+  // Head
+  const headIndex = maxBody * maxColor + (avatar.head - 1) * maxColor;
+  imagePos = calculateAtlas(headIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    avatarCanvas.width,
+    avatarCanvas.height,
+  );
+
+  // Eyes
+  const eyesIndex = maxBody * maxColor + maxHead * maxColor + (avatar.eyes - 1);
+  imagePos = calculateAtlas(eyesIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    avatarCanvas.width,
+    avatarCanvas.height,
+  );
+
+  // Lips
+  const lipsIndex =
+    maxBody * maxColor + maxHead * maxColor + maxEyes + (avatar.lips - 1);
+  imagePos = calculateAtlas(lipsIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    avatarCanvas.width,
+    avatarCanvas.height,
+  );
+}
+
+/** @argument {Number} index
+ * @returns {Object} */
+function calculateAtlas(index) {
+  const pieceWidth = 256;
+  const pieceHeight = 256;
+  const piecesInRow = Math.floor(avatarAtlas.width / pieceWidth);
+
+  const x = (index * pieceWidth) % (piecesInRow * pieceWidth);
+  const y =
+    Math.floor((index * pieceWidth) / (piecesInRow * pieceWidth)) * pieceHeight;
+
+  return {
+    x: x,
+    y: y,
+    width: pieceWidth,
+    height: pieceHeight,
+  };
 }
 
 /**
@@ -1053,6 +1153,6 @@ fetch(new Request(`/assets/tips`))
   })
   .then((json) => (tips = json));
 
-window.onbeforeunload = function() {
+window.onbeforeunload = function () {
   return "Jesteś pewny, że chcesz wyjść?";
 };

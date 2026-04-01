@@ -694,7 +694,8 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     let answer_mask = 1 << answer_packet.index;
                     let correct = question.correct_answer_mask & answer_mask != 0;
                     let points_to_add = if correct {
-                        ((1.0 - (answer_time as f32 / question.answer_milis as f32)) * 500.0) as u16 + 500
+                        ((1.0 - (answer_time as f32 / question.answer_milis as f32)) * 500.0) as u16
+                            + 500
                     } else {
                         0
                     };
@@ -1358,6 +1359,11 @@ async fn js_host() -> impl IntoResponse {
 
 async fn assets(Path(path): Path<String>) -> impl IntoResponse {
     match path.as_str() {
+        "avatars" => (
+            [(header::CONTENT_TYPE, "image/png")],
+            include_bytes!("../../../html/assets/avatar/avatars.png"),
+        )
+            .into_response(),
         "avatar111" => (
             [(header::CONTENT_TYPE, "image/png")],
             include_bytes!("../../../html/assets/avatar/avatar111.png"),
