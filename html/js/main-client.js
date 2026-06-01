@@ -22,16 +22,8 @@ const error_box = document.querySelector("#errorBox");
 /** @type HTMLDivElement | null */
 const loginPage = document.querySelector("#login");
 
-/** @type HTMLCanvasElement | null */
-const avatarCanvas = document.querySelector(".avatarCanvas");
-/** @type NodeListOf<HTMLImageElement> */
-const bodyAvatar = document.querySelectorAll(".avatar .body");
-/** @type NodeListOf<HTMLImageElement> */
-const headAvatar = document.querySelectorAll(".avatar .head");
-/** @type NodeListOf<HTMLImageElement> */
-const eyesAvatar = document.querySelectorAll(".avatar .eyes");
-/** @type NodeListOf<HTMLImageElement> */
-const lipsAvatar = document.querySelectorAll(".avatar .lips");
+/** @type NodeListOf<HTMLCanvasElement> */
+const avatarCanvas = document.querySelectorAll(".avatarCanvas");
 
 /** @type NodeListOf<HTMLParagraphElement> */
 const prevBodyBtns = document.querySelectorAll(".prevBody");
@@ -975,100 +967,104 @@ function setResultTips(correct) {
   });
 }
 
+// TODO: Make sure that is the user's avatar and not the opponents
+if (avatarCanvas.length > 0) {
+  const resizeObserver = new ResizeObserver((entries) => {
+    updateUserAvatar({
+      body: body,
+      head: head,
+      eyes: eyes,
+      lips: lips,
+    });
+  });
+
+  // 4. Tell the observer to watch your canvas
+  avatarCanvas.forEach((canvas) => {
+    resizeObserver.observe(canvas);
+  });
+}
+
 /**
  * @param {import("./modules/protocol.mjs").AvatarInfo} avatar
  */
 function updateUserAvatar(avatar) {
-  // bodyAvatar.forEach((x) => {
-  //   x.src = `../assets/avatar1${avatar.body}1`;
-  // });
-  //
-  // headAvatar.forEach((x) => {
-  //   x.src = `../assets/avatar2${avatar.head}1`;
-  // });
-  //
-  // eyesAvatar.forEach((x) => {
-  //   x.src = `../assets/avatar3${avatar.eyes}`;
-  // });
-  //
-  // lipsAvatar.forEach((x) => {
-  //   x.src = `../assets/avatar4${avatar.lips}`;
-  // });
-
-  if (avatarCanvas === null) {
+  if (avatarCanvas.length === 0) {
     console.error("No avatarCanvas!");
     return;
   }
 
-  const ctx = avatarCanvas.getContext("2d");
-  if (ctx === null) {
-    console.error("Failed to get canvas context!");
-    return;
+  for (let canvas of avatarCanvas) {
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) {
+      console.error("Failed to get canvas context!");
+      return;
+    }
+
+    // Prepare new image
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Body
+    const bodyIndex = (avatar.body - 1) * maxColor;
+    let imagePos = calculateAtlas(bodyIndex);
+    ctx.drawImage(
+      avatarAtlas,
+      imagePos.x,
+      imagePos.y,
+      imagePos.width,
+      imagePos.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+
+    // Head
+    const headIndex = maxBody * maxColor + (avatar.head - 1) * maxColor;
+    imagePos = calculateAtlas(headIndex);
+    ctx.drawImage(
+      avatarAtlas,
+      imagePos.x,
+      imagePos.y,
+      imagePos.width,
+      imagePos.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+
+    // Eyes
+    const eyesIndex =
+      maxBody * maxColor + maxHead * maxColor + (avatar.eyes - 1);
+    imagePos = calculateAtlas(eyesIndex);
+    ctx.drawImage(
+      avatarAtlas,
+      imagePos.x,
+      imagePos.y,
+      imagePos.width,
+      imagePos.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+
+    // Lips
+    const lipsIndex =
+      maxBody * maxColor + maxHead * maxColor + maxEyes + (avatar.lips - 1);
+    imagePos = calculateAtlas(lipsIndex);
+    ctx.drawImage(
+      avatarAtlas,
+      imagePos.x,
+      imagePos.y,
+      imagePos.width,
+      imagePos.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
   }
-
-  // Prepare new image
-  ctx.clearRect(0, 0, avatarCanvas.width, avatarCanvas.height);
-
-  // Body
-  const bodyIndex = (avatar.body - 1) * maxColor;
-  let imagePos = calculateAtlas(bodyIndex);
-  ctx.drawImage(
-    avatarAtlas,
-    imagePos.x,
-    imagePos.y,
-    imagePos.width,
-    imagePos.height,
-    0,
-    0,
-    avatarCanvas.width,
-    avatarCanvas.height,
-  );
-
-  // Head
-  const headIndex = maxBody * maxColor + (avatar.head - 1) * maxColor;
-  imagePos = calculateAtlas(headIndex);
-  ctx.drawImage(
-    avatarAtlas,
-    imagePos.x,
-    imagePos.y,
-    imagePos.width,
-    imagePos.height,
-    0,
-    0,
-    avatarCanvas.width,
-    avatarCanvas.height,
-  );
-
-  // Eyes
-  const eyesIndex = maxBody * maxColor + maxHead * maxColor + (avatar.eyes - 1);
-  imagePos = calculateAtlas(eyesIndex);
-  ctx.drawImage(
-    avatarAtlas,
-    imagePos.x,
-    imagePos.y,
-    imagePos.width,
-    imagePos.height,
-    0,
-    0,
-    avatarCanvas.width,
-    avatarCanvas.height,
-  );
-
-  // Lips
-  const lipsIndex =
-    maxBody * maxColor + maxHead * maxColor + maxEyes + (avatar.lips - 1);
-  imagePos = calculateAtlas(lipsIndex);
-  ctx.drawImage(
-    avatarAtlas,
-    imagePos.x,
-    imagePos.y,
-    imagePos.width,
-    imagePos.height,
-    0,
-    0,
-    avatarCanvas.width,
-    avatarCanvas.height,
-  );
 }
 
 /** @argument {Number} index
