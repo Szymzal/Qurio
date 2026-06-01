@@ -1,5 +1,5 @@
 {
-  "qurioFileVersion": 0,
+  "qurioFileVersion": 1,
   "titleScreenWait": 3000,
   "title": "Test Quiz",
   "questions": [
@@ -8,22 +8,20 @@
       "readQuestionMilis": 3000,
       "answerMilis": 10000,
       "answers": [
-        "Yes",
-        "No"
-      ],
-      "correctAnswerMask": 1
+        {"text": "Yes", "correct": true},
+        {"text": "No", "correct": false}
+      ]
     },
     {
       "question": "Is this worse than Kahoot?",
       "readQuestionMilis": 3000,
       "answerMilis": 10000,
       "answers": [
-        "Maybe",
-        "No",
-        "Well, can we play something else?",
-        "Yes"
-      ],
-      "correctAnswerMask": 10
+        {"text": "Maybe", "correct": false},
+        {"text": "No", "correct": true},
+        {"text": "Well, can we play something else?", "correct": false},
+        {"text": "Yes", "correct": true}
+      ]
     }
   ]
 }
