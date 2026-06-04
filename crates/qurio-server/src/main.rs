@@ -61,6 +61,8 @@ use crate::{
 };
 
 pub mod advancements;
+pub mod error;
+pub mod game;
 pub mod quiz_file;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -90,6 +92,7 @@ pub struct AppState {
     avatars: RwLock<HashMap<UserId, AvatarInfo>>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct RatioMetric {
     correct: u8,
     wrong: u8,
@@ -694,7 +697,8 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     let answer_mask = 1 << answer_packet.index;
                     let correct = question.correct_answer_mask & answer_mask != 0;
                     let points_to_add = if correct {
-                        ((1.0 - (answer_time as f32 / question.answer_milis as f32)) * 500.0) as u16 + 500
+                        ((1.0 - (answer_time as f32 / question.answer_milis as f32)) * 500.0) as u16
+                            + 500
                     } else {
                         0
                     };
@@ -906,7 +910,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     let _ = state.tx.send(UserLeftPacket { user_id }.as_packet());
 }
 
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Clone, Error, PartialEq)]
 pub enum HandshakeInitializationError {
     #[error("Client send invalid handshake")]
     InvalidHandshake,
@@ -920,6 +924,27 @@ pub enum HandshakeInitializationError {
     HostIsTaken,
     #[error("Got into illegal state")]
     IllegalState,
+}
+
+impl From<HandshakeInitializationError> for S2CPackets {
+    fn from(value: HandshakeInitializationError) -> Self {
+        let reason = match value {
+            HandshakeInitializationError::InvalidHandshake => {
+                HandshakeRejectionReason::InvalidHandshake
+            }
+            HandshakeInitializationError::InvalidProtocolVersion(_) => {
+                HandshakeRejectionReason::IncorrectProtocolVersion
+            }
+            HandshakeInitializationError::UsernameRequirementsNotMet(user_name_construct_error) => {
+                HandshakeRejectionReason::UsernameRequirementsNotMet(user_name_construct_error)
+            }
+            HandshakeInitializationError::UsernameTaken => HandshakeRejectionReason::UsernameTaken,
+            HandshakeInitializationError::HostIsTaken => HandshakeRejectionReason::HostIsTaken,
+            HandshakeInitializationError::IllegalState => panic!("Illegal state!"),
+        };
+
+        HandshakeRejectedPacket { reason }.as_packet()
+    }
 }
 
 /// Initializes connection between server and client using WebSocket using protocol from crate
