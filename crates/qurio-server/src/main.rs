@@ -64,6 +64,7 @@ pub mod advancements;
 pub mod error;
 pub mod game;
 pub mod quiz_file;
+mod websocket;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum GameState {

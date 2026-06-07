@@ -7,14 +7,15 @@ use qurio_protocol::{
         s2c::{
             AnswerDetailsPacket, GameStateInfoClient, GameStateInfoPacket, HandshakeAcceptedPacket,
             HandshakeRejectedPacket, HostHandshakeAcceptedPacket, PlayerOverallStatsPacket,
-            PlayerStatsPacket, S2CPackets,
+            PlayerStatsPacket, S2CPackets, UserJoinedPacket, UserLeftPacket,
         },
     },
     structs::{
         AvatarInfo, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
-        PlayerLeaderboardStats, UserId, UserName, UserStat,
+        PlayerLeaderboardStats, UncheckedUserName, UserId, UserName, UserStat,
     },
 };
+use tokio::sync::mpsc;
 use tracing::warn;
 
 use crate::{GameState, HandshakeInitializationError, RatioMetric, quiz_file::Quiz};
@@ -42,6 +43,12 @@ impl IDManager {
     pub fn new_user_id(&mut self) -> UserId {
         self.last_user_id_used += 1;
         UserId::new(self.last_user_id_used)
+    }
+}
+
+impl Default for IDManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -83,9 +90,43 @@ impl QuizState {
     }
 }
 
-pub enum PendingConnection {
+#[derive(Clone, Debug)]
+pub struct PlayerData {
+    pub username: UncheckedUserName,
+    pub connection_id: ConnectionId,
+    pub reply_tx: mpsc::Sender<S2CPackets>,
+}
+
+#[derive(Clone, Debug)]
+pub struct HostData {
+    pub connection_id: ConnectionId,
+}
+
+#[derive(Clone, Debug)]
+pub struct RemovalPlayerData {
+    pub id: UserId,
+}
+
+#[derive(Clone, Debug)]
+pub enum GameCommand {
+    AddPlayer(PlayerData),
+    AddHost(HostData),
+    RemovePlayer(RemovalPlayerData),
+}
+
+pub enum Replicant {
     Host,
-    Player { proposed_username: UserName },
+    AllPlayers,
+    Player(UserId),
+    PendingConnection(ConnectionId),
+}
+
+#[derive(Clone, Debug)]
+pub struct ConnectionId(pub usize);
+
+pub struct OutgoingPacket {
+    pub replicant: Replicant,
+    pub packet: S2CPackets,
 }
 
 impl Game {
@@ -100,42 +141,44 @@ impl Game {
         }
     }
 
-    pub fn initialize_handshake(
-        &mut self,
-        packet: C2SPackets,
-    ) -> Result<PendingConnection, HandshakeInitializationError> {
-        match packet {
-            C2SPackets::InitializeHandshake(packet) => {
-                let username = self.initialize_player_handshake(&packet)?;
-                Ok(PendingConnection::Player {
-                    proposed_username: username,
-                })
+    pub fn process_game_command(&mut self, command: GameCommand) -> Vec<OutgoingPacket> {
+        let mut packets = vec![];
+
+        match command {
+            GameCommand::AddPlayer(player_handshake_data) => {
+                let username = match self.initialize_player_handshake(&player_handshake_data) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        tracing::warn!("Failed to parse handshake: {error}");
+                        return packets;
+                    }
+                };
+
+                let mut new_packets = self
+                    .handle_new_player_connection(player_handshake_data.connection_id, username);
+                packets.append(&mut new_packets);
             }
-            C2SPackets::InitializeHostHandshake(packet) => {
-                self.initialize_host_handshake(&packet)?;
-                Ok(PendingConnection::Host)
+            GameCommand::AddHost(host_data) => {
+                if let Err(error) = self.initialize_host_handshake() {
+                    tracing::warn!("Failed to add host: {error}");
+                    return packets;
+                }
+
+                packets.push(self.handle_new_host_connection(host_data.connection_id));
             }
-            _ => Err(HandshakeInitializationError::InvalidHandshake),
+            GameCommand::RemovePlayer(removal_player_data) => {
+                packets.push(self.remove_player(removal_player_data.id));
+            }
         }
+
+        packets
     }
 
     fn initialize_player_handshake(
         &self,
-        packet: &InitializeHandshakePacket,
+        data: &PlayerData,
     ) -> Result<UserName, HandshakeInitializationError> {
-        if packet.protocol_version != PROTOCOL_VERSION {
-            tracing::warn!(
-                "Protocol versions does not match! Expected: '{}', got: '{}'",
-                PROTOCOL_VERSION,
-                packet.protocol_version
-            );
-
-            return Err(HandshakeInitializationError::InvalidProtocolVersion(
-                packet.protocol_version,
-            ));
-        }
-
-        let username: UserName = match packet.proposed_username.clone().try_into() {
+        let username: UserName = match data.username.clone().try_into() {
             Ok(username) => username,
             Err(err) => {
                 return Err(HandshakeInitializationError::UsernameRequirementsNotMet(
@@ -147,22 +190,7 @@ impl Game {
         Ok(username)
     }
 
-    fn initialize_host_handshake(
-        &mut self,
-        packet: &InitializeHostHandshakePacket,
-    ) -> Result<(), HandshakeInitializationError> {
-        if packet.protocol_version != PROTOCOL_VERSION {
-            tracing::warn!(
-                "Protocol versions does not match! Expected: '{}', got: '{}'",
-                PROTOCOL_VERSION,
-                packet.protocol_version
-            );
-
-            return Err(HandshakeInitializationError::InvalidProtocolVersion(
-                packet.protocol_version,
-            ));
-        }
-
+    fn initialize_host_handshake(&mut self) -> Result<(), HandshakeInitializationError> {
         if self.host_joined {
             tracing::warn!("Someone tried to connect as host when host is already there!");
 
@@ -172,31 +200,6 @@ impl Game {
 
         tracing::info!("Host joined");
         Ok(())
-    }
-
-    pub fn new_connection(&mut self, packet: C2SPackets) -> Vec<S2CPackets> {
-        let mut packets = vec![];
-
-        let pending_connection = match self.initialize_handshake(packet) {
-            Ok(value) => value,
-            Err(error) => {
-                packets.push(error.into());
-                return packets;
-            }
-        };
-
-        match pending_connection {
-            PendingConnection::Host => {
-                let new_packet = self.handle_new_host_connection();
-                packets.push(new_packet);
-            }
-            PendingConnection::Player { proposed_username } => {
-                let new_packets = self.handle_new_player_connection(proposed_username);
-                packets.append(&mut new_packets.clone());
-            }
-        }
-
-        packets
     }
 
     fn new_player(&mut self, username: UserName) -> Result<UserId, HandshakeInitializationError> {
@@ -220,12 +223,6 @@ impl Game {
             points: 0,
         };
 
-        tracing::info!(
-            "Client {} under name of: {} joined!",
-            user.id.get_inner_value(),
-            user.username.clone()
-        );
-
         self.users.insert(user_id, user);
         Ok(user_id)
     }
@@ -234,50 +231,79 @@ impl Game {
         self.users.get(user_id)
     }
 
-    fn handle_new_player_connection(&mut self, username: UserName) -> Vec<S2CPackets> {
+    fn handle_new_player_connection(
+        &mut self,
+        connection_id: ConnectionId,
+        username: UserName,
+    ) -> Vec<OutgoingPacket> {
         let mut packets = vec![];
 
-        let user_id = match self.new_player(username) {
+        let user_id = match self.new_player(username.clone()) {
             Ok(value) => value,
             Err(error) => {
-                packets.push(error.into());
+                tracing::warn!("Failed to add new player: {error}");
+                packets.push(OutgoingPacket {
+                    replicant: Replicant::PendingConnection(connection_id),
+                    packet: error.into(),
+                });
                 return packets;
             }
         };
+
+        tracing::info!(
+            "Player ({}): {} joined!",
+            user_id.get_inner_value(),
+            username
+        );
 
         let user = match self.get_user(&user_id) {
             Some(value) => value,
             // TODO: Add another reason
             None => {
-                packets.push(
-                    HandshakeRejectedPacket {
+                tracing::error!("Invalid state in new player? Player ({user_id:?}) vanished");
+                packets.push(OutgoingPacket {
+                    replicant: Replicant::PendingConnection(connection_id),
+                    packet: HandshakeRejectedPacket {
                         reason: HandshakeRejectionReason::InvalidHandshake,
                     }
                     .as_packet(),
-                );
+                });
                 return packets;
             }
         };
 
-        packets.push(
-            HandshakeAcceptedPacket {
+        packets.push(OutgoingPacket {
+            replicant: Replicant::PendingConnection(connection_id),
+            packet: HandshakeAcceptedPacket {
                 id: user_id,
                 random_avatar: user.avatar,
             }
             .as_packet(),
-        );
+        });
 
         if self.host_joined {
-            packets.push(S2CPackets::HostJoined);
+            packets.push(OutgoingPacket {
+                replicant: Replicant::Player(user_id), // TODO: Will be that fast?
+                packet: S2CPackets::HostJoined,
+            });
+            packets.push(OutgoingPacket {
+                replicant: Replicant::Host,
+                packet: S2CPackets::UserJoined(UserJoinedPacket {
+                    user: qurio_protocol::structs::User {
+                        id: user_id,
+                        username,
+                        avatar: user.avatar,
+                    },
+                }),
+            });
         }
 
-        let new_packet = self.catchup_player(&user_id);
-        packets.push(new_packet);
+        packets.push(self.catchup_player(&user_id));
 
         packets
     }
 
-    fn catchup_player(&self, user_id: &UserId) -> S2CPackets {
+    fn catchup_player(&self, user_id: &UserId) -> OutgoingPacket {
         let packet = match self.game_state {
             GameState::Lobby => GameStateInfoPacket(GameStateInfoClient::LobbyState),
             GameState::Question => {
@@ -398,7 +424,10 @@ impl Game {
             }
         };
 
-        packet.as_packet()
+        OutgoingPacket {
+            replicant: Replicant::Player(*user_id),
+            packet: packet.as_packet(),
+        }
     }
 
     fn create_leaderboard(&self) -> Leaderboard {
@@ -450,7 +479,7 @@ impl Game {
         question.correct_answer_mask & answer_mask != 0
     }
 
-    fn handle_new_host_connection(&self) -> S2CPackets {
+    fn handle_new_host_connection(&self, connection_id: ConnectionId) -> OutgoingPacket {
         let users_vec = self
             .users
             .values()
@@ -461,10 +490,41 @@ impl Game {
             })
             .collect::<Vec<_>>();
 
-        HostHandshakeAcceptedPacket {
-            users_count: self.users.len() as u8,
-            users: users_vec,
+        OutgoingPacket {
+            replicant: Replicant::PendingConnection(connection_id),
+            packet: HostHandshakeAcceptedPacket {
+                users_count: self.users.len() as u8,
+                users: users_vec,
+            }
+            .as_packet(),
         }
-        .as_packet()
+    }
+
+    fn remove_player(&mut self, user_id: UserId) -> OutgoingPacket {
+        let packet = OutgoingPacket {
+            replicant: Replicant::Host,
+            packet: UserLeftPacket { user_id }.as_packet(),
+        };
+
+        let user = match self.users.get(&user_id) {
+            Some(value) => value.clone(),
+            None => {
+                tracing::error!(
+                    "Tried to remove non existing player ID {}",
+                    user_id.get_inner_value()
+                );
+                return packet;
+            }
+        };
+
+        self.users.remove(&user_id);
+
+        tracing::info!(
+            "Player ({}) {} left!",
+            user.id.get_inner_value(),
+            user.username
+        );
+
+        packet
     }
 }
