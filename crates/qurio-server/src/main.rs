@@ -4,7 +4,7 @@ use std::{
     ops::Index,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU8, Ordering},
+        atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
         mpsc::{self, Receiver, Sender},
     },
     time::Duration,
@@ -57,7 +57,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     advancements::{GameAdvancement, GameGroupAdvancements, QuestionAdvancement},
+    game::GameCommand,
     quiz_file::{Quiz, read_quiz_file},
+    websocket::{TokioState, game_manager, new_websocket_handler},
 };
 
 pub mod advancements;
@@ -187,6 +189,16 @@ async fn main() {
         avatars: RwLock::new(HashMap::new()),
     });
 
+    let (tx, rx) = tokio::sync::mpsc::channel::<GameCommand>(32);
+    let tokio_state = Arc::new(TokioState {
+        command_tx: tx,
+        next_connection_id: AtomicUsize::new(0),
+    });
+
+    tokio::spawn(async move {
+        game_manager(rx).await;
+    });
+
     let app = Router::new()
         .route("/", get(index))
         .route("/host", get(index_host))
@@ -199,9 +211,11 @@ async fn main() {
         .route("/blocks.js", get(js_blocks))
         .route("/particles.min.js", get(js_particles))
         .route("/nosleep.js", get(js_nosleep))
-        .route("/ws", get(websocket_handler))
         .route("/assets/{file}", get(assets))
-        .with_state(app_state.clone())
+        // .route("/ws", get(websocket_handler))
+        // .with_state(app_state.clone())
+        .route("/ws", get(new_websocket_handler))
+        .with_state(tokio_state)
         .layer((
             TraceLayer::new_for_http(),
             TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, Duration::from_secs(10)),

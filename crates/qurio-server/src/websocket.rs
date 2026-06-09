@@ -1,7 +1,10 @@
 use std::{
     collections::HashMap,
     io::Cursor,
-    sync::{Arc, atomic::AtomicUsize},
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use axum::{
@@ -24,7 +27,7 @@ use tokio::sync::{broadcast, mpsc};
 
 use crate::{
     HandshakeInitializationError,
-    game::{ConnectionId, Game, GameCommand},
+    game::{ConnectionId, Game, GameCommand, HostData, PlayerData, Replicant},
     quiz_file::read_quiz_file,
     send_packet,
 };
@@ -45,6 +48,18 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
     let (mut sender, mut receiver) = stream.split();
     let (tx, mut rx) = mpsc::channel::<S2CPackets>(32);
 
+    tokio::spawn(async move {
+        while let Some(packet) = rx.recv().await {
+            if let Ok(binary) = packet.write_as_binary()
+                && sender.send(Message::Binary(binary.into())).await.is_err()
+            {
+                break; // Klient się rozłączył
+            }
+        }
+    });
+
+    let connection_id = ConnectionId(state.next_connection_id.fetch_add(1, Ordering::Relaxed));
+
     while let Some(Ok(message)) = receiver.next().await {
         if let Message::Binary(bytes) = message {
             // Decoding from binary packet
@@ -57,19 +72,21 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
                     );
                     tracing::debug!("Error in mind: {:?}", err);
 
-                    send_packet(
-                        HandshakeRejectedPacket {
-                            reason: HandshakeRejectionReason::InvalidHandshake,
-                        },
-                        &mut sender,
-                    )
-                    .await;
+                    let _ = tx
+                        .send(
+                            HandshakeRejectedPacket {
+                                reason: HandshakeRejectionReason::InvalidHandshake,
+                            }
+                            .as_packet(),
+                        )
+                        .await;
 
                     return;
                 }
             };
 
-            match packet {
+            let command = match packet {
+                // TODO: Make it work only for the first time
                 C2SPackets::InitializeHandshake(packet) => {
                     // Checks
                     if packet.protocol_version != PROTOCOL_VERSION {
@@ -79,34 +96,63 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
                             packet.protocol_version
                         );
 
-                        send_packet(
-                            HandshakeRejectedPacket {
-                                reason: HandshakeRejectionReason::IncorrectProtocolVersion,
-                            },
-                            &mut sender,
-                        )
-                        .await;
-
-                        return;
+                        let _ = tx
+                            .send(
+                                HandshakeRejectedPacket {
+                                    reason: HandshakeRejectionReason::IncorrectProtocolVersion,
+                                }
+                                .as_packet(),
+                            )
+                            .await;
                     }
+
+                    GameCommand::AddPlayer(PlayerData {
+                        username: packet.proposed_username,
+                        connection_id: connection_id.clone(),
+                        reply_tx: tx.clone(),
+                    })
                 }
-                _ => todo!(),
+                // TODO: Make it work only for the first time
+                C2SPackets::InitializeHostHandshake(packet) => {
+                    // Checks
+                    if packet.protocol_version != PROTOCOL_VERSION {
+                        tracing::warn!(
+                            "Protocol versions does not match! Expected: '{}', got: '{}'",
+                            PROTOCOL_VERSION,
+                            packet.protocol_version
+                        );
+
+                        let _ = tx
+                            .send(
+                                HandshakeRejectedPacket {
+                                    reason: HandshakeRejectionReason::IncorrectProtocolVersion,
+                                }
+                                .as_packet(),
+                            )
+                            .await;
+                    }
+
+                    GameCommand::AddHost(HostData {
+                        connection_id: connection_id.clone(),
+                        reply_tx: tx.clone(),
+                    })
+                }
+                other_packet => {
+                    todo!("Handle packet: {:?}", other_packet);
+                }
+            };
+
+            if state.command_tx.send(command).await.is_err() {
+                tracing::error!("Game manager is down");
+                break;
             }
         }
     }
 
-    tokio::spawn(async move {
-        while let Some(packet) = rx.recv().await {
-            if let Ok(binary) = packet.write_as_binary()
-                && sender.send(Message::Binary(binary.into())).await.is_err()
-            {
-                break; // Klient się rozłączył
-            }
-        }
-    });
+    tracing::info!("Connection {:?} disconnected", connection_id);
 }
 
-async fn game_manager(mut command_rx: mpsc::Receiver<GameCommand>) {
+pub async fn game_manager(mut command_rx: mpsc::Receiver<GameCommand>) {
     let quiz = match read_quiz_file("./quizes/test.json") {
         Ok(value) => value,
         Err(err) => panic!("Error: {}", err),
@@ -119,6 +165,80 @@ async fn game_manager(mut command_rx: mpsc::Receiver<GameCommand>) {
     let mut host_channel: Option<mpsc::Sender<S2CPackets>> = None;
 
     while let Some(command) = command_rx.recv().await {
+        match &command {
+            GameCommand::AddPlayer(player_data) => {
+                pending_connections.insert(
+                    player_data.connection_id.clone(),
+                    player_data.reply_tx.clone(),
+                );
+            }
+            GameCommand::AddHost(host_data) => {
+                pending_connections
+                    .insert(host_data.connection_id.clone(), host_data.reply_tx.clone());
+            }
+            _ => todo!(),
+        }
+
         let packets = game.process_game_command(command);
+
+        for packet in packets {
+            match packet.packet {
+                S2CPackets::HandshakeAccepted(ref handshake) => match packet.replicant {
+                    Replicant::PendingConnection(connection_id) => {
+                        if let Some(tx) = pending_connections.remove(&connection_id) {
+                            player_channels.insert(handshake.id, tx.clone());
+
+                            let _ = tx.send(packet.packet).await;
+                        }
+                    }
+                    _ => {
+                        tracing::error!("Don't know to who should I send HandshakeAccepted!");
+                    }
+                },
+                S2CPackets::HandshakeRejected(_) => match packet.replicant {
+                    Replicant::PendingConnection(connection_id) => {
+                        if let Some(tx) = pending_connections.remove(&connection_id) {
+                            let _ = tx.send(packet.packet).await;
+                        }
+                    }
+                    _ => {
+                        tracing::error!("Don't know to who should I send HandshakeRejected!");
+                    }
+                },
+                S2CPackets::HostHandshakeAccepted(_) => match packet.replicant {
+                    Replicant::PendingConnection(connection_id) => {
+                        if let Some(tx) = pending_connections.remove(&connection_id) {
+                            let _ = tx.send(packet.packet).await;
+                            host_channel = Some(tx);
+                        }
+                    }
+                    _ => {
+                        tracing::error!("Don't know to who should I send HostHandshakeRejected!");
+                    }
+                },
+                other_packet => match packet.replicant {
+                    Replicant::Host => {
+                        if let Some(ref tx) = host_channel {
+                            let _ = tx.send(other_packet).await;
+                        }
+                    }
+                    Replicant::AllPlayers => {
+                        for tx in player_channels.values() {
+                            let _ = tx.send(other_packet.clone()).await;
+                        }
+                    }
+                    Replicant::Player(user_id) => {
+                        if let Some(tx) = player_channels.get(&user_id) {
+                            let _ = tx.send(other_packet).await;
+                        }
+                    }
+                    Replicant::PendingConnection(connection_id) => {
+                        if let Some(tx) = pending_connections.get(&connection_id) {
+                            let _ = tx.send(other_packet).await;
+                        }
+                    }
+                },
+            }
+        }
     }
 }

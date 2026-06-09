@@ -100,6 +100,7 @@ pub struct PlayerData {
 #[derive(Clone, Debug)]
 pub struct HostData {
     pub connection_id: ConnectionId,
+    pub reply_tx: mpsc::Sender<S2CPackets>,
 }
 
 #[derive(Clone, Debug)]
@@ -121,7 +122,7 @@ pub enum Replicant {
     PendingConnection(ConnectionId),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct ConnectionId(pub usize);
 
 pub struct OutgoingPacket {
