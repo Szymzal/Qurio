@@ -1716,7 +1716,7 @@ async fn question(recv_state: Arc<AppState>, additional_wait: u64) -> bool {
             let question = &background_recv_state.quiz.questions[question_index as usize];
             for i in 0..question.answers.len() {
                 let answer = &answers[i];
-                vec.push(answer.clone());
+                vec.push(*answer);
                 // answers.iter().for_each(|&x| vec.push(x));
             }
             drop(answers);

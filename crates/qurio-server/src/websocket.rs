@@ -3,7 +3,7 @@ use std::{
     io::Cursor,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
 };
 
@@ -23,11 +23,10 @@ use qurio_protocol::{
     },
     structs::{HandshakeRejectionReason, UserId},
 };
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{Mutex, mpsc};
 
 use crate::{
-    HandshakeInitializationError,
-    game::{ConnectionId, Game, GameCommand, HostData, PlayerData, Replicant},
+    game::{AnswerData, ConnectionId, Game, GameCommand, HostData, PlayerData, Replicant},
     quiz_file::read_quiz_file,
     send_packet,
 };
@@ -48,8 +47,23 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
     let (mut sender, mut receiver) = stream.split();
     let (tx, mut rx) = mpsc::channel::<S2CPackets>(32);
 
+    let user_id: Arc<Mutex<Option<UserId>>> = Arc::new(Mutex::new(None));
+    let is_host: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+
+    let user_id_clone = user_id.clone();
+    let is_host_clone = is_host.clone();
     tokio::spawn(async move {
         while let Some(packet) = rx.recv().await {
+            match packet {
+                S2CPackets::HandshakeAccepted(ref handshake_accepted_packet) => {
+                    *user_id_clone.lock().await = Some(handshake_accepted_packet.id);
+                }
+                S2CPackets::HostHandshakeAccepted(_) => {
+                    is_host_clone.swap(true, Ordering::Relaxed);
+                }
+                _ => (),
+            }
+
             if let Ok(binary) = packet.write_as_binary()
                 && sender.send(Message::Binary(binary.into())).await.is_err()
             {
@@ -85,8 +99,8 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
                 }
             };
 
+            // TODO: Check if client is host on some packets
             let command = match packet {
-                // TODO: Make it work only for the first time
                 C2SPackets::InitializeHandshake(packet) => {
                     // Checks
                     if packet.protocol_version != PROTOCOL_VERSION {
@@ -112,7 +126,6 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
                         reply_tx: tx.clone(),
                     })
                 }
-                // TODO: Make it work only for the first time
                 C2SPackets::InitializeHostHandshake(packet) => {
                     // Checks
                     if packet.protocol_version != PROTOCOL_VERSION {
@@ -137,9 +150,29 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
                         reply_tx: tx.clone(),
                     })
                 }
-                other_packet => {
-                    todo!("Handle packet: {:?}", other_packet);
+                C2SPackets::StartGame => {
+                    if !is_host.load(Ordering::Relaxed) {
+                        tracing::warn!("Client tried to send host packet!");
+                        continue;
+                    }
+
+                    GameCommand::StartGame
                 }
+                C2SPackets::NextQuestion => todo!(),
+                C2SPackets::FinishStats => todo!(),
+                C2SPackets::ReturnToLobby => todo!(),
+                C2SPackets::Answer(answer_packet) => {
+                    let Some(user_id) = *user_id.lock().await else {
+                        continue;
+                    };
+
+                    GameCommand::RegisterAnswer(AnswerData {
+                        user_id,
+                        answer_index: answer_packet.index,
+                    })
+                }
+                C2SPackets::AdvanceClients => todo!(),
+                C2SPackets::UpdateAvatar(update_avatar_packet) => todo!(),
             };
 
             if state.command_tx.send(command).await.is_err() {
@@ -176,7 +209,7 @@ pub async fn game_manager(mut command_rx: mpsc::Receiver<GameCommand>) {
                 pending_connections
                     .insert(host_data.connection_id.clone(), host_data.reply_tx.clone());
             }
-            _ => todo!(),
+            _ => (),
         }
 
         let packets = game.process_game_command(command);

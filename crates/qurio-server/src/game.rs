@@ -5,20 +5,22 @@ use qurio_protocol::{
     packets::{
         c2s::{C2SPackets, InitializeHandshakePacket, InitializeHostHandshakePacket},
         s2c::{
-            AnswerDetailsPacket, GameStateInfoClient, GameStateInfoPacket, HandshakeAcceptedPacket,
-            HandshakeRejectedPacket, HostHandshakeAcceptedPacket, PlayerOverallStatsPacket,
-            PlayerStatsPacket, S2CPackets, UserJoinedPacket, UserLeftPacket,
+            AnswerDetailsPacket, GameDetailsPacket, GameStateInfoClient, GameStateInfoPacket,
+            HandshakeAcceptedPacket, HandshakeRejectedPacket, HostHandshakeAcceptedPacket,
+            PlayerOverallStatsPacket, PlayerStatsPacket, QuestionInfoPacket, QuestionStatsPacket,
+            S2CPackets, UserJoinedPacket, UserLeftPacket,
         },
     },
     structs::{
         AvatarInfo, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
-        PlayerLeaderboardStats, UncheckedUserName, UserId, UserName, UserStat,
+        PlayerLeaderboardStats, QuestionAdvancements, QuickAdvancement, StreakAdvancement,
+        UncheckedUserName, UserId, UserName, UserStat,
     },
 };
 use tokio::sync::mpsc;
 use tracing::warn;
 
-use crate::{GameState, HandshakeInitializationError, RatioMetric, quiz_file::Quiz};
+use crate::{GameState, HandshakeInitializationError, quiz_file::Quiz};
 
 pub struct Game {
     users: HashMap<UserId, User>,
@@ -72,8 +74,9 @@ pub enum UserAnswered {
 pub struct UserAdvancements {
     pub quick_game: u32,
     pub quick_question: u32,
-    pub streak: u8,
-    pub ratio: RatioMetric,
+    pub streak_game: u8,
+    pub streak_current: u8,
+    pub correct_answers: u8,
 }
 
 pub struct QuizState {
@@ -109,10 +112,20 @@ pub struct RemovalPlayerData {
 }
 
 #[derive(Clone, Debug)]
+pub struct AnswerData {
+    pub user_id: UserId,
+    pub answer_index: u8,
+}
+
+#[derive(Clone, Debug)]
 pub enum GameCommand {
     AddPlayer(PlayerData),
     AddHost(HostData),
     RemovePlayer(RemovalPlayerData),
+    RegisterAnswer(AnswerData),
+    StartGame,
+    StartAnswering,
+    StopAnswering,
 }
 
 pub enum Replicant {
@@ -170,6 +183,224 @@ impl Game {
             GameCommand::RemovePlayer(removal_player_data) => {
                 packets.push(self.remove_player(removal_player_data.id));
             }
+            GameCommand::StartGame => {
+                if self.game_state != GameState::Lobby {
+                    tracing::warn!("Starting game, but already in game. Ignoring");
+                    return packets;
+                }
+
+                self.game_state = GameState::Question;
+
+                packets.push(OutgoingPacket {
+                    replicant: Replicant::Host,
+                    packet: GameDetailsPacket {
+                        title_screen_wait: self.quiz_state.quiz.title_screen_wait,
+                        title: self.quiz_state.quiz.title.clone(),
+                        num_of_questions: self.quiz_state.quiz.questions.len() as u8,
+                    }
+                    .as_packet(),
+                });
+
+                packets.push(OutgoingPacket {
+                    replicant: Replicant::AllPlayers,
+                    packet: S2CPackets::GameIsStaring,
+                });
+
+                let question =
+                    &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
+
+                packets.push(OutgoingPacket {
+                    replicant: Replicant::Host,
+                    packet: QuestionInfoPacket {
+                        read_question_milis: question.read_question_milis,
+                        answer_milis: question.answer_milis,
+                        question_index: self.quiz_state.question_index,
+                        question: question.question.clone(),
+                        num_of_answers: question.answers.len() as u8,
+                        answers: question.answers.clone(),
+                    }
+                    .as_packet(),
+                });
+
+                packets.push(OutgoingPacket {
+                    replicant: Replicant::AllPlayers,
+                    packet: AnswerDetailsPacket {
+                        num_of_answers: question.answers.len() as u8,
+                    }
+                    .as_packet(),
+                });
+            }
+            GameCommand::StartAnswering => {
+                self.game_state = GameState::Answering;
+
+                packets.push(OutgoingPacket {
+                    replicant: Replicant::Host,
+                    packet: S2CPackets::StartAnswering,
+                });
+                packets.push(OutgoingPacket {
+                    replicant: Replicant::AllPlayers,
+                    packet: S2CPackets::StartAnswering,
+                });
+
+                self.answering_timestamp = Instant::now();
+            }
+            GameCommand::RegisterAnswer(answer_data) => {
+                let user = self.users.get_mut(&answer_data.user_id);
+                let Some(user) = user else {
+                    tracing::warn!("Answer from unknown user");
+                    return packets;
+                };
+
+                let question =
+                    &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
+
+                let answer_mask = 1 << answer_data.answer_index;
+                let correct = question.correct_answer_mask & answer_mask != 0;
+                if correct {
+                    user.advancements.correct_answers += 1;
+
+                    user.advancements.quick_question =
+                        self.answering_timestamp.elapsed().as_millis() as u32;
+
+                    if user.advancements.quick_game < user.advancements.quick_question {
+                        user.advancements.quick_game = user.advancements.quick_question;
+                    }
+
+                    user.advancements.streak_current += 1;
+
+                    if user.advancements.streak_game < user.advancements.streak_current {
+                        user.advancements.streak_game = user.advancements.streak_current;
+                    }
+
+                    return packets;
+                }
+
+                user.advancements.streak_current = 0;
+            }
+            GameCommand::StopAnswering => {
+                self.game_state = GameState::Stats;
+
+                let question =
+                    &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
+
+                let mut answers_answered = vec![];
+
+                for i in 0..question.answers.len() {
+                    let count = self
+                        .users
+                        .values()
+                        .filter(|x| match x.answered {
+                            UserAnswered::Answered(index) if index == i as u8 => true,
+                            UserAnswered::Answered(_) => false,
+                            UserAnswered::NotAnswered => false,
+                        })
+                        .count();
+
+                    answers_answered.push(count as u8);
+                }
+
+                let leaderboard = self.create_leaderboard();
+
+                let quickest_user = self
+                    .users
+                    .values()
+                    .min_by_key(|x| x.advancements.quick_question)
+                    .map(|x| QuickAdvancement {
+                        user: x.id,
+                        time: x.advancements.quick_question,
+                    })
+                    .unwrap_or(QuickAdvancement {
+                        user: UserId::new(0), // TODO: Fabricate UserID
+                        time: u32::MAX,
+                    });
+                let longest_streak = self
+                    .users
+                    .values()
+                    .max_by_key(|x| x.advancements.streak_current)
+                    .map(|x| StreakAdvancement {
+                        user: x.id,
+                        streak: x.advancements.streak_current,
+                    })
+                    .unwrap_or(StreakAdvancement {
+                        user: UserId::new(0), // TODO: Fabricate UserID
+                        streak: 0,
+                    });
+                let question_advancements = QuestionAdvancements {
+                    quickest: quickest_user,
+                    streak: longest_streak,
+                };
+
+                packets.push(OutgoingPacket {
+                    replicant: Replicant::Host,
+                    packet: QuestionStatsPacket {
+                        num_of_answers: question.answers.len() as u8,
+                        answers_answered,
+                        leaderboard: leaderboard.clone(),
+                        correct_answer_mask: question.correct_answer_mask,
+                        advancements: question_advancements,
+                    }
+                    .as_packet(),
+                });
+
+                for user in self.users.values() {
+                    // TODO: Claim _ERROR_ as invalid username
+                    let error_username = UserName::new("_ERROR_").expect("_ERROR_ to be parsed");
+                    let current_player = KnownPlayerStats {
+                        position: self.get_position_of_player(&user.id),
+                        points: user.points,
+                    };
+
+                    let above_player = if current_player.position > 1 {
+                        let position = current_player.position - 1;
+                        let user_stat = &leaderboard.users.index(position as usize - 1);
+                        let user = self.users.get(&user_stat.id);
+                        let username = user
+                            .map(|x| x.username.clone())
+                            .unwrap_or(error_username.clone());
+                        let avatar = user.map(|x| x.avatar).unwrap_or(AvatarInfo::random());
+
+                        Some(PlayerLeaderboardStats {
+                            position,
+                            username: username.clone(),
+                            points: user_stat.points,
+                            avatar,
+                        })
+                    } else {
+                        None
+                    };
+
+                    let below_player = if current_player.position < leaderboard.num_users {
+                        let position = current_player.position + 1;
+                        let user_stat = &leaderboard.users.index(position as usize - 1);
+                        let user = self.users.get(&user_stat.id);
+                        let username = user.map(|x| x.username.clone()).unwrap_or(error_username);
+                        let avatar = user.map(|x| x.avatar).unwrap_or(AvatarInfo::random());
+
+                        Some(PlayerLeaderboardStats {
+                            position,
+                            username: username.clone(),
+                            points: user_stat.points,
+                            avatar,
+                        })
+                    } else {
+                        None
+                    };
+
+                    let correct = self.did_user_answer_correctly(&user.id);
+
+                    let player_stats = PlayerStatsPacket {
+                        correct: correct.into(),
+                        player: current_player,
+                        above_player,
+                        below_player,
+                    };
+
+                    packets.push(OutgoingPacket {
+                        replicant: Replicant::Player(user.id),
+                        packet: player_stats.as_packet(),
+                    });
+                }
+            }
         }
 
         packets
@@ -218,8 +449,9 @@ impl Game {
             advancements: UserAdvancements {
                 quick_game: u32::MAX,
                 quick_question: u32::MAX,
-                streak: 0,
-                ratio: RatioMetric::new(),
+                streak_game: 0,
+                streak_current: 0,
+                correct_answers: 0,
             },
             points: 0,
         };
@@ -409,9 +641,14 @@ impl Game {
                 let user = self.users.get(user_id);
                 let points = user.map_or(0, |x| x.points);
 
-                let ratio = user.map_or(0u8, |x| x.advancements.ratio.percent_int());
+                let ratio = user.map_or(0u8, |x| {
+                    ((x.advancements.correct_answers as f32
+                        / self.quiz_state.quiz.questions.len() as f32)
+                        * 100.0)
+                        .floor() as u8
+                });
                 let quick = user.map_or(u32::MAX, |x| x.advancements.quick_game);
-                let streak = user.map_or(0u8, |x| x.advancements.streak);
+                let streak = user.map_or(0u8, |x| x.advancements.streak_game);
 
                 GameStateInfoPacket(GameStateInfoClient::EndGameState {
                     player_stats: PlayerOverallStatsPacket {
