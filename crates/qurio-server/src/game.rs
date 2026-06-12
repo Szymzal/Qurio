@@ -3,27 +3,32 @@ use std::{collections::HashMap, ops::Index, time::Instant};
 use qurio_protocol::{
     PROTOCOL_VERSION,
     packets::{
-        c2s::{C2SPackets, InitializeHandshakePacket, InitializeHostHandshakePacket},
+        c2s::{
+            C2SPackets, InitializeHandshakePacket, InitializeHostHandshakePacket,
+            UpdateAvatarPacket,
+        },
         s2c::{
             AnswerDetailsPacket, GameDetailsPacket, GameStateInfoClient, GameStateInfoPacket,
             HandshakeAcceptedPacket, HandshakeRejectedPacket, HostHandshakeAcceptedPacket,
             PlayerOverallStatsPacket, PlayerStatsPacket, QuestionInfoPacket, QuestionStatsPacket,
-            S2CPackets, UserJoinedPacket, UserLeftPacket,
+            S2CPackets, UpdateClientAvatarPacket, UserJoinedPacket, UserLeftPacket,
         },
     },
     structs::{
         AvatarInfo, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
         PlayerLeaderboardStats, QuestionAdvancements, QuickAdvancement, StreakAdvancement,
-        UncheckedUserName, UserId, UserName, UserStat,
+        UncheckedAvatarInfo, UncheckedUserName, UserId, UserName, UserStat,
     },
 };
 use tokio::sync::mpsc;
-use tracing::warn;
+use tracing::{error, warn};
 
 use crate::{GameState, HandshakeInitializationError, quiz_file::Quiz};
 
 pub struct Game {
     users: HashMap<UserId, User>,
+    connections: HashMap<ConnectionId, UserId>,
+    host_connection: Option<ConnectionId>,
     host_joined: bool,
     game_state: GameState,
     quiz_state: QuizState,
@@ -107,25 +112,32 @@ pub struct HostData {
 }
 
 #[derive(Clone, Debug)]
-pub struct RemovalPlayerData {
-    pub id: UserId,
+pub struct ConnectionRemovalData {
+    pub connection_id: ConnectionId,
 }
 
 #[derive(Clone, Debug)]
 pub struct AnswerData {
-    pub user_id: UserId,
+    pub connection_id: ConnectionId,
     pub answer_index: u8,
+}
+
+#[derive(Clone, Debug)]
+pub struct AvatarData {
+    pub connection_id: ConnectionId,
+    pub data: UncheckedAvatarInfo,
 }
 
 #[derive(Clone, Debug)]
 pub enum GameCommand {
     AddPlayer(PlayerData),
     AddHost(HostData),
-    RemovePlayer(RemovalPlayerData),
+    RemoveConnection(ConnectionRemovalData),
     RegisterAnswer(AnswerData),
     StartGame,
     StartAnswering,
     StopAnswering,
+    UpdateAvatar(AvatarData),
 }
 
 pub enum Replicant {
@@ -147,6 +159,8 @@ impl Game {
     pub fn new(quiz: Quiz) -> Self {
         Self {
             users: HashMap::new(),
+            connections: HashMap::new(),
+            host_connection: None,
             host_joined: false,
             game_state: GameState::Lobby,
             quiz_state: QuizState::new(quiz),
@@ -158,6 +172,7 @@ impl Game {
     pub fn process_game_command(&mut self, command: GameCommand) -> Vec<OutgoingPacket> {
         let mut packets = vec![];
 
+        // TODO: Check if player is host on some commands
         match command {
             GameCommand::AddPlayer(player_handshake_data) => {
                 let username = match self.initialize_player_handshake(&player_handshake_data) {
@@ -178,10 +193,16 @@ impl Game {
                     return packets;
                 }
 
+                self.host_connection = Some(host_data.connection_id.clone());
+
                 packets.push(self.handle_new_host_connection(host_data.connection_id));
             }
-            GameCommand::RemovePlayer(removal_player_data) => {
-                packets.push(self.remove_player(removal_player_data.id));
+            GameCommand::RemoveConnection(removal_player_data) => {
+                if let Some(user_id) = self.connections.get(&removal_player_data.connection_id) {
+                    packets.push(self.remove_player(*user_id));
+                } else if self.host_connection.is_some() {
+                    self.host_connection = None;
+                }
             }
             GameCommand::StartGame => {
                 if self.game_state != GameState::Lobby {
@@ -245,7 +266,12 @@ impl Game {
                 self.answering_timestamp = Instant::now();
             }
             GameCommand::RegisterAnswer(answer_data) => {
-                let user = self.users.get_mut(&answer_data.user_id);
+                let Some(user_id) = self.connections.get(&answer_data.connection_id) else {
+                    tracing::warn!("Answer from unknown connection");
+                    return packets;
+                };
+
+                let user = self.users.get_mut(user_id);
                 let Some(user) = user else {
                     tracing::warn!("Answer from unknown user");
                     return packets;
@@ -401,6 +427,30 @@ impl Game {
                     });
                 }
             }
+            GameCommand::UpdateAvatar(avatar_data) => {
+                let avatar_info: Result<AvatarInfo, _> = avatar_data.data.try_into();
+                let avatar_info = match avatar_info {
+                    Ok(value) => value,
+                    Err(err) => {
+                        error!("Client send wrong avatar info: {err}. Disconnecting");
+                        return packets;
+                    }
+                };
+
+                let Some(user_id) = self.connections.get(&avatar_data.connection_id) else {
+                    warn!("Unknown user updated avatar");
+                    return packets;
+                };
+
+                packets.push(OutgoingPacket {
+                    replicant: Replicant::Host,
+                    packet: UpdateClientAvatarPacket {
+                        user_id: *user_id,
+                        avatar: avatar_info,
+                    }
+                    .as_packet(),
+                });
+            }
         }
 
         packets
@@ -482,6 +532,8 @@ impl Game {
                 return packets;
             }
         };
+
+        self.connections.insert(connection_id.clone(), user_id);
 
         tracing::info!(
             "Player ({}): {} joined!",

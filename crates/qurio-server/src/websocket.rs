@@ -26,7 +26,9 @@ use qurio_protocol::{
 use tokio::sync::{Mutex, mpsc};
 
 use crate::{
-    game::{AnswerData, ConnectionId, Game, GameCommand, HostData, PlayerData, Replicant},
+    game::{
+        AnswerData, AvatarData, ConnectionId, Game, GameCommand, HostData, PlayerData, Replicant,
+    },
     quiz_file::read_quiz_file,
     send_packet,
 };
@@ -47,23 +49,8 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
     let (mut sender, mut receiver) = stream.split();
     let (tx, mut rx) = mpsc::channel::<S2CPackets>(32);
 
-    let user_id: Arc<Mutex<Option<UserId>>> = Arc::new(Mutex::new(None));
-    let is_host: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-
-    let user_id_clone = user_id.clone();
-    let is_host_clone = is_host.clone();
     tokio::spawn(async move {
         while let Some(packet) = rx.recv().await {
-            match packet {
-                S2CPackets::HandshakeAccepted(ref handshake_accepted_packet) => {
-                    *user_id_clone.lock().await = Some(handshake_accepted_packet.id);
-                }
-                S2CPackets::HostHandshakeAccepted(_) => {
-                    is_host_clone.swap(true, Ordering::Relaxed);
-                }
-                _ => (),
-            }
-
             if let Ok(binary) = packet.write_as_binary()
                 && sender.send(Message::Binary(binary.into())).await.is_err()
             {
@@ -99,7 +86,6 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
                 }
             };
 
-            // TODO: Check if client is host on some packets
             let command = match packet {
                 C2SPackets::InitializeHandshake(packet) => {
                     // Checks
@@ -150,29 +136,21 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
                         reply_tx: tx.clone(),
                     })
                 }
-                C2SPackets::StartGame => {
-                    if !is_host.load(Ordering::Relaxed) {
-                        tracing::warn!("Client tried to send host packet!");
-                        continue;
-                    }
-
-                    GameCommand::StartGame
-                }
+                C2SPackets::StartGame => GameCommand::StartGame,
                 C2SPackets::NextQuestion => todo!(),
                 C2SPackets::FinishStats => todo!(),
                 C2SPackets::ReturnToLobby => todo!(),
-                C2SPackets::Answer(answer_packet) => {
-                    let Some(user_id) = *user_id.lock().await else {
-                        continue;
-                    };
-
-                    GameCommand::RegisterAnswer(AnswerData {
-                        user_id,
-                        answer_index: answer_packet.index,
+                C2SPackets::Answer(answer_packet) => GameCommand::RegisterAnswer(AnswerData {
+                    answer_index: answer_packet.index,
+                    connection_id: connection_id.clone(),
+                }),
+                C2SPackets::AdvanceClients => todo!(),
+                C2SPackets::UpdateAvatar(update_avatar_packet) => {
+                    GameCommand::UpdateAvatar(AvatarData {
+                        connection_id: connection_id.clone(),
+                        data: update_avatar_packet.0,
                     })
                 }
-                C2SPackets::AdvanceClients => todo!(),
-                C2SPackets::UpdateAvatar(update_avatar_packet) => todo!(),
             };
 
             if state.command_tx.send(command).await.is_err() {
