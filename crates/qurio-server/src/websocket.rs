@@ -1,9 +1,8 @@
 use std::{
-    collections::HashMap,
     io::Cursor,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
@@ -21,17 +20,11 @@ use qurio_protocol::{
         c2s::C2SPackets,
         s2c::{HandshakeRejectedPacket, S2CPackets},
     },
-    structs::{HandshakeRejectionReason, UserId},
+    structs::HandshakeRejectionReason,
 };
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::mpsc;
 
-use crate::{
-    game::{
-        AnswerData, AvatarData, ConnectionId, Game, GameCommand, HostData, PlayerData, Replicant,
-    },
-    quiz_file::read_quiz_file,
-    send_packet,
-};
+use crate::game::{AnswerData, AvatarData, ConnectionId, GameCommand, HostData, PlayerData};
 
 pub struct TokioState {
     pub command_tx: mpsc::Sender<GameCommand>,
@@ -161,95 +154,4 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
     }
 
     tracing::info!("Connection {:?} disconnected", connection_id);
-}
-
-pub async fn game_manager(mut command_rx: mpsc::Receiver<GameCommand>) {
-    let quiz = match read_quiz_file("./quizes/test.json") {
-        Ok(value) => value,
-        Err(err) => panic!("Error: {}", err),
-    };
-
-    let mut game = Game::new(quiz);
-
-    let mut pending_connections: HashMap<ConnectionId, mpsc::Sender<S2CPackets>> = HashMap::new();
-    let mut player_channels: HashMap<UserId, mpsc::Sender<S2CPackets>> = HashMap::new();
-    let mut host_channel: Option<mpsc::Sender<S2CPackets>> = None;
-
-    while let Some(command) = command_rx.recv().await {
-        match &command {
-            GameCommand::AddPlayer(player_data) => {
-                pending_connections.insert(
-                    player_data.connection_id.clone(),
-                    player_data.reply_tx.clone(),
-                );
-            }
-            GameCommand::AddHost(host_data) => {
-                pending_connections
-                    .insert(host_data.connection_id.clone(), host_data.reply_tx.clone());
-            }
-            _ => (),
-        }
-
-        let packets = game.process_game_command(command);
-
-        for packet in packets {
-            match packet.packet {
-                S2CPackets::HandshakeAccepted(ref handshake) => match packet.replicant {
-                    Replicant::PendingConnection(connection_id) => {
-                        if let Some(tx) = pending_connections.remove(&connection_id) {
-                            player_channels.insert(handshake.id, tx.clone());
-
-                            let _ = tx.send(packet.packet).await;
-                        }
-                    }
-                    _ => {
-                        tracing::error!("Don't know to who should I send HandshakeAccepted!");
-                    }
-                },
-                S2CPackets::HandshakeRejected(_) => match packet.replicant {
-                    Replicant::PendingConnection(connection_id) => {
-                        if let Some(tx) = pending_connections.remove(&connection_id) {
-                            let _ = tx.send(packet.packet).await;
-                        }
-                    }
-                    _ => {
-                        tracing::error!("Don't know to who should I send HandshakeRejected!");
-                    }
-                },
-                S2CPackets::HostHandshakeAccepted(_) => match packet.replicant {
-                    Replicant::PendingConnection(connection_id) => {
-                        if let Some(tx) = pending_connections.remove(&connection_id) {
-                            let _ = tx.send(packet.packet).await;
-                            host_channel = Some(tx);
-                        }
-                    }
-                    _ => {
-                        tracing::error!("Don't know to who should I send HostHandshakeRejected!");
-                    }
-                },
-                other_packet => match packet.replicant {
-                    Replicant::Host => {
-                        if let Some(ref tx) = host_channel {
-                            let _ = tx.send(other_packet).await;
-                        }
-                    }
-                    Replicant::AllPlayers => {
-                        for tx in player_channels.values() {
-                            let _ = tx.send(other_packet.clone()).await;
-                        }
-                    }
-                    Replicant::Player(user_id) => {
-                        if let Some(tx) = player_channels.get(&user_id) {
-                            let _ = tx.send(other_packet).await;
-                        }
-                    }
-                    Replicant::PendingConnection(connection_id) => {
-                        if let Some(tx) = pending_connections.get(&connection_id) {
-                            let _ = tx.send(other_packet).await;
-                        }
-                    }
-                },
-            }
-        }
-    }
 }

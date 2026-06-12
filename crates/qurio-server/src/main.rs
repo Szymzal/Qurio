@@ -57,9 +57,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     advancements::{GameAdvancement, GameGroupAdvancements, QuestionAdvancement},
-    game::GameCommand,
+    game::{GameCommand, game_manager},
     quiz_file::{Quiz, read_quiz_file},
-    websocket::{TokioState, game_manager, new_websocket_handler},
+    websocket::{TokioState, new_websocket_handler},
 };
 
 pub mod advancements;
@@ -191,12 +191,12 @@ async fn main() {
 
     let (tx, rx) = tokio::sync::mpsc::channel::<GameCommand>(32);
     let tokio_state = Arc::new(TokioState {
-        command_tx: tx,
+        command_tx: tx.clone(),
         next_connection_id: AtomicUsize::new(0),
     });
 
     tokio::spawn(async move {
-        game_manager(rx).await;
+        game_manager(rx, tx).await;
     });
 
     let app = Router::new()

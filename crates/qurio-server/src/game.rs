@@ -1,18 +1,15 @@
-use std::{collections::HashMap, ops::Index, time::Instant};
+use std::{
+    collections::HashMap,
+    ops::Index,
+    time::{Duration, Instant},
+};
 
 use qurio_protocol::{
-    PROTOCOL_VERSION,
-    packets::{
-        c2s::{
-            C2SPackets, InitializeHandshakePacket, InitializeHostHandshakePacket,
-            UpdateAvatarPacket,
-        },
-        s2c::{
-            AnswerDetailsPacket, GameDetailsPacket, GameStateInfoClient, GameStateInfoPacket,
-            HandshakeAcceptedPacket, HandshakeRejectedPacket, HostHandshakeAcceptedPacket,
-            PlayerOverallStatsPacket, PlayerStatsPacket, QuestionInfoPacket, QuestionStatsPacket,
-            S2CPackets, UpdateClientAvatarPacket, UserJoinedPacket, UserLeftPacket,
-        },
+    packets::s2c::{
+        AnswerDetailsPacket, GameDetailsPacket, GameStateInfoClient, GameStateInfoPacket,
+        HandshakeAcceptedPacket, HandshakeRejectedPacket, HostHandshakeAcceptedPacket,
+        PlayerOverallStatsPacket, PlayerStatsPacket, QuestionInfoPacket, QuestionStatsPacket,
+        S2CPackets, UpdateClientAvatarPacket, UserJoinedPacket, UserLeftPacket,
     },
     structs::{
         AvatarInfo, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
@@ -23,7 +20,10 @@ use qurio_protocol::{
 use tokio::sync::mpsc;
 use tracing::{error, warn};
 
-use crate::{GameState, HandshakeInitializationError, quiz_file::Quiz};
+use crate::{
+    GameState, HandshakeInitializationError,
+    quiz_file::{Quiz, read_quiz_file},
+};
 
 pub struct Game {
     users: HashMap<UserId, User>,
@@ -129,17 +129,50 @@ pub struct AvatarData {
 }
 
 #[derive(Clone, Debug)]
+pub enum ServerAction {
+    SendPacket(OutgoingPacket),
+    PlayerAccepted {
+        connection_id: ConnectionId,
+        user_id: UserId,
+    },
+    HostAccepted {
+        connection_id: ConnectionId,
+    },
+    DisconnectConnection {
+        connection_id: ConnectionId,
+    },
+    StartTimer {
+        duration_ms: u64,
+        command: GameCommand,
+    },
+    InterruptAnswering {
+        question_index: u8,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub struct StopAnsweringData {
+    pub question_index: u8,
+}
+
+#[derive(Clone, Debug)]
+pub struct StartAnsweringData {
+    pub question_index: u8,
+}
+
+#[derive(Clone, Debug)]
 pub enum GameCommand {
     AddPlayer(PlayerData),
     AddHost(HostData),
     RemoveConnection(ConnectionRemovalData),
     RegisterAnswer(AnswerData),
     StartGame,
-    StartAnswering,
-    StopAnswering,
+    StartAnswering(StartAnsweringData),
+    StopAnswering(StopAnsweringData),
     UpdateAvatar(AvatarData),
 }
 
+#[derive(Clone, Debug)]
 pub enum Replicant {
     Host,
     AllPlayers,
@@ -150,6 +183,7 @@ pub enum Replicant {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct ConnectionId(pub usize);
 
+#[derive(Clone, Debug)]
 pub struct OutgoingPacket {
     pub replicant: Replicant,
     pub packet: S2CPackets,
@@ -169,8 +203,8 @@ impl Game {
         }
     }
 
-    pub fn process_game_command(&mut self, command: GameCommand) -> Vec<OutgoingPacket> {
-        let mut packets = vec![];
+    pub fn process_game_command(&mut self, command: GameCommand) -> Vec<ServerAction> {
+        let mut actions = vec![];
 
         // TODO: Check if player is host on some commands
         match command {
@@ -179,27 +213,30 @@ impl Game {
                     Ok(value) => value,
                     Err(error) => {
                         tracing::warn!("Failed to parse handshake: {error}");
-                        return packets;
+                        return actions;
                     }
                 };
 
-                let mut new_packets = self
+                let mut new_actions = self
                     .handle_new_player_connection(player_handshake_data.connection_id, username);
-                packets.append(&mut new_packets);
+                actions.append(&mut new_actions);
             }
             GameCommand::AddHost(host_data) => {
                 if let Err(error) = self.initialize_host_handshake() {
                     tracing::warn!("Failed to add host: {error}");
-                    return packets;
+                    return actions;
                 }
 
                 self.host_connection = Some(host_data.connection_id.clone());
 
-                packets.push(self.handle_new_host_connection(host_data.connection_id));
+                let mut new_actions = self.handle_new_host_connection(host_data.connection_id);
+                actions.append(&mut new_actions);
             }
+            // TODO: If in answering stage check if all players answered
             GameCommand::RemoveConnection(removal_player_data) => {
                 if let Some(user_id) = self.connections.get(&removal_player_data.connection_id) {
-                    packets.push(self.remove_player(*user_id));
+                    let mut new_actions = self.remove_player(*user_id);
+                    actions.append(&mut new_actions);
                 } else if self.host_connection.is_some() {
                     self.host_connection = None;
                 }
@@ -207,12 +244,12 @@ impl Game {
             GameCommand::StartGame => {
                 if self.game_state != GameState::Lobby {
                     tracing::warn!("Starting game, but already in game. Ignoring");
-                    return packets;
+                    return actions;
                 }
 
                 self.game_state = GameState::Question;
 
-                packets.push(OutgoingPacket {
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
                     replicant: Replicant::Host,
                     packet: GameDetailsPacket {
                         title_screen_wait: self.quiz_state.quiz.title_screen_wait,
@@ -220,17 +257,17 @@ impl Game {
                         num_of_questions: self.quiz_state.quiz.questions.len() as u8,
                     }
                     .as_packet(),
-                });
+                }));
 
-                packets.push(OutgoingPacket {
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
                     replicant: Replicant::AllPlayers,
                     packet: S2CPackets::GameIsStaring,
-                });
+                }));
 
                 let question =
                     &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
 
-                packets.push(OutgoingPacket {
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
                     replicant: Replicant::Host,
                     packet: QuestionInfoPacket {
                         read_question_milis: question.read_question_milis,
@@ -241,44 +278,73 @@ impl Game {
                         answers: question.answers.clone(),
                     }
                     .as_packet(),
-                });
+                }));
 
-                packets.push(OutgoingPacket {
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
                     replicant: Replicant::AllPlayers,
                     packet: AnswerDetailsPacket {
                         num_of_answers: question.answers.len() as u8,
                     }
                     .as_packet(),
+                }));
+
+                actions.push(ServerAction::StartTimer {
+                    duration_ms: (question.read_question_milis as u64
+                        + self.quiz_state.quiz.title_screen_wait as u64),
+                    command: GameCommand::StartAnswering(StartAnsweringData {
+                        question_index: self.quiz_state.question_index,
+                    }),
                 });
             }
-            GameCommand::StartAnswering => {
+            GameCommand::StartAnswering(data) => {
+                if self.quiz_state.question_index != data.question_index
+                    && self.game_state != GameState::Question
+                {
+                    return actions;
+                }
+
                 self.game_state = GameState::Answering;
 
-                packets.push(OutgoingPacket {
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
                     replicant: Replicant::Host,
                     packet: S2CPackets::StartAnswering,
-                });
-                packets.push(OutgoingPacket {
+                }));
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
                     replicant: Replicant::AllPlayers,
                     packet: S2CPackets::StartAnswering,
-                });
+                }));
+
+                for user in self.users.values_mut() {
+                    user.answered = UserAnswered::NotAnswered;
+                }
 
                 self.answering_timestamp = Instant::now();
+
+                let question =
+                    &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
+                actions.push(ServerAction::StartTimer {
+                    duration_ms: question.answer_milis as u64,
+                    command: GameCommand::StopAnswering(StopAnsweringData {
+                        question_index: self.quiz_state.question_index,
+                    }),
+                });
             }
             GameCommand::RegisterAnswer(answer_data) => {
                 let Some(user_id) = self.connections.get(&answer_data.connection_id) else {
                     tracing::warn!("Answer from unknown connection");
-                    return packets;
+                    return actions;
                 };
 
                 let user = self.users.get_mut(user_id);
                 let Some(user) = user else {
                     tracing::warn!("Answer from unknown user");
-                    return packets;
+                    return actions;
                 };
 
                 let question =
                     &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
+
+                user.answered = UserAnswered::Answered(answer_data.answer_index);
 
                 let answer_mask = 1 << answer_data.answer_index;
                 let correct = question.correct_answer_mask & answer_mask != 0;
@@ -297,13 +363,28 @@ impl Game {
                     if user.advancements.streak_game < user.advancements.streak_current {
                         user.advancements.streak_game = user.advancements.streak_current;
                     }
-
-                    return packets;
+                } else {
+                    user.advancements.streak_current = 0;
                 }
 
-                user.advancements.streak_current = 0;
+                if self
+                    .users
+                    .iter()
+                    .any(|(_, user)| user.answered != UserAnswered::NotAnswered)
+                {
+                    actions.push(ServerAction::InterruptAnswering {
+                        question_index: self.quiz_state.question_index,
+                    });
+                }
             }
-            GameCommand::StopAnswering => {
+            // TODO: Make stop when all players answered
+            GameCommand::StopAnswering(data) => {
+                if self.quiz_state.question_index != data.question_index
+                    && self.game_state != GameState::Answering
+                {
+                    return actions;
+                }
+
                 self.game_state = GameState::Stats;
 
                 let question =
@@ -356,7 +437,7 @@ impl Game {
                     streak: longest_streak,
                 };
 
-                packets.push(OutgoingPacket {
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
                     replicant: Replicant::Host,
                     packet: QuestionStatsPacket {
                         num_of_answers: question.answers.len() as u8,
@@ -366,7 +447,7 @@ impl Game {
                         advancements: question_advancements,
                     }
                     .as_packet(),
-                });
+                }));
 
                 for user in self.users.values() {
                     // TODO: Claim _ERROR_ as invalid username
@@ -421,10 +502,10 @@ impl Game {
                         below_player,
                     };
 
-                    packets.push(OutgoingPacket {
+                    actions.push(ServerAction::SendPacket(OutgoingPacket {
                         replicant: Replicant::Player(user.id),
                         packet: player_stats.as_packet(),
-                    });
+                    }));
                 }
             }
             GameCommand::UpdateAvatar(avatar_data) => {
@@ -433,27 +514,27 @@ impl Game {
                     Ok(value) => value,
                     Err(err) => {
                         error!("Client send wrong avatar info: {err}. Disconnecting");
-                        return packets;
+                        return actions;
                     }
                 };
 
                 let Some(user_id) = self.connections.get(&avatar_data.connection_id) else {
                     warn!("Unknown user updated avatar");
-                    return packets;
+                    return actions;
                 };
 
-                packets.push(OutgoingPacket {
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
                     replicant: Replicant::Host,
                     packet: UpdateClientAvatarPacket {
                         user_id: *user_id,
                         avatar: avatar_info,
                     }
                     .as_packet(),
-                });
+                }));
             }
         }
 
-        packets
+        actions
     }
 
     fn initialize_player_handshake(
@@ -518,22 +599,40 @@ impl Game {
         &mut self,
         connection_id: ConnectionId,
         username: UserName,
-    ) -> Vec<OutgoingPacket> {
-        let mut packets = vec![];
+    ) -> Vec<ServerAction> {
+        let mut actions = vec![];
 
         let user_id = match self.new_player(username.clone()) {
             Ok(value) => value,
             Err(error) => {
                 tracing::warn!("Failed to add new player: {error}");
-                packets.push(OutgoingPacket {
-                    replicant: Replicant::PendingConnection(connection_id),
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
+                    replicant: Replicant::PendingConnection(connection_id.clone()),
                     packet: error.into(),
-                });
-                return packets;
+                }));
+                actions.push(ServerAction::DisconnectConnection { connection_id });
+                return actions;
             }
         };
 
         self.connections.insert(connection_id.clone(), user_id);
+
+        let user = match self.get_user(&user_id) {
+            Some(value) => value,
+            // TODO: Add another reason
+            None => {
+                tracing::error!("Invalid state in new player? Player ({user_id:?}) vanished");
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
+                    replicant: Replicant::PendingConnection(connection_id.clone()),
+                    packet: HandshakeRejectedPacket {
+                        reason: HandshakeRejectionReason::InvalidHandshake,
+                    }
+                    .as_packet(),
+                }));
+                actions.push(ServerAction::DisconnectConnection { connection_id });
+                return actions;
+            }
+        };
 
         tracing::info!(
             "Player ({}): {} joined!",
@@ -541,37 +640,25 @@ impl Game {
             username
         );
 
-        let user = match self.get_user(&user_id) {
-            Some(value) => value,
-            // TODO: Add another reason
-            None => {
-                tracing::error!("Invalid state in new player? Player ({user_id:?}) vanished");
-                packets.push(OutgoingPacket {
-                    replicant: Replicant::PendingConnection(connection_id),
-                    packet: HandshakeRejectedPacket {
-                        reason: HandshakeRejectionReason::InvalidHandshake,
-                    }
-                    .as_packet(),
-                });
-                return packets;
-            }
-        };
-
-        packets.push(OutgoingPacket {
-            replicant: Replicant::PendingConnection(connection_id),
+        actions.push(ServerAction::SendPacket(OutgoingPacket {
+            replicant: Replicant::PendingConnection(connection_id.clone()),
             packet: HandshakeAcceptedPacket {
                 id: user_id,
                 random_avatar: user.avatar,
             }
             .as_packet(),
+        }));
+        actions.push(ServerAction::PlayerAccepted {
+            connection_id,
+            user_id,
         });
 
         if self.host_joined {
-            packets.push(OutgoingPacket {
-                replicant: Replicant::Player(user_id), // TODO: Will be that fast?
+            actions.push(ServerAction::SendPacket(OutgoingPacket {
+                replicant: Replicant::Player(user_id),
                 packet: S2CPackets::HostJoined,
-            });
-            packets.push(OutgoingPacket {
+            }));
+            actions.push(ServerAction::SendPacket(OutgoingPacket {
                 replicant: Replicant::Host,
                 packet: S2CPackets::UserJoined(UserJoinedPacket {
                     user: qurio_protocol::structs::User {
@@ -580,15 +667,15 @@ impl Game {
                         avatar: user.avatar,
                     },
                 }),
-            });
+            }));
         }
 
-        packets.push(self.catchup_player(&user_id));
+        actions.push(self.catchup_player(&user_id));
 
-        packets
+        actions
     }
 
-    fn catchup_player(&self, user_id: &UserId) -> OutgoingPacket {
+    fn catchup_player(&self, user_id: &UserId) -> ServerAction {
         let packet = match self.game_state {
             GameState::Lobby => GameStateInfoPacket(GameStateInfoClient::LobbyState),
             GameState::Question => {
@@ -714,10 +801,10 @@ impl Game {
             }
         };
 
-        OutgoingPacket {
+        ServerAction::SendPacket(OutgoingPacket {
             replicant: Replicant::Player(*user_id),
             packet: packet.as_packet(),
-        }
+        })
     }
 
     fn create_leaderboard(&self) -> Leaderboard {
@@ -769,7 +856,7 @@ impl Game {
         question.correct_answer_mask & answer_mask != 0
     }
 
-    fn handle_new_host_connection(&self, connection_id: ConnectionId) -> OutgoingPacket {
+    fn handle_new_host_connection(&self, connection_id: ConnectionId) -> Vec<ServerAction> {
         let users_vec = self
             .users
             .values()
@@ -780,21 +867,37 @@ impl Game {
             })
             .collect::<Vec<_>>();
 
-        OutgoingPacket {
-            replicant: Replicant::PendingConnection(connection_id),
-            packet: HostHandshakeAcceptedPacket {
-                users_count: self.users.len() as u8,
-                users: users_vec,
-            }
-            .as_packet(),
-        }
+        vec![
+            ServerAction::SendPacket(OutgoingPacket {
+                replicant: Replicant::PendingConnection(connection_id.clone()),
+                packet: HostHandshakeAcceptedPacket {
+                    users_count: self.users.len() as u8,
+                    users: users_vec,
+                }
+                .as_packet(),
+            }),
+            ServerAction::HostAccepted { connection_id },
+        ]
     }
 
-    fn remove_player(&mut self, user_id: UserId) -> OutgoingPacket {
-        let packet = OutgoingPacket {
+    fn remove_player(&mut self, user_id: UserId) -> Vec<ServerAction> {
+        let mut actions = vec![ServerAction::SendPacket(OutgoingPacket {
             replicant: Replicant::Host,
             packet: UserLeftPacket { user_id }.as_packet(),
-        };
+        })];
+
+        let connection_ids = self
+            .connections
+            .iter()
+            .filter(|(_, other_user_id)| **other_user_id == user_id)
+            .map(|(connection_id, _)| connection_id)
+            .collect::<Vec<_>>();
+
+        for connection_id in connection_ids {
+            actions.push(ServerAction::DisconnectConnection {
+                connection_id: connection_id.clone(),
+            });
+        }
 
         let user = match self.users.get(&user_id) {
             Some(value) => value.clone(),
@@ -803,7 +906,7 @@ impl Game {
                     "Tried to remove non existing player ID {}",
                     user_id.get_inner_value()
                 );
-                return packet;
+                return actions;
             }
         };
 
@@ -815,6 +918,101 @@ impl Game {
             user.username
         );
 
-        packet
+        actions
+    }
+}
+
+pub async fn game_manager(
+    mut command_rx: mpsc::Receiver<GameCommand>,
+    command_tx: mpsc::Sender<GameCommand>,
+) {
+    let quiz = match read_quiz_file("./quizes/test.json") {
+        Ok(value) => value,
+        Err(err) => panic!("Error: {}", err),
+    };
+
+    let mut game = Game::new(quiz);
+
+    let mut pending_connections: HashMap<ConnectionId, mpsc::Sender<S2CPackets>> = HashMap::new();
+    let mut player_channels: HashMap<UserId, mpsc::Sender<S2CPackets>> = HashMap::new();
+    let mut host_channel: Option<mpsc::Sender<S2CPackets>> = None;
+
+    while let Some(command) = command_rx.recv().await {
+        match &command {
+            GameCommand::AddPlayer(player_data) => {
+                pending_connections.insert(
+                    player_data.connection_id.clone(),
+                    player_data.reply_tx.clone(),
+                );
+            }
+            GameCommand::AddHost(host_data) => {
+                pending_connections
+                    .insert(host_data.connection_id.clone(), host_data.reply_tx.clone());
+            }
+            _ => (),
+        }
+
+        let actions = game.process_game_command(command);
+
+        for action in actions {
+            match action {
+                ServerAction::SendPacket(outgoing_packet) => match outgoing_packet.replicant {
+                    Replicant::Host => {
+                        if let Some(ref tx) = host_channel {
+                            let _ = tx.send(outgoing_packet.packet).await;
+                        }
+                    }
+                    Replicant::AllPlayers => {
+                        for tx in player_channels.values() {
+                            let _ = tx.send(outgoing_packet.packet.clone()).await;
+                        }
+                    }
+                    Replicant::Player(user_id) => {
+                        if let Some(tx) = player_channels.get(&user_id) {
+                            let _ = tx.send(outgoing_packet.packet).await;
+                        }
+                    }
+                    Replicant::PendingConnection(connection_id) => {
+                        if let Some(tx) = pending_connections.get(&connection_id) {
+                            let _ = tx.send(outgoing_packet.packet).await;
+                        }
+                    }
+                },
+                ServerAction::PlayerAccepted {
+                    connection_id,
+                    user_id,
+                } => {
+                    if let Some(tx) = pending_connections.remove(&connection_id) {
+                        player_channels.insert(user_id, tx.clone());
+                    }
+                }
+                ServerAction::HostAccepted { connection_id } => {
+                    if let Some(tx) = pending_connections.remove(&connection_id) {
+                        host_channel = Some(tx);
+                    }
+                }
+                ServerAction::DisconnectConnection { connection_id } => {
+                    let _ = pending_connections.remove(&connection_id);
+                }
+                ServerAction::StartTimer {
+                    duration_ms,
+                    command,
+                } => {
+                    let tx = command_tx.clone();
+
+                    tokio::spawn(async move {
+                        tokio::time::sleep(Duration::from_millis(duration_ms)).await;
+                        let _ = tx.send(command).await;
+                    });
+                }
+                ServerAction::InterruptAnswering { question_index } => {
+                    let _ = command_tx
+                        .send(GameCommand::StopAnswering(StopAnsweringData {
+                            question_index,
+                        }))
+                        .await;
+                }
+            }
+        }
     }
 }
