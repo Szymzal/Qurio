@@ -177,6 +177,16 @@ impl UserName {
     }
 }
 
+impl UncheckedUserName {
+    pub fn new(string: &str) -> Self {
+        let data = string.as_bytes();
+        Self {
+            len: data.len() as u8,
+            data: data.to_vec(),
+        }
+    }
+}
+
 impl TryInto<UserName> for UncheckedUserName {
     type Error = UserNameConstructError;
 

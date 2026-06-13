@@ -2,19 +2,21 @@ use std::{
     collections::HashMap,
     ops::Index,
     time::{Duration, Instant},
+    vec,
 };
 
 use qurio_protocol::{
     packets::s2c::{
         AnswerDetailsPacket, GameDetailsPacket, GameStateInfoClient, GameStateInfoPacket,
-        HandshakeAcceptedPacket, HandshakeRejectedPacket, HostHandshakeAcceptedPacket,
-        PlayerOverallStatsPacket, PlayerStatsPacket, QuestionInfoPacket, QuestionStatsPacket,
-        S2CPackets, UpdateClientAvatarPacket, UserJoinedPacket, UserLeftPacket,
+        GameStatsPacket, HandshakeAcceptedPacket, HandshakeRejectedPacket,
+        HostHandshakeAcceptedPacket, PlayerOverallStatsPacket, PlayerStatsPacket,
+        QuestionInfoPacket, QuestionStatsPacket, S2CPackets, UpdateClientAvatarPacket,
+        UserJoinedPacket, UserLeftPacket,
     },
     structs::{
-        AvatarInfo, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
-        PlayerLeaderboardStats, QuestionAdvancements, QuickAdvancement, StreakAdvancement,
-        UncheckedAvatarInfo, UncheckedUserName, UserId, UserName, UserStat,
+        AvatarInfo, GameAdvancements, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
+        PlayerLeaderboardStats, QuestionAdvancements, QuickAdvancement, RatioAdvancement,
+        StreakAdvancement, UncheckedAvatarInfo, UncheckedUserName, UserId, UserName, UserStat,
     },
 };
 use tokio::sync::mpsc;
@@ -82,6 +84,16 @@ pub struct UserAdvancements {
     pub streak_game: u8,
     pub streak_current: u8,
     pub correct_answers: u8,
+}
+
+impl UserAdvancements {
+    fn reset_values(&mut self) {
+        self.quick_game = u32::MAX;
+        self.quick_question = u32::MAX;
+        self.streak_game = 0;
+        self.streak_current = 0;
+        self.correct_answers = 0;
+    }
 }
 
 pub struct QuizState {
@@ -165,11 +177,15 @@ pub enum GameCommand {
     AddPlayer(PlayerData),
     AddHost(HostData),
     RemoveConnection(ConnectionRemovalData),
-    RegisterAnswer(AnswerData),
+    UpdateAvatar(AvatarData),
     StartGame,
     StartAnswering(StartAnsweringData),
+    RegisterAnswer(AnswerData),
     StopAnswering(StopAnsweringData),
-    UpdateAvatar(AvatarData),
+    Advance,
+    NextQuestion,
+    FinishStats,
+    ReturnToLobby,
 }
 
 #[derive(Clone, Debug)]
@@ -232,7 +248,6 @@ impl Game {
                 let mut new_actions = self.handle_new_host_connection(host_data.connection_id);
                 actions.append(&mut new_actions);
             }
-            // TODO: If in answering stage check if all players answered
             GameCommand::RemoveConnection(removal_player_data) => {
                 if let Some(user_id) = self.connections.get(&removal_player_data.connection_id) {
                     let mut new_actions = self.remove_player(*user_id);
@@ -264,41 +279,12 @@ impl Game {
                     packet: S2CPackets::GameIsStaring,
                 }));
 
-                let question =
-                    &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
-
-                actions.push(ServerAction::SendPacket(OutgoingPacket {
-                    replicant: Replicant::Host,
-                    packet: QuestionInfoPacket {
-                        read_question_milis: question.read_question_milis,
-                        answer_milis: question.answer_milis,
-                        question_index: self.quiz_state.question_index,
-                        question: question.question.clone(),
-                        num_of_answers: question.answers.len() as u8,
-                        answers: question.answers.clone(),
-                    }
-                    .as_packet(),
-                }));
-
-                actions.push(ServerAction::SendPacket(OutgoingPacket {
-                    replicant: Replicant::AllPlayers,
-                    packet: AnswerDetailsPacket {
-                        num_of_answers: question.answers.len() as u8,
-                    }
-                    .as_packet(),
-                }));
-
-                actions.push(ServerAction::StartTimer {
-                    duration_ms: (question.read_question_milis as u64
-                        + self.quiz_state.quiz.title_screen_wait as u64),
-                    command: GameCommand::StartAnswering(StartAnsweringData {
-                        question_index: self.quiz_state.question_index,
-                    }),
-                });
+                let mut new_actions = self.question(true);
+                actions.append(&mut new_actions);
             }
             GameCommand::StartAnswering(data) => {
                 if self.quiz_state.question_index != data.question_index
-                    && self.game_state != GameState::Question
+                    || self.game_state != GameState::Question
                 {
                     return actions;
                 }
@@ -330,6 +316,11 @@ impl Game {
                 });
             }
             GameCommand::RegisterAnswer(answer_data) => {
+                if self.game_state != GameState::Answering {
+                    tracing::warn!("Answer too late");
+                    return actions;
+                }
+
                 let Some(user_id) = self.connections.get(&answer_data.connection_id) else {
                     tracing::warn!("Answer from unknown connection");
                     return actions;
@@ -363,24 +354,28 @@ impl Game {
                     if user.advancements.streak_game < user.advancements.streak_current {
                         user.advancements.streak_game = user.advancements.streak_current;
                     }
+
+                    let answer_time = self.answering_timestamp.elapsed().as_millis() as u32;
+                    user.points += ((1.0 - (answer_time as f32 / question.answer_milis as f32))
+                        * 500.0) as u16
+                        + 500;
                 } else {
                     user.advancements.streak_current = 0;
                 }
 
-                if self
+                if !self
                     .users
                     .iter()
-                    .any(|(_, user)| user.answered != UserAnswered::NotAnswered)
+                    .any(|(_, user)| user.answered == UserAnswered::NotAnswered)
                 {
                     actions.push(ServerAction::InterruptAnswering {
                         question_index: self.quiz_state.question_index,
                     });
                 }
             }
-            // TODO: Make stop when all players answered
             GameCommand::StopAnswering(data) => {
                 if self.quiz_state.question_index != data.question_index
-                    && self.game_state != GameState::Answering
+                    || self.game_state != GameState::Answering
                 {
                     return actions;
                 }
@@ -532,6 +527,76 @@ impl Game {
                     .as_packet(),
                 }));
             }
+            GameCommand::Advance => {
+                if (self.quiz_state.question_index + 1)
+                    >= self.quiz_state.quiz.questions.len() as u8
+                {
+                    let mut new_actions = self.end_game();
+                    actions.append(&mut new_actions);
+
+                    return actions;
+                }
+
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
+                    replicant: Replicant::AllPlayers,
+                    packet: S2CPackets::Advance,
+                }));
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
+                    replicant: Replicant::Host,
+                    packet: S2CPackets::GoAhead,
+                }));
+            }
+            GameCommand::FinishStats => {
+                let num_of_questions = self.quiz_state.quiz.questions.len();
+                for user in self.users.values() {
+                    actions.push(ServerAction::SendPacket(OutgoingPacket {
+                        replicant: Replicant::Player(user.id),
+                        packet: S2CPackets::PlayerOverallStats(PlayerOverallStatsPacket {
+                            position: self.get_position_of_player(&user.id),
+                            points: user.points,
+                            ratio: ((user.advancements.correct_answers as f32
+                                / num_of_questions as f32)
+                                .floor()
+                                * 100.0) as u8,
+                            quick: user.advancements.quick_game,
+                            streak: user.advancements.streak_game,
+                        }),
+                    }));
+                }
+            }
+            GameCommand::ReturnToLobby => {
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
+                    replicant: Replicant::AllPlayers,
+                    packet: S2CPackets::ReturnToLobby,
+                }));
+
+                for user in self.users.values_mut() {
+                    user.points = 0;
+                    user.advancements.reset_values();
+                }
+
+                self.quiz_state.question_index = 0;
+                self.game_state = GameState::Lobby;
+            }
+            GameCommand::NextQuestion => {
+                self.quiz_state.question_index += 1;
+                let question_length = self.quiz_state.quiz.questions.len();
+
+                if (self.quiz_state.question_index + 1) > question_length as u8 {
+                    let mut new_actions = self.end_game();
+                    actions.append(&mut new_actions);
+
+                    return actions;
+                }
+
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
+                    replicant: Replicant::AllPlayers,
+                    packet: S2CPackets::NextQuestion,
+                }));
+
+                let mut new_actions = self.question(false);
+                actions.append(&mut new_actions);
+            }
         }
 
         actions
@@ -671,7 +736,6 @@ impl Game {
         }
 
         actions.push(self.catchup_player(&user_id));
-
         actions
     }
 
@@ -920,6 +984,124 @@ impl Game {
 
         actions
     }
+
+    fn end_game(&mut self) -> Vec<ServerAction> {
+        let mut actions = vec![];
+
+        self.game_state = GameState::EndGame;
+
+        let leaderboard = self.create_leaderboard();
+
+        let quickest_user = self
+            .users
+            .values()
+            .min_by_key(|x| x.advancements.quick_question)
+            .map(|x| QuickAdvancement {
+                user: x.id,
+                time: x.advancements.quick_game,
+            })
+            .unwrap_or(QuickAdvancement {
+                user: UserId::new(0), // TODO: Fabricate UserID
+                time: u32::MAX,
+            });
+
+        let longest_streak = self
+            .users
+            .values()
+            .max_by_key(|x| x.advancements.streak_current)
+            .map(|x| StreakAdvancement {
+                user: x.id,
+                streak: x.advancements.streak_game,
+            })
+            .unwrap_or(StreakAdvancement {
+                user: UserId::new(0), // TODO: Fabricate UserID
+                streak: 0,
+            });
+
+        let num_of_questions = self.quiz_state.quiz.questions.len();
+        let biggest_ratio_user = self
+            .users
+            .values()
+            .max_by(|a, b| {
+                let user1 = a.advancements.correct_answers as f32 / num_of_questions as f32;
+                let user2 = b.advancements.correct_answers as f32 / num_of_questions as f32;
+                user1.total_cmp(&user2)
+            })
+            .map(|x| RatioAdvancement {
+                user: x.id,
+                ratio: ((x.advancements.correct_answers as f32 / num_of_questions as f32).floor()
+                    * 100.0) as u8,
+            })
+            .unwrap_or(RatioAdvancement {
+                user: UserId::new(0),
+                ratio: 0,
+            });
+
+        let game_advancements = GameAdvancements {
+            quickest: quickest_user,
+            streak: longest_streak,
+            ratio: biggest_ratio_user,
+        };
+
+        actions.push(ServerAction::SendPacket(OutgoingPacket {
+            replicant: Replicant::AllPlayers,
+            packet: S2CPackets::GameEnded,
+        }));
+        actions.push(ServerAction::SendPacket(OutgoingPacket {
+            replicant: Replicant::Host,
+            packet: GameStatsPacket {
+                leaderboard,
+                advancements: game_advancements,
+            }
+            .as_packet(),
+        }));
+
+        actions
+    }
+
+    fn question(&mut self, title_screen_wait: bool) -> Vec<ServerAction> {
+        let mut actions = vec![];
+
+        // Note it is duplicated when from StartGame, but it is not duplicated when from
+        // NextQuestion
+        self.game_state = GameState::Question;
+        let question = &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
+
+        actions.push(ServerAction::SendPacket(OutgoingPacket {
+            replicant: Replicant::Host,
+            packet: QuestionInfoPacket {
+                read_question_milis: question.read_question_milis,
+                answer_milis: question.answer_milis,
+                question_index: self.quiz_state.question_index,
+                question: question.question.clone(),
+                num_of_answers: question.answers.len() as u8,
+                answers: question.answers.clone(),
+            }
+            .as_packet(),
+        }));
+
+        actions.push(ServerAction::SendPacket(OutgoingPacket {
+            replicant: Replicant::AllPlayers,
+            packet: AnswerDetailsPacket {
+                num_of_answers: question.answers.len() as u8,
+            }
+            .as_packet(),
+        }));
+
+        actions.push(ServerAction::StartTimer {
+            duration_ms: (question.read_question_milis as u64
+                + (if title_screen_wait {
+                    self.quiz_state.quiz.title_screen_wait as u64
+                } else {
+                    0
+                })),
+            command: GameCommand::StartAnswering(StartAnsweringData {
+                question_index: self.quiz_state.question_index,
+            }),
+        });
+
+        actions
+    }
 }
 
 pub async fn game_manager(
@@ -1014,5 +1196,90 @@ pub async fn game_manager(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::quiz_file::Question;
+
+    use super::*;
+
+    #[test]
+    fn test_question_stats() -> Result<(), String> {
+        let quiz = Quiz {
+            title_screen_wait: 1000,
+            title: "Test Quiz"
+                .try_into()
+                .expect("'Test quiz' to pass BinString"),
+            questions: vec![Question {
+                question: "Test question"
+                    .try_into()
+                    .expect("'Test question' to pass BinString"),
+                read_question_milis: 1000,
+                answer_milis: 1000,
+                answers: vec![
+                    "Correct".try_into().expect("'Correct' to pass BinString"),
+                    "Incorrect"
+                        .try_into()
+                        .expect("'Incorrect' to pass BinString"),
+                ],
+                correct_answer_mask: 2u8,
+            }],
+        };
+
+        let mut game = Game::new(quiz);
+        let (tx, _rx) = mpsc::channel::<S2CPackets>(32);
+
+        game.process_game_command(GameCommand::AddPlayer(PlayerData {
+            username: UncheckedUserName::new("Player 1"),
+            connection_id: ConnectionId(1),
+            reply_tx: tx.clone(),
+        }));
+
+        game.process_game_command(GameCommand::AddPlayer(PlayerData {
+            username: UncheckedUserName::new("Player 2"),
+            connection_id: ConnectionId(2),
+            reply_tx: tx.clone(),
+        }));
+
+        game.process_game_command(GameCommand::AddPlayer(PlayerData {
+            username: UncheckedUserName::new("Player 3"),
+            connection_id: ConnectionId(3),
+            reply_tx: tx,
+        }));
+
+        game.process_game_command(GameCommand::StartGame);
+        game.process_game_command(GameCommand::StartAnswering(StartAnsweringData {
+            question_index: 0,
+        }));
+
+        game.process_game_command(GameCommand::RegisterAnswer(AnswerData {
+            connection_id: ConnectionId(1),
+            answer_index: 0,
+        }));
+        game.process_game_command(GameCommand::RegisterAnswer(AnswerData {
+            connection_id: ConnectionId(2),
+            answer_index: 0,
+        }));
+
+        let actions = game.process_game_command(GameCommand::StopAnswering(StopAnsweringData {
+            question_index: 0,
+        }));
+
+        for action in actions {
+            match action {
+                ServerAction::SendPacket(outgoing_packet) => match outgoing_packet.packet {
+                    S2CPackets::QuestionStats(question_stats_packet) => {
+                        assert_eq!(question_stats_packet.answers_answered, vec![2, 0]);
+                        return Ok(());
+                    }
+                    _ => continue,
+                },
+                _ => continue,
+            }
+        }
+
+        Err("Brak pakietu QuestionStats".to_string())
     }
 }

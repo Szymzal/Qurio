@@ -130,14 +130,14 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
                     })
                 }
                 C2SPackets::StartGame => GameCommand::StartGame,
-                C2SPackets::NextQuestion => todo!(),
-                C2SPackets::FinishStats => todo!(),
-                C2SPackets::ReturnToLobby => todo!(),
+                C2SPackets::NextQuestion => GameCommand::NextQuestion,
+                C2SPackets::FinishStats => GameCommand::FinishStats,
+                C2SPackets::ReturnToLobby => GameCommand::ReturnToLobby,
                 C2SPackets::Answer(answer_packet) => GameCommand::RegisterAnswer(AnswerData {
                     answer_index: answer_packet.index,
                     connection_id: connection_id.clone(),
                 }),
-                C2SPackets::AdvanceClients => todo!(),
+                C2SPackets::AdvanceClients => GameCommand::Advance,
                 C2SPackets::UpdateAvatar(update_avatar_packet) => {
                     GameCommand::UpdateAvatar(AvatarData {
                         connection_id: connection_id.clone(),
