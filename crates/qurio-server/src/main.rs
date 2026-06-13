@@ -148,7 +148,7 @@ async fn main() {
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
                 format!(
-                    "{}=debug,quizzit_protocol=trace,tower_http=debug,axum=trace",
+                    "{}=debug,quizzit_protocol=trace,tower_http=info,axum=info",
                     env!("CARGO_CRATE_NAME")
                 )
                 .into()

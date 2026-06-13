@@ -341,6 +341,7 @@ if (playerBoard !== null) {
       event.preventDefault();
 
       toEndStatisticsButton.disabled = true;
+      toLeaderboardsBtn.disabled = false;
       websocket.send(finishStatsPacket());
       switchPages(PagesID.END_GAME);
     });

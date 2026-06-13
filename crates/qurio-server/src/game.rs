@@ -31,7 +31,6 @@ pub struct Game {
     users: HashMap<UserId, User>,
     connections: HashMap<ConnectionId, UserId>,
     host_connection: Option<ConnectionId>,
-    host_joined: bool,
     game_state: GameState,
     quiz_state: QuizState,
     answering_timestamp: Instant,
@@ -211,7 +210,6 @@ impl Game {
             users: HashMap::new(),
             connections: HashMap::new(),
             host_connection: None,
-            host_joined: false,
             game_state: GameState::Lobby,
             quiz_state: QuizState::new(quiz),
             answering_timestamp: Instant::now(),
@@ -249,10 +247,13 @@ impl Game {
                 actions.append(&mut new_actions);
             }
             GameCommand::RemoveConnection(removal_player_data) => {
+                tracing::info!("Removal data: {:?}", removal_player_data);
                 if let Some(user_id) = self.connections.get(&removal_player_data.connection_id) {
                     let mut new_actions = self.remove_player(*user_id);
                     actions.append(&mut new_actions);
-                } else if self.host_connection.is_some() {
+                } else if self.host_connection.is_some()
+                    && self.host_connection.clone().unwrap() == removal_player_data.connection_id
+                {
                     self.host_connection = None;
                 }
             }
@@ -345,7 +346,7 @@ impl Game {
                     user.advancements.quick_question =
                         self.answering_timestamp.elapsed().as_millis() as u32;
 
-                    if user.advancements.quick_game < user.advancements.quick_question {
+                    if user.advancements.quick_game > user.advancements.quick_question {
                         user.advancements.quick_game = user.advancements.quick_question;
                     }
 
@@ -556,8 +557,8 @@ impl Game {
                             points: user.points,
                             ratio: ((user.advancements.correct_answers as f32
                                 / num_of_questions as f32)
-                                .floor()
-                                * 100.0) as u8,
+                                * 100.0)
+                                .floor() as u8,
                             quick: user.advancements.quick_game,
                             streak: user.advancements.streak_game,
                         }),
@@ -619,12 +620,11 @@ impl Game {
     }
 
     fn initialize_host_handshake(&mut self) -> Result<(), HandshakeInitializationError> {
-        if self.host_joined {
+        if self.host_connection.is_some() {
             tracing::warn!("Someone tried to connect as host when host is already there!");
 
             return Err(HandshakeInitializationError::HostIsTaken);
         }
-        self.host_joined = true;
 
         tracing::info!("Host joined");
         Ok(())
@@ -718,7 +718,7 @@ impl Game {
             user_id,
         });
 
-        if self.host_joined {
+        if self.host_connection.is_some() {
             actions.push(ServerAction::SendPacket(OutgoingPacket {
                 replicant: Replicant::Player(user_id),
                 packet: S2CPackets::HostJoined,
@@ -945,23 +945,12 @@ impl Game {
     }
 
     fn remove_player(&mut self, user_id: UserId) -> Vec<ServerAction> {
-        let mut actions = vec![ServerAction::SendPacket(OutgoingPacket {
+        let actions = vec![ServerAction::SendPacket(OutgoingPacket {
             replicant: Replicant::Host,
             packet: UserLeftPacket { user_id }.as_packet(),
         })];
 
-        let connection_ids = self
-            .connections
-            .iter()
-            .filter(|(_, other_user_id)| **other_user_id == user_id)
-            .map(|(connection_id, _)| connection_id)
-            .collect::<Vec<_>>();
-
-        for connection_id in connection_ids {
-            actions.push(ServerAction::DisconnectConnection {
-                connection_id: connection_id.clone(),
-            });
-        }
+        self.connections.retain(|_, x| *x != user_id);
 
         let user = match self.users.get(&user_id) {
             Some(value) => value.clone(),
@@ -1029,8 +1018,8 @@ impl Game {
             })
             .map(|x| RatioAdvancement {
                 user: x.id,
-                ratio: ((x.advancements.correct_answers as f32 / num_of_questions as f32).floor()
-                    * 100.0) as u8,
+                ratio: ((x.advancements.correct_answers as f32 / num_of_questions as f32) * 100.0)
+                    .floor() as u8,
             })
             .unwrap_or(RatioAdvancement {
                 user: UserId::new(0),

@@ -24,7 +24,9 @@ use qurio_protocol::{
 };
 use tokio::sync::mpsc;
 
-use crate::game::{AnswerData, AvatarData, ConnectionId, GameCommand, HostData, PlayerData};
+use crate::game::{
+    AnswerData, AvatarData, ConnectionId, ConnectionRemovalData, GameCommand, HostData, PlayerData,
+};
 
 pub struct TokioState {
     pub command_tx: mpsc::Sender<GameCommand>,
@@ -154,4 +156,10 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
     }
 
     tracing::info!("Connection {:?} disconnected", connection_id);
+    let _ = state
+        .command_tx
+        .send(GameCommand::RemoveConnection(ConnectionRemovalData {
+            connection_id,
+        }))
+        .await;
 }
