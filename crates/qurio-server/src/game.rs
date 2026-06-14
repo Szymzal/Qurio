@@ -250,7 +250,6 @@ impl Game {
                 actions.append(&mut new_actions);
             }
             GameCommand::RemoveConnection(removal_player_data) => {
-                tracing::info!("Removal data: {:?}", removal_player_data);
                 if let Some(user_id) = self.connections.get(&removal_player_data.connection_id) {
                     let mut new_actions = self.remove_player(*user_id);
                     actions.append(&mut new_actions);
