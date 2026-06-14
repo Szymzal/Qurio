@@ -6,6 +6,7 @@ use std::{
 };
 
 use qurio_protocol::{
+    PROTOCOL_VERSION,
     packets::s2c::{
         AnswerDetailsPacket, GameDetailsPacket, GameStateInfoClient, GameStateInfoPacket,
         GameStatsPacket, HandshakeAcceptedPacket, HandshakeRejectedPacket,
@@ -111,6 +112,7 @@ impl QuizState {
 
 #[derive(Clone, Debug)]
 pub struct PlayerData {
+    pub protocol_version: u16,
     pub username: UncheckedUserName,
     pub connection_id: ConnectionId,
     pub reply_tx: mpsc::Sender<S2CPackets>,
@@ -118,6 +120,7 @@ pub struct PlayerData {
 
 #[derive(Clone, Debug)]
 pub struct HostData {
+    pub protocol_version: u16,
     pub connection_id: ConnectionId,
     pub reply_tx: mpsc::Sender<S2CPackets>,
 }
@@ -236,7 +239,7 @@ impl Game {
                 actions.append(&mut new_actions);
             }
             GameCommand::AddHost(host_data) => {
-                if let Err(error) = self.initialize_host_handshake() {
+                if let Err(error) = self.initialize_host_handshake(&host_data) {
                     tracing::warn!("Failed to add host: {error}");
                     return actions;
                 }
@@ -607,6 +610,18 @@ impl Game {
         &self,
         data: &PlayerData,
     ) -> Result<UserName, HandshakeInitializationError> {
+        if data.protocol_version != PROTOCOL_VERSION {
+            tracing::warn!(
+                "Protocol versions does not match! Expected: '{}', got: '{}'",
+                PROTOCOL_VERSION,
+                data.protocol_version
+            );
+
+            return Err(HandshakeInitializationError::InvalidProtocolVersion(
+                data.protocol_version,
+            ));
+        }
+
         let username: UserName = match data.username.clone().try_into() {
             Ok(username) => username,
             Err(err) => {
@@ -619,7 +634,22 @@ impl Game {
         Ok(username)
     }
 
-    fn initialize_host_handshake(&mut self) -> Result<(), HandshakeInitializationError> {
+    fn initialize_host_handshake(
+        &mut self,
+        data: &HostData,
+    ) -> Result<(), HandshakeInitializationError> {
+        if data.protocol_version != PROTOCOL_VERSION {
+            tracing::warn!(
+                "Protocol versions does not match! Expected: '{}', got: '{}'",
+                PROTOCOL_VERSION,
+                data.protocol_version
+            );
+
+            return Err(HandshakeInitializationError::InvalidProtocolVersion(
+                data.protocol_version,
+            ));
+        }
+
         if self.host_connection.is_some() {
             tracing::warn!("Someone tried to connect as host when host is already there!");
 
@@ -1221,18 +1251,21 @@ mod tests {
         let (tx, _rx) = mpsc::channel::<S2CPackets>(32);
 
         game.process_game_command(GameCommand::AddPlayer(PlayerData {
+            protocol_version: PROTOCOL_VERSION,
             username: UncheckedUserName::new("Player 1"),
             connection_id: ConnectionId(1),
             reply_tx: tx.clone(),
         }));
 
         game.process_game_command(GameCommand::AddPlayer(PlayerData {
+            protocol_version: PROTOCOL_VERSION,
             username: UncheckedUserName::new("Player 2"),
             connection_id: ConnectionId(2),
             reply_tx: tx.clone(),
         }));
 
         game.process_game_command(GameCommand::AddPlayer(PlayerData {
+            protocol_version: PROTOCOL_VERSION,
             username: UncheckedUserName::new("Player 3"),
             connection_id: ConnectionId(3),
             reply_tx: tx,

@@ -15,7 +15,6 @@ use axum::{
 };
 use futures_util::{SinkExt, StreamExt};
 use qurio_protocol::{
-    PROTOCOL_VERSION,
     packets::{
         c2s::C2SPackets,
         s2c::{HandshakeRejectedPacket, S2CPackets},
@@ -82,55 +81,17 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
             };
 
             let command = match packet {
-                C2SPackets::InitializeHandshake(packet) => {
-                    // Checks
-                    if packet.protocol_version != PROTOCOL_VERSION {
-                        tracing::warn!(
-                            "Protocol versions does not match! Expected: '{}', got: '{}'",
-                            PROTOCOL_VERSION,
-                            packet.protocol_version
-                        );
-
-                        let _ = tx
-                            .send(
-                                HandshakeRejectedPacket {
-                                    reason: HandshakeRejectionReason::IncorrectProtocolVersion,
-                                }
-                                .as_packet(),
-                            )
-                            .await;
-                    }
-
-                    GameCommand::AddPlayer(PlayerData {
-                        username: packet.proposed_username,
-                        connection_id: connection_id.clone(),
-                        reply_tx: tx.clone(),
-                    })
-                }
-                C2SPackets::InitializeHostHandshake(packet) => {
-                    // Checks
-                    if packet.protocol_version != PROTOCOL_VERSION {
-                        tracing::warn!(
-                            "Protocol versions does not match! Expected: '{}', got: '{}'",
-                            PROTOCOL_VERSION,
-                            packet.protocol_version
-                        );
-
-                        let _ = tx
-                            .send(
-                                HandshakeRejectedPacket {
-                                    reason: HandshakeRejectionReason::IncorrectProtocolVersion,
-                                }
-                                .as_packet(),
-                            )
-                            .await;
-                    }
-
-                    GameCommand::AddHost(HostData {
-                        connection_id: connection_id.clone(),
-                        reply_tx: tx.clone(),
-                    })
-                }
+                C2SPackets::InitializeHandshake(packet) => GameCommand::AddPlayer(PlayerData {
+                    protocol_version: packet.protocol_version,
+                    username: packet.proposed_username,
+                    connection_id: connection_id.clone(),
+                    reply_tx: tx.clone(),
+                }),
+                C2SPackets::InitializeHostHandshake(packet) => GameCommand::AddHost(HostData {
+                    protocol_version: packet.protocol_version,
+                    connection_id: connection_id.clone(),
+                    reply_tx: tx.clone(),
+                }),
                 C2SPackets::StartGame => GameCommand::StartGame,
                 C2SPackets::NextQuestion => GameCommand::NextQuestion,
                 C2SPackets::FinishStats => GameCommand::FinishStats,
