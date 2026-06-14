@@ -223,7 +223,6 @@ impl Game {
     pub fn process_game_command(&mut self, command: GameCommand) -> Vec<ServerAction> {
         let mut actions = vec![];
 
-        // TODO: Check if player is host on some commands
         match command {
             GameCommand::AddPlayer(player_handshake_data) => {
                 let username = match self.initialize_player_handshake(&player_handshake_data) {
