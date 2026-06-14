@@ -1,8 +1,11 @@
 use std::{fs::File, io::BufReader, path::PathBuf};
 
-use qurio_protocol::structs::BinString;
+use qurio_protocol::{error::BinStringError, structs::BinString};
 use serde_json::Value;
 use thiserror::Error;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Base64Image(BinString);
 
 #[derive(Debug)]
 pub struct Question {
@@ -11,6 +14,7 @@ pub struct Question {
     pub answer_milis: u32,
     pub answers: Vec<BinString>,
     pub correct_answer_mask: u8,
+    pub image: Option<Base64Image>,
 }
 
 #[derive(Debug)]
@@ -18,6 +22,16 @@ pub struct Quiz {
     pub title_screen_wait: u16,
     pub title: BinString,
     pub questions: Vec<Question>,
+}
+
+impl Base64Image {
+    pub fn new(text: String) -> Result<Self, BinStringError> {
+        Ok(Self(text.try_into()?))
+    }
+
+    pub fn get_internal_value(&self) -> &BinString {
+        &self.0
+    }
 }
 
 trait FileReader {
@@ -118,6 +132,7 @@ mod v0 {
                         answer_milis: x.answer_milis,
                         answers,
                         correct_answer_mask: x.correct_answer_mask,
+                        image: None,
                     })
                 })
                 .collect::<Result<Vec<Question>, Self::Error>>()?;
@@ -146,7 +161,7 @@ mod v1 {
     use serde::Deserialize;
     use serde_json::Value;
 
-    use crate::quiz_file::{FileReader, Question, Quiz, QuizFileReader};
+    use crate::quiz_file::{Base64Image, FileReader, Question, Quiz, QuizFileReader};
 
     #[derive(Deserialize, Debug, Clone)]
     #[serde(rename_all = "camelCase")]
@@ -162,6 +177,8 @@ mod v1 {
         pub read_question_milis: u32,
         pub answer_milis: u32,
         pub answers: Vec<Answer>,
+        /// Base64 string
+        pub image: Option<String>,
     }
 
     #[derive(Deserialize, Debug)]
@@ -209,12 +226,15 @@ mod v1 {
 
                     correct_answer_mask >>= 1;
 
+                    let image = x.image.clone().map(Base64Image::new).and_then(Result::ok);
+
                     Ok(Question {
                         question: question_text,
                         read_question_milis: x.read_question_milis,
                         answer_milis: x.answer_milis,
                         answers,
                         correct_answer_mask,
+                        image,
                     })
                 })
                 .collect::<Result<Vec<Question>, Self::Error>>()?;

@@ -116,6 +116,7 @@ pub mod s2c {
         pub question: BinString,
         pub num_of_answers: u8,
         pub answers: Vec<BinString>,
+        pub image: Option<BinString>,
     }
 
     #[derive(BinWrite, Clone, Debug)]
