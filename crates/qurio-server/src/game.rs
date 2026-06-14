@@ -180,14 +180,14 @@ pub enum GameCommand {
     AddHost(HostData),
     RemoveConnection(ConnectionRemovalData),
     UpdateAvatar(AvatarData),
-    StartGame,
+    StartGame { sender: ConnectionId },
     StartAnswering(StartAnsweringData),
     RegisterAnswer(AnswerData),
     StopAnswering(StopAnsweringData),
-    Advance,
-    NextQuestion,
-    FinishStats,
-    ReturnToLobby,
+    Advance { sender: ConnectionId },
+    NextQuestion { sender: ConnectionId },
+    FinishStats { sender: ConnectionId },
+    ReturnToLobby { sender: ConnectionId },
 }
 
 #[derive(Clone, Debug)]
@@ -260,7 +260,12 @@ impl Game {
                     self.host_connection = None;
                 }
             }
-            GameCommand::StartGame => {
+            GameCommand::StartGame { sender } => {
+                if !self.is_host(&sender) {
+                    tracing::warn!("Connection: {} tried to StartGame!", sender.0);
+                    return actions;
+                }
+
                 if self.game_state != GameState::Lobby {
                     tracing::warn!("Starting game, but already in game. Ignoring");
                     return actions;
@@ -531,7 +536,12 @@ impl Game {
                     .as_packet(),
                 }));
             }
-            GameCommand::Advance => {
+            GameCommand::Advance { sender } => {
+                if !self.is_host(&sender) {
+                    tracing::warn!("Connection: {} tried to StartGame!", sender.0);
+                    return actions;
+                }
+
                 if (self.quiz_state.question_index + 1)
                     >= self.quiz_state.quiz.questions.len() as u8
                 {
@@ -550,7 +560,12 @@ impl Game {
                     packet: S2CPackets::GoAhead,
                 }));
             }
-            GameCommand::FinishStats => {
+            GameCommand::FinishStats { sender } => {
+                if !self.is_host(&sender) {
+                    tracing::warn!("Connection: {} tried to StartGame!", sender.0);
+                    return actions;
+                }
+
                 let num_of_questions = self.quiz_state.quiz.questions.len();
                 for user in self.users.values() {
                     actions.push(ServerAction::SendPacket(OutgoingPacket {
@@ -568,7 +583,12 @@ impl Game {
                     }));
                 }
             }
-            GameCommand::ReturnToLobby => {
+            GameCommand::ReturnToLobby { sender } => {
+                if !self.is_host(&sender) {
+                    tracing::warn!("Connection: {} tried to StartGame!", sender.0);
+                    return actions;
+                }
+
                 actions.push(ServerAction::SendPacket(OutgoingPacket {
                     replicant: Replicant::AllPlayers,
                     packet: S2CPackets::ReturnToLobby,
@@ -582,7 +602,12 @@ impl Game {
                 self.quiz_state.question_index = 0;
                 self.game_state = GameState::Lobby;
             }
-            GameCommand::NextQuestion => {
+            GameCommand::NextQuestion { sender } => {
+                if !self.is_host(&sender) {
+                    tracing::warn!("Connection: {} tried to StartGame!", sender.0);
+                    return actions;
+                }
+
                 self.quiz_state.question_index += 1;
                 let question_length = self.quiz_state.quiz.questions.len();
 
@@ -735,18 +760,18 @@ impl Game {
             username
         );
 
+        actions.push(ServerAction::PlayerAccepted {
+            connection_id,
+            user_id,
+        });
         actions.push(ServerAction::SendPacket(OutgoingPacket {
-            replicant: Replicant::PendingConnection(connection_id.clone()),
+            replicant: Replicant::Player(user_id),
             packet: HandshakeAcceptedPacket {
                 id: user_id,
                 random_avatar: user.avatar,
             }
             .as_packet(),
         }));
-        actions.push(ServerAction::PlayerAccepted {
-            connection_id,
-            user_id,
-        });
 
         if self.host_connection.is_some() {
             actions.push(ServerAction::SendPacket(OutgoingPacket {
@@ -962,15 +987,15 @@ impl Game {
             .collect::<Vec<_>>();
 
         vec![
+            ServerAction::HostAccepted { connection_id },
             ServerAction::SendPacket(OutgoingPacket {
-                replicant: Replicant::PendingConnection(connection_id.clone()),
+                replicant: Replicant::Host,
                 packet: HostHandshakeAcceptedPacket {
                     users_count: self.users.len() as u8,
                     users: users_vec,
                 }
                 .as_packet(),
             }),
-            ServerAction::HostAccepted { connection_id },
         ]
     }
 
@@ -1121,6 +1146,10 @@ impl Game {
 
         actions
     }
+
+    fn is_host(&self, connection_id: &ConnectionId) -> bool {
+        self.host_connection.as_ref() == Some(connection_id)
+    }
 }
 
 pub async fn game_manager(
@@ -1250,6 +1279,12 @@ mod tests {
         let mut game = Game::new(quiz);
         let (tx, _rx) = mpsc::channel::<S2CPackets>(32);
 
+        game.process_game_command(GameCommand::AddHost(HostData {
+            protocol_version: PROTOCOL_VERSION,
+            connection_id: ConnectionId(4),
+            reply_tx: tx.clone(),
+        }));
+
         game.process_game_command(GameCommand::AddPlayer(PlayerData {
             protocol_version: PROTOCOL_VERSION,
             username: UncheckedUserName::new("Player 1"),
@@ -1271,7 +1306,9 @@ mod tests {
             reply_tx: tx,
         }));
 
-        game.process_game_command(GameCommand::StartGame);
+        game.process_game_command(GameCommand::StartGame {
+            sender: ConnectionId(4),
+        });
         game.process_game_command(GameCommand::StartAnswering(StartAnsweringData {
             question_index: 0,
         }));
