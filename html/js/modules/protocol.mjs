@@ -919,12 +919,20 @@ const questionInfoPacket =
       answers.push(string);
     }
 
+    let image = null;
+    if (offset + dataView.byteOffset + 8 < dataView.byteLength) {
+      const [string, newOffset] = readBinString(dataView, offset);
+      offset += newOffset;
+      image = string;
+    }
+
     return {
       readQuestionMilis: readQuestionMilis,
       answerMilis: answerMilis,
       questionIndex: questionIndex,
       question: question,
       answers: answers,
+      image: image,
     };
   };
 
@@ -978,13 +986,6 @@ const questionStatsPacket =
     const streakNumber = dataView.getUint8(offset);
     offset++;
 
-    let image = null;
-    if (offset + dataView.byteOffset + 8 < dataView.byteLength) {
-      const [string, newOffset] = readBinString(dataView, offset);
-      offset += newOffset;
-      image = string;
-    }
-
     return {
       numOfAnswers: numOfAnswers,
       leaderboard: leaderboard,
@@ -999,7 +1000,6 @@ const questionStatsPacket =
           streak: streakNumber,
         },
       },
-      image: image,
     };
   };
 

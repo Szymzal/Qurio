@@ -1109,10 +1109,7 @@ impl Game {
         self.game_state = GameState::Question;
         let question = &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
 
-        let image = question
-            .image
-            .clone()
-            .map(|x| x.get_internal_value().clone());
+        let image = question.image.clone();
 
         actions.push(ServerAction::SendPacket(OutgoingPacket {
             replicant: Replicant::Host,

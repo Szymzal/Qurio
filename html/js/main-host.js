@@ -28,6 +28,10 @@ const questionInProgress = document.querySelector("#questionInProgress");
 const quizTitle = document.querySelector("#quizTitle");
 /** @type NodeListOf<HTMLElement> */
 const question = document.querySelectorAll(".questionText");
+/** @type NodeListOf<HTMLElement> */
+const questionSection = document.querySelectorAll(".quizSection");
+/** @type NodeListOf<HTMLImageElement> */
+const questionImage = document.querySelectorAll(".questionImage");
 /** @type NodeListOf<HTMLHeadingElement> */
 const questionNum = document.querySelectorAll(".questionNum");
 /** @type NodeListOf<HTMLHeadingElement> */
@@ -475,11 +479,9 @@ function handlePackets(data, ws) {
         console.error("No number of questions!");
       }
 
-      if (question.length > 0) {
-        question.forEach((q) => {
-          q.style.display = "none";
-        });
-      }
+      questionSection.forEach((q) => {
+        q.style.display = "none";
+      });
 
       console.dir(gameDetailsPacket.titleScreenWait);
 
@@ -491,7 +493,7 @@ function handlePackets(data, ws) {
 
       // TODO: Come up with better idea to control this thing...
       setTimeout(() => {
-        if (quizTitle && question.length > 0) {
+        if (quizTitle && questionSection && question.length > 0) {
           progressBars.forEach((progressBar) =>
             progressBar.animate(progressbarKeyframes(), {
               duration: nextProgressBarDuration,
@@ -499,7 +501,7 @@ function handlePackets(data, ws) {
           );
 
           quizTitle.style.display = "none";
-          question.forEach((q) => {
+          questionSection.forEach((q) => {
             q.style.display = "";
           });
 
@@ -526,7 +528,16 @@ function handlePackets(data, ws) {
           packet.value
         );
 
-      console.dir(questionInfoPacket);
+      if (questionInfoPacket.image) {
+        questionImage.forEach((x) => {
+          x.src = `/quiz/assets/${questionInfoPacket.image}`;
+          x.classList.remove("hidden");
+        });
+      } else {
+        questionImage.forEach((x) => {
+          x.classList.add("hidden");
+        });
+      }
 
       if (quizTitle) {
         if (quizTitle.style.display !== "none") {
