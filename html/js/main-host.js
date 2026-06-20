@@ -45,6 +45,8 @@ const progressBars = document.querySelectorAll(".progressBar");
 
 /** @type HTMLDivElement | null */
 const answersPage = document.querySelector("#answers");
+/** @type HTMLDivElement | null */
+const questionWithoutImage = document.querySelector(".questionWithoutImage");
 /** @type NodeListOf<HTMLParagraphElement> */
 const answer0 = document.querySelectorAll(".answer0");
 /** @type NodeListOf<HTMLParagraphElement> */
@@ -529,11 +531,19 @@ function handlePackets(data, ws) {
         );
 
       if (questionInfoPacket.image) {
+        if (answersPage && questionWithoutImage) {
+          answersPage.classList.add("answersWithImage");
+          questionWithoutImage.style.display = "none";
+        }
         questionImage.forEach((x) => {
           x.src = `/quiz/assets/${questionInfoPacket.image}`;
           x.classList.remove("hidden");
         });
       } else {
+        if (answersPage && questionWithoutImage) {
+          answersPage.classList.remove("answersWithImage");
+          questionWithoutImage.style.display = "";
+        }
         questionImage.forEach((x) => {
           x.classList.add("hidden");
         });

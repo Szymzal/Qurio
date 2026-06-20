@@ -271,12 +271,15 @@ canvas {
 #answers {
   position: relative;
   display: grid;
-  /* grid-template-rows: 15rem calc(100% - 15rem - 1rem); */
-  grid-template-rows: 50% calc(100% - 50% - 1rem);
+  grid-template-rows: 15rem calc(100% - 15rem - 1rem);
   grid-template-areas:
     "question"
     "answers"
     "progress";
+}
+
+.answersWithImage {
+  grid-template-rows: 50% calc(100% - 50% - 1rem) !important;
 }
 
 #answers .question,
@@ -745,63 +748,70 @@ canvas {
   align-items: center;
 }
 
+.questionInProgress .quizSection .question {
+  max-width: 40%;
+}
+
 .questionImage {
   max-height: 75%;
   object-fit: contain;
   margin-right: 5rem;
 }
 
-#answers .question {
+.answersWithImage .question {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   grid-template-areas: "title none num";
 }
 
-#answers .quizSection {
+.answersWithImage .quizSection {
   grid-row-start: 1;
   grid-row-end: 2;
   grid-column-start: 1;
   grid-column-end: 4;
-  /* justify-content: center; */
 }
 
-#answers .answerText h2 {
+.answersWithImage .answerText h2 {
   font-size: 3rem;
 }
 
-#answers .compactTitle {
+.answersWithImage .compactTitle {
   grid-area: title;
   justify-self: flex-start;
 }
 
-#answers .wellIDontReallyKnowHowToNameThis {
+.answersWithImage .wellIDontReallyKnowHowToNameThis {
   grid-area: num;
   justify-self: flex-end;
 }
 
-#answers .questionText {
+.answersWithImage .questionText {
   display: unset;
-  text-align: center;
-  margin-right: 1rem;
-  grid-area: text;
-  margin-left: 25%;
+  text-align: center !important;
+  margin-right: 1rem !important;
+  grid-area: text !important;
+  margin-left: 25% !important;
 }
 
-#answers .questionImage {
+.answersWithImage .questionImage {
   justify-self: flex-start;
   grid-area: image;
   margin-left: 5rem;
 }
 
-#answers .quizSection {
+.answersWithImage .quizSection {
   display: grid;
   grid-template-columns: 50%;
   grid-template-areas: "text image";
 }
 
-.answer0,
-.answer1,
-.answer2,
-.answer3 {
+.answersWithImage .answer0,
+.answersWithImage .answer1,
+.answersWithImage .answer2,
+.answersWithImage .answer3 {
   font-size: clamp(1.654rem, 3rem - calc(var(--chars) * 0.02rem), 3rem);
+}
+
+#answers .quizSection:has(.hidden) {
+  display: none;
 }
