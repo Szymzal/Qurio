@@ -1120,6 +1120,7 @@ impl Game {
                 question: question.question.clone(),
                 num_of_answers: question.answers.len() as u8,
                 answers: question.answers.clone(),
+                show_image_during_answer: question.show_image_during_answers.into(),
                 image,
             }
             .as_packet(),
@@ -1275,6 +1276,7 @@ mod tests {
                 ],
                 correct_answer_mask: 2u8,
                 image: None,
+                show_image_during_answers: false,
             }],
         };
 

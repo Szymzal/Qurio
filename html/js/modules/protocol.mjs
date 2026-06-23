@@ -885,6 +885,7 @@ const questionInfoPacket =
    * @property {number} questionIndex - index/number of the question from all questions
    * @property {string} question - actual question or statement
    * @property {string[]} answers - answers to select
+   * @property {boolean} showImageDuringAnswers
    * @property {string} image - (OPTIONAL) image for question
    */
 
@@ -919,6 +920,9 @@ const questionInfoPacket =
       answers.push(string);
     }
 
+    const showImageDuringAnswers = dataView.getUint8(offset) != 0;
+    offset++;
+
     let image = null;
     if (offset + dataView.byteOffset + 8 < dataView.byteLength) {
       const [string, newOffset] = readBinString(dataView, offset);
@@ -932,6 +936,7 @@ const questionInfoPacket =
       questionIndex: questionIndex,
       question: question,
       answers: answers,
+      showImageDuringAnswers: showImageDuringAnswers,
       image: image,
     };
   };

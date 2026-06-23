@@ -32,6 +32,8 @@ const question = document.querySelectorAll(".questionText");
 const questionSection = document.querySelectorAll(".quizSection");
 /** @type NodeListOf<HTMLImageElement> */
 const questionImage = document.querySelectorAll(".questionImage");
+/** @type HTMLImageElement | null */
+const answersQuestionImage = document.querySelector("#answers .questionImage");
 /** @type NodeListOf<HTMLHeadingElement> */
 const questionNum = document.querySelectorAll(".questionNum");
 /** @type NodeListOf<HTMLHeadingElement> */
@@ -530,15 +532,28 @@ function handlePackets(data, ws) {
           packet.value
         );
 
+      console.dir(questionInfoPacket);
+
       if (questionInfoPacket.image) {
         if (answersPage && questionWithoutImage) {
-          answersPage.classList.add("answersWithImage");
-          questionWithoutImage.style.display = "none";
+          if (questionInfoPacket.showImageDuringAnswers) {
+            answersPage.classList.add("answersWithImage");
+            questionWithoutImage.style.display = "none";
+          } else {
+            answersPage.classList.remove("answersWithImage");
+            questionWithoutImage.style.display = "";
+          }
         }
         questionImage.forEach((x) => {
           x.src = `/quiz/assets/${questionInfoPacket.image}`;
           x.classList.remove("hidden");
         });
+        if (
+          !questionInfoPacket.showImageDuringAnswers &&
+          answersQuestionImage
+        ) {
+          answersQuestionImage.classList.add("hidden");
+        }
       } else {
         if (answersPage && questionWithoutImage) {
           answersPage.classList.remove("answersWithImage");

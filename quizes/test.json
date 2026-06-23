@@ -5,6 +5,7 @@
   "questions": [
     {
       "question": "Is this better than Kahoot?",
+      "showImageDuringAnswers": false,
       "image": "test.png",
       "readQuestionMilis": 3000,
       "answerMilis": 10000,
