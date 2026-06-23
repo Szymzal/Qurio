@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    path::PathBuf,
     sync::{Arc, atomic::AtomicUsize},
     time::Duration,
 };
@@ -19,7 +20,7 @@ use qurio_protocol::{
 };
 use thiserror::Error;
 use tokio::net::TcpListener;
-use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
+use tower_http::{services::ServeDir, timeout::TimeoutLayer, trace::TraceLayer};
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -125,6 +126,8 @@ async fn main() {
         game_manager(rx, tx).await;
     });
 
+    let quiz_assets = PathBuf::from("./quizes/assets");
+
     let app = Router::new()
         .route("/", get(index))
         .route("/host", get(index_host))
@@ -138,9 +141,8 @@ async fn main() {
         .route("/particles.min.js", get(js_particles))
         .route("/nosleep.js", get(js_nosleep))
         .route("/assets/{file}", get(assets))
-        // .route("/ws", get(websocket_handler))
-        // .with_state(app_state.clone())
         .route("/ws", get(new_websocket_handler))
+        .nest_service("/quiz/assets", ServeDir::new(quiz_assets))
         .with_state(tokio_state)
         .layer((
             TraceLayer::new_for_http(),

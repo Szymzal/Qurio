@@ -11,6 +11,8 @@ pub struct Question {
     pub answer_milis: u32,
     pub answers: Vec<BinString>,
     pub correct_answer_mask: u8,
+    pub show_image_during_answers: bool,
+    pub image: Option<BinString>,
 }
 
 #[derive(Debug)]
@@ -118,6 +120,8 @@ mod v0 {
                         answer_milis: x.answer_milis,
                         answers,
                         correct_answer_mask: x.correct_answer_mask,
+                        image: None,
+                        show_image_during_answers: false,
                     })
                 })
                 .collect::<Result<Vec<Question>, Self::Error>>()?;
@@ -162,6 +166,9 @@ mod v1 {
         pub read_question_milis: u32,
         pub answer_milis: u32,
         pub answers: Vec<Answer>,
+        pub show_image_during_answers: Option<bool>,
+        /// Path
+        pub image: Option<String>,
     }
 
     #[derive(Deserialize, Debug)]
@@ -209,12 +216,16 @@ mod v1 {
 
                     correct_answer_mask >>= 1;
 
+                    let image = x.image.clone().map(|x| x.try_into()).and_then(Result::ok);
+
                     Ok(Question {
                         question: question_text,
                         read_question_milis: x.read_question_milis,
                         answer_milis: x.answer_milis,
                         answers,
                         correct_answer_mask,
+                        show_image_during_answers: x.show_image_during_answers.unwrap_or(true),
+                        image,
                     })
                 })
                 .collect::<Result<Vec<Question>, Self::Error>>()?;

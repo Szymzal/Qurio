@@ -28,6 +28,12 @@ const questionInProgress = document.querySelector("#questionInProgress");
 const quizTitle = document.querySelector("#quizTitle");
 /** @type NodeListOf<HTMLElement> */
 const question = document.querySelectorAll(".questionText");
+/** @type NodeListOf<HTMLElement> */
+const questionSection = document.querySelectorAll(".quizSection");
+/** @type NodeListOf<HTMLImageElement> */
+const questionImage = document.querySelectorAll(".questionImage");
+/** @type HTMLImageElement | null */
+const answersQuestionImage = document.querySelector("#answers .questionImage");
 /** @type NodeListOf<HTMLHeadingElement> */
 const questionNum = document.querySelectorAll(".questionNum");
 /** @type NodeListOf<HTMLHeadingElement> */
@@ -41,6 +47,8 @@ const progressBars = document.querySelectorAll(".progressBar");
 
 /** @type HTMLDivElement | null */
 const answersPage = document.querySelector("#answers");
+/** @type HTMLDivElement | null */
+const questionWithoutImage = document.querySelector(".questionWithoutImage");
 /** @type NodeListOf<HTMLParagraphElement> */
 const answer0 = document.querySelectorAll(".answer0");
 /** @type NodeListOf<HTMLParagraphElement> */
@@ -475,11 +483,9 @@ function handlePackets(data, ws) {
         console.error("No number of questions!");
       }
 
-      if (question.length > 0) {
-        question.forEach((q) => {
-          q.style.display = "none";
-        });
-      }
+      questionSection.forEach((q) => {
+        q.style.display = "none";
+      });
 
       console.dir(gameDetailsPacket.titleScreenWait);
 
@@ -491,7 +497,7 @@ function handlePackets(data, ws) {
 
       // TODO: Come up with better idea to control this thing...
       setTimeout(() => {
-        if (quizTitle && question.length > 0) {
+        if (quizTitle && questionSection && question.length > 0) {
           progressBars.forEach((progressBar) =>
             progressBar.animate(progressbarKeyframes(), {
               duration: nextProgressBarDuration,
@@ -499,7 +505,7 @@ function handlePackets(data, ws) {
           );
 
           quizTitle.style.display = "none";
-          question.forEach((q) => {
+          questionSection.forEach((q) => {
             q.style.display = "";
           });
 
@@ -527,6 +533,36 @@ function handlePackets(data, ws) {
         );
 
       console.dir(questionInfoPacket);
+
+      if (questionInfoPacket.image) {
+        if (answersPage && questionWithoutImage) {
+          if (questionInfoPacket.showImageDuringAnswers) {
+            answersPage.classList.add("answersWithImage");
+            questionWithoutImage.style.display = "none";
+          } else {
+            answersPage.classList.remove("answersWithImage");
+            questionWithoutImage.style.display = "";
+          }
+        }
+        questionImage.forEach((x) => {
+          x.src = `/quiz/assets/${questionInfoPacket.image}`;
+          x.classList.remove("hidden");
+        });
+        if (
+          !questionInfoPacket.showImageDuringAnswers &&
+          answersQuestionImage
+        ) {
+          answersQuestionImage.classList.add("hidden");
+        }
+      } else {
+        if (answersPage && questionWithoutImage) {
+          answersPage.classList.remove("answersWithImage");
+          questionWithoutImage.style.display = "";
+        }
+        questionImage.forEach((x) => {
+          x.classList.add("hidden");
+        });
+      }
 
       if (quizTitle) {
         if (quizTitle.style.display !== "none") {

@@ -170,7 +170,7 @@ canvas {
 
 #questionInProgress {
   display: grid;
-  grid-template-rows: calc(100% - 5rem);
+  grid-template-rows: calc(100% - 2rem);
   grid-template-areas:
     "full"
     "progress";
@@ -195,7 +195,7 @@ canvas {
 .progressBar {
   grid-area: progress;
   width: 100vw;
-  height: 5rem;
+  height: 2rem;
   animation: 10s linear both progress;
   background: linear-gradient(
     to right,
@@ -276,6 +276,10 @@ canvas {
     "question"
     "answers"
     "progress";
+}
+
+.answersWithImage {
+  grid-template-rows: 50% calc(100% - 50% - 1rem) !important;
 }
 
 #answers .question,
@@ -736,4 +740,78 @@ canvas {
 #podiumPage .avatar > * {
   width: 192px;
   height: 192px;
+}
+
+.quizSection {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.questionInProgress .quizSection .question {
+  max-width: 40%;
+}
+
+.questionImage {
+  max-height: 75%;
+  object-fit: contain;
+  margin-right: 5rem;
+}
+
+.answersWithImage .question {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-areas: "title none num";
+}
+
+.answersWithImage .quizSection {
+  grid-row-start: 1;
+  grid-row-end: 2;
+  grid-column-start: 1;
+  grid-column-end: 4;
+}
+
+.answersWithImage .answerText h2 {
+  font-size: 3rem;
+}
+
+.answersWithImage .compactTitle {
+  grid-area: title;
+  justify-self: flex-start;
+}
+
+.answersWithImage .wellIDontReallyKnowHowToNameThis {
+  grid-area: num;
+  justify-self: flex-end;
+}
+
+.answersWithImage .questionText {
+  display: unset;
+  text-align: center !important;
+  margin-right: 1rem !important;
+  grid-area: text !important;
+  margin-left: 25% !important;
+}
+
+.answersWithImage .questionImage {
+  justify-self: flex-start;
+  grid-area: image;
+  margin-left: 5rem;
+}
+
+.answersWithImage .quizSection {
+  display: grid;
+  grid-template-columns: 50%;
+  grid-template-areas: "text image";
+}
+
+.answersWithImage .answer0,
+.answersWithImage .answer1,
+.answersWithImage .answer2,
+.answersWithImage .answer3 {
+  font-size: clamp(1.654rem, 3rem - calc(var(--chars) * 0.02rem), 3rem);
+}
+
+#answers .quizSection:has(.hidden) {
+  display: none;
 }
