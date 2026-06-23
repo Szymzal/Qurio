@@ -32,6 +32,8 @@ const question = document.querySelectorAll(".questionText");
 const questionSection = document.querySelectorAll(".quizSection");
 /** @type NodeListOf<HTMLImageElement> */
 const questionImage = document.querySelectorAll(".questionImage");
+/** @type HTMLButtonElement | null */
+const advanceBtn = document.querySelector("#advanceBtn");
 /** @type HTMLImageElement | null */
 const answersQuestionImage = document.querySelector("#answers .questionImage");
 /** @type NodeListOf<HTMLHeadingElement> */
@@ -301,7 +303,7 @@ if (playerBoard !== null) {
     }
   };
 
-  if (startGameBtn && toTheLobbyBtn) {
+  if (startGameBtn && toTheLobbyBtn && advanceBtn) {
     startGameBtn.addEventListener("click", (event) => {
       event.preventDefault();
 
@@ -323,6 +325,12 @@ if (playerBoard !== null) {
       websocket.send(returnToLobbyPacket());
       switchPages(PagesID.LOBBY);
       startBackgroundMusic();
+    });
+
+    advanceBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+
+      websocket.send(nextQuestionPacket());
     });
   } else {
     console.error("No start game or return to lobby button!");
@@ -532,7 +540,11 @@ function handlePackets(data, ws) {
           packet.value
         );
 
-      console.dir(questionInfoPacket);
+      if (advanceBtn) {
+        advanceBtn.classList.add("hidden");
+      } else {
+        console.error("No advanceBtn?");
+      }
 
       if (questionInfoPacket.image) {
         if (answersPage && questionWithoutImage) {
@@ -1119,6 +1131,35 @@ function handlePackets(data, ws) {
       updatePlayerBoard();
 
       break;
+    case S2CPacketID.BlankPageInfo:
+      const blankPageInfo =
+        /** @type {import("./modules/protocol.mjs").BlankPageInfoPacket} */ (
+          packet.value
+        );
+
+      console.dir(blankPageInfo);
+
+      if (question.length > 0) {
+        question.forEach((q) => {
+          q.textContent = blankPageInfo.text;
+          const textLength = blankPageInfo.text.length;
+          q.style.setProperty("--chars", `${textLength}`);
+        });
+      } else {
+        console.error("No questions!");
+      }
+
+      questionImage.forEach((x) => {
+        x.classList.add("hidden");
+      });
+
+      if (advanceBtn) {
+        advanceBtn.classList.remove("hidden");
+      } else {
+        console.error("No advanceBtn?");
+      }
+
+      switchPages(PagesID.QUESTION);
     default:
       break;
   }

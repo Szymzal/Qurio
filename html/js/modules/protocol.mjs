@@ -145,6 +145,7 @@ export const S2CPacketID = {
   GoAhead: 20,
   GameStateInfo: 21,
   UpdateClientAvatar: 22,
+  BlankPageInfo: 23,
 };
 
 const readLeaderboards =
@@ -616,7 +617,8 @@ export const readPacket =
    *            AdvancePacket|
    *            GoAheadPacket|
    *            GameStateInfoPacket|
-   *            UpdateClientAvatar} value - value of the packet
+   *            UpdateClientAvatar|
+   *            BlankPageInfoPacket} value - value of the packet
    */
 
   /**
@@ -710,6 +712,9 @@ export const readPacket =
         return returnValue;
       case S2CPacketID.UpdateClientAvatar:
         returnValue.value = updateClientAvatar(dataView, offset);
+        return returnValue;
+      case S2CPacketID.BlankPageInfo:
+        returnValue.value = blankPageInfoPacket(dataView, offset);
         return returnValue;
       default:
         console.error("Packet ID not matched");
@@ -1492,5 +1497,31 @@ const updateClientAvatar =
     return {
       userID: userID,
       avatar: avatar,
+    };
+  };
+
+const blankPageInfoPacket =
+  /**
+   * Indication to update client avatar
+   * A Server to Host Packet
+   *
+   * @typedef {Object} BlankPageInfoPacket
+   * @property {string} text - text to show on screen
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {UpdateClientAvatar}
+   */
+  (dataView, offset) => {
+    const [text, newOffset] = readBinString(dataView, offset);
+    offset += newOffset;
+
+    return {
+      text: text,
     };
   };
