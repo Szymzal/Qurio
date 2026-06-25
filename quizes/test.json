@@ -2,28 +2,47 @@
   "qurioFileVersion": 1,
   "titleScreenWait": 3000,
   "title": "Test Quiz",
-  "questions": [
+  "pages": [
     {
-      "question": "Is this better than Kahoot?",
-      "showImageDuringAnswers": false,
-      "image": "test.png",
-      "readQuestionMilis": 3000,
-      "answerMilis": 10000,
-      "answers": [
-        {"text": "Yes", "correct": true},
-        {"text": "No", "correct": false}
-      ]
+      "blank": {
+        "text": "Test blank page"
+      }
     },
     {
-      "question": "Is this worse than Kahoot?",
-      "readQuestionMilis": 3000,
-      "answerMilis": 10000,
-      "answers": [
-        {"text": "Maybe", "correct": false},
-        {"text": "No", "correct": true},
-        {"text": "Well, can we play something else?", "correct": false},
-        {"text": "Yes", "correct": true}
-      ]
+      "blank": {
+        "text": "Test blank page 2"
+      }
+    },
+    {
+      "question": {
+        "question": "Is this better than Kahoot?",
+        "showImageDuringAnswers": false,
+        "image": "test.png",
+        "readQuestionMilis": 3000,
+        "answerMilis": 10000,
+        "answers": [
+          {"text": "Yes", "correct": true},
+          {"text": "No", "correct": false}
+        ]
+      }
+    },
+    {
+      "blank": {
+        "text": "Test blank page 3"
+      }
+    },
+    {
+      "question": {
+        "question": "Is this worse than Kahoot?",
+        "readQuestionMilis": 3000,
+        "answerMilis": 10000,
+        "answers": [
+          {"text": "Maybe", "correct": false},
+          {"text": "No", "correct": true},
+          {"text": "Well, can we play something else?", "correct": false},
+          {"text": "Yes", "correct": true}
+        ]
+      }
     }
   ]
 }

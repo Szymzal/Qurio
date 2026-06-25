@@ -8,8 +8,8 @@ use std::{
 use qurio_protocol::{
     PROTOCOL_VERSION,
     packets::s2c::{
-        AnswerDetailsPacket, GameDetailsPacket, GameStateInfoClient, GameStateInfoPacket,
-        GameStatsPacket, HandshakeAcceptedPacket, HandshakeRejectedPacket,
+        AnswerDetailsPacket, BlankPageInfoPacket, GameDetailsPacket, GameStateInfoClient,
+        GameStateInfoPacket, GameStatsPacket, HandshakeAcceptedPacket, HandshakeRejectedPacket,
         HostHandshakeAcceptedPacket, PlayerOverallStatsPacket, PlayerStatsPacket,
         QuestionInfoPacket, QuestionStatsPacket, S2CPackets, UpdateClientAvatarPacket,
         UserJoinedPacket, UserLeftPacket,
@@ -25,7 +25,7 @@ use tracing::{error, warn};
 
 use crate::{
     GameState, HandshakeInitializationError,
-    quiz_file::{Quiz, read_quiz_file},
+    quiz_file::{Page, Quiz, read_quiz_file},
 };
 
 pub struct Game {
@@ -276,7 +276,7 @@ impl Game {
                     packet: GameDetailsPacket {
                         title_screen_wait: self.quiz_state.quiz.title_screen_wait,
                         title: self.quiz_state.quiz.title.clone(),
-                        num_of_questions: self.quiz_state.quiz.questions.len() as u8,
+                        num_of_questions: self.quiz_state.quiz.pages.len() as u8,
                     }
                     .as_packet(),
                 }));
@@ -286,8 +286,23 @@ impl Game {
                     packet: S2CPackets::GameIsStaring,
                 }));
 
-                let mut new_actions = self.question(true);
-                actions.append(&mut new_actions);
+                let question = &self.quiz_state.quiz.pages[self.quiz_state.question_index as usize];
+                match question {
+                    Page::Question(_) => {
+                        let mut new_actions = self.question(true);
+                        actions.append(&mut new_actions);
+                    }
+                    Page::Blank(blank_page) => {
+                        actions.push(ServerAction::SendPacket(OutgoingPacket {
+                            replicant: Replicant::Host,
+                            packet: BlankPageInfoPacket {
+                                page_index: self.quiz_state.question_index,
+                                text: blank_page.text.clone(),
+                            }
+                            .as_packet(),
+                        }));
+                    }
+                }
             }
             GameCommand::StartAnswering(data) => {
                 if self.quiz_state.question_index != data.question_index
@@ -313,14 +328,20 @@ impl Game {
 
                 self.answering_timestamp = Instant::now();
 
-                let question =
-                    &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
-                actions.push(ServerAction::StartTimer {
-                    duration_ms: question.answer_milis as u64,
-                    command: GameCommand::StopAnswering(StopAnsweringData {
-                        question_index: self.quiz_state.question_index,
-                    }),
-                });
+                let question = &self.quiz_state.quiz.pages[self.quiz_state.question_index as usize];
+                match question {
+                    Page::Question(question) => {
+                        actions.push(ServerAction::StartTimer {
+                            duration_ms: question.answer_milis as u64,
+                            command: GameCommand::StopAnswering(StopAnsweringData {
+                                question_index: self.quiz_state.question_index,
+                            }),
+                        });
+                    }
+                    Page::Blank(_) => {
+                        tracing::error!("StartAnswering should not happen on blank page!");
+                    }
+                }
             }
             GameCommand::RegisterAnswer(answer_data) => {
                 if self.game_state != GameState::Answering {
@@ -339,8 +360,14 @@ impl Game {
                     return actions;
                 };
 
-                let question =
-                    &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
+                let question = &self.quiz_state.quiz.pages[self.quiz_state.question_index as usize];
+                let question = match question {
+                    Page::Question(question) => question,
+                    Page::Blank(_) => {
+                        tracing::error!("Tried to answer on blank page!");
+                        return actions;
+                    }
+                };
 
                 user.answered = UserAnswered::Answered(answer_data.answer_index);
 
@@ -389,8 +416,14 @@ impl Game {
 
                 self.game_state = GameState::Stats;
 
-                let question =
-                    &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
+                let question = &self.quiz_state.quiz.pages[self.quiz_state.question_index as usize];
+                let question = match question {
+                    Page::Question(question) => question,
+                    Page::Blank(_) => {
+                        tracing::error!("The stop answering never should happen on blank page!");
+                        return actions;
+                    }
+                };
 
                 let mut answers_answered = vec![];
 
@@ -536,13 +569,11 @@ impl Game {
             }
             GameCommand::Advance { sender } => {
                 if !self.is_host(&sender) {
-                    tracing::warn!("Connection: {} tried to StartGame!", sender.0);
+                    tracing::warn!("Connection: {} tried to Advance!", sender.0);
                     return actions;
                 }
 
-                if (self.quiz_state.question_index + 1)
-                    >= self.quiz_state.quiz.questions.len() as u8
-                {
+                if (self.quiz_state.question_index + 1) >= self.quiz_state.quiz.pages.len() as u8 {
                     let mut new_actions = self.end_game();
                     actions.append(&mut new_actions);
 
@@ -560,11 +591,11 @@ impl Game {
             }
             GameCommand::FinishStats { sender } => {
                 if !self.is_host(&sender) {
-                    tracing::warn!("Connection: {} tried to StartGame!", sender.0);
+                    tracing::warn!("Connection: {} tried to FinishStats!", sender.0);
                     return actions;
                 }
 
-                let num_of_questions = self.quiz_state.quiz.questions.len();
+                let num_of_questions = self.quiz_state.quiz.pages.len();
                 for user in self.users.values() {
                     actions.push(ServerAction::SendPacket(OutgoingPacket {
                         replicant: Replicant::Player(user.id),
@@ -583,7 +614,7 @@ impl Game {
             }
             GameCommand::ReturnToLobby { sender } => {
                 if !self.is_host(&sender) {
-                    tracing::warn!("Connection: {} tried to StartGame!", sender.0);
+                    tracing::warn!("Connection: {} tried to ReturnToLobby!", sender.0);
                     return actions;
                 }
 
@@ -602,12 +633,12 @@ impl Game {
             }
             GameCommand::NextQuestion { sender } => {
                 if !self.is_host(&sender) {
-                    tracing::warn!("Connection: {} tried to StartGame!", sender.0);
+                    tracing::warn!("Connection: {} tried to NextQuestion!", sender.0);
                     return actions;
                 }
 
                 self.quiz_state.question_index += 1;
-                let question_length = self.quiz_state.quiz.questions.len();
+                let question_length = self.quiz_state.quiz.pages.len();
 
                 if (self.quiz_state.question_index + 1) > question_length as u8 {
                     let mut new_actions = self.end_game();
@@ -621,8 +652,24 @@ impl Game {
                     packet: S2CPackets::NextQuestion,
                 }));
 
-                let mut new_actions = self.question(false);
-                actions.append(&mut new_actions);
+                let question = &self.quiz_state.quiz.pages[self.quiz_state.question_index as usize];
+
+                match question {
+                    Page::Question(_) => {
+                        let mut new_actions = self.question(false);
+                        actions.append(&mut new_actions);
+                    }
+                    Page::Blank(blank_info) => {
+                        actions.push(ServerAction::SendPacket(OutgoingPacket {
+                            replicant: Replicant::Host,
+                            packet: BlankPageInfoPacket {
+                                page_index: self.quiz_state.question_index,
+                                text: blank_info.text.clone(),
+                            }
+                            .as_packet(),
+                        }));
+                    }
+                }
             }
         }
 
@@ -797,17 +844,32 @@ impl Game {
             GameState::Lobby => GameStateInfoPacket(GameStateInfoClient::LobbyState),
             GameState::Question => {
                 let question_index = self.quiz_state.question_index;
-                let question = &self.quiz_state.quiz.questions[question_index as usize];
+                let question = &self.quiz_state.quiz.pages[question_index as usize];
 
-                GameStateInfoPacket(GameStateInfoClient::QuestionState {
-                    answer_details: AnswerDetailsPacket {
-                        num_of_answers: question.answers.len() as u8,
-                    },
-                })
+                match question {
+                    Page::Question(question) => {
+                        GameStateInfoPacket(GameStateInfoClient::QuestionState {
+                            answer_details: AnswerDetailsPacket {
+                                num_of_answers: question.answers.len() as u8,
+                            },
+                        })
+                    }
+                    Page::Blank(_) => GameStateInfoPacket(GameStateInfoClient::BlankPageState),
+                }
             }
             GameState::Answering => {
                 let question_index = self.quiz_state.question_index;
-                let question = &self.quiz_state.quiz.questions[question_index as usize];
+                let question = &self.quiz_state.quiz.pages[question_index as usize];
+                let question = match question {
+                    Page::Question(question) => question,
+                    Page::Blank(_) => {
+                        tracing::error!(
+                            "Illegal state: Game State in Answering when on blank page!"
+                        );
+
+                        todo!()
+                    }
+                };
                 let answered = self
                     .get_user(user_id)
                     .map_or(UserAnswered::NotAnswered, |x| x.answered.clone());
@@ -899,7 +961,7 @@ impl Game {
 
                 let ratio = user.map_or(0u8, |x| {
                     ((x.advancements.correct_answers as f32
-                        / self.quiz_state.quiz.questions.len() as f32)
+                        / self.quiz_state.quiz.pages.len() as f32)
                         * 100.0)
                         .floor() as u8
                 });
@@ -969,8 +1031,11 @@ impl Game {
                 UserAnswered::Answered(index) => index,
             });
 
-        let question = &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
-        question.correct_answer_mask & answer_mask != 0
+        let question = &self.quiz_state.quiz.pages[self.quiz_state.question_index as usize];
+        match question {
+            Page::Question(question) => question.correct_answer_mask & answer_mask != 0,
+            Page::Blank(_) => false,
+        }
     }
 
     fn handle_new_host_connection(&self, connection_id: ConnectionId) -> Vec<ServerAction> {
@@ -1060,7 +1125,7 @@ impl Game {
                 streak: 0,
             });
 
-        let num_of_questions = self.quiz_state.quiz.questions.len();
+        let num_of_questions = self.quiz_state.quiz.pages.len();
         let biggest_ratio_user = self
             .users
             .values()
@@ -1107,7 +1172,14 @@ impl Game {
         // Note it is duplicated when from StartGame, but it is not duplicated when from
         // NextQuestion
         self.game_state = GameState::Question;
-        let question = &self.quiz_state.quiz.questions[self.quiz_state.question_index as usize];
+        let question = &self.quiz_state.quiz.pages[self.quiz_state.question_index as usize];
+        let question = match question {
+            Page::Question(question) => question,
+            Page::Blank(_) => {
+                tracing::error!("Question on blank page?");
+                return actions;
+            }
+        };
 
         let image = question.image.clone();
 
@@ -1262,7 +1334,7 @@ mod tests {
             title: "Test Quiz"
                 .try_into()
                 .expect("'Test quiz' to pass BinString"),
-            questions: vec![Question {
+            pages: vec![Page::Question(Question {
                 question: "Test question"
                     .try_into()
                     .expect("'Test question' to pass BinString"),
@@ -1277,7 +1349,7 @@ mod tests {
                 correct_answer_mask: 2u8,
                 image: None,
                 show_image_during_answers: false,
-            }],
+            })],
         };
 
         let mut game = Game::new(quiz);

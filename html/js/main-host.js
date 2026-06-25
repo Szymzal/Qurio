@@ -32,6 +32,8 @@ const question = document.querySelectorAll(".questionText");
 const questionSection = document.querySelectorAll(".quizSection");
 /** @type NodeListOf<HTMLImageElement> */
 const questionImage = document.querySelectorAll(".questionImage");
+/** @type HTMLButtonElement | null */
+const advanceBtn = document.querySelector("#advanceBtn");
 /** @type HTMLImageElement | null */
 const answersQuestionImage = document.querySelector("#answers .questionImage");
 /** @type NodeListOf<HTMLHeadingElement> */
@@ -44,6 +46,10 @@ const wellIDontReallyKnowHowToNameThis = document.querySelectorAll(
 );
 /** @type NodeListOf<HTMLDivElement> */
 const progressBars = document.querySelectorAll(".progressBar");
+/** @type NodeListOf<HTMLDivElement> */
+const progressBarsBlankPage = document.querySelectorAll(
+  ".progressBar.blankPageVisible",
+);
 
 /** @type HTMLDivElement | null */
 const answersPage = document.querySelector("#answers");
@@ -278,6 +284,7 @@ const users = [];
 let currentPage = PagesID.LOBBY;
 let nextProgressBarDuration = 0;
 let nextAnswerProgressBarDuration = 0;
+let hideProgressBar = false;
 
 // ====== WEBSOCKET CONNECTION ======
 if (playerBoard !== null) {
@@ -301,7 +308,7 @@ if (playerBoard !== null) {
     }
   };
 
-  if (startGameBtn && toTheLobbyBtn) {
+  if (startGameBtn && toTheLobbyBtn && advanceBtn) {
     startGameBtn.addEventListener("click", (event) => {
       event.preventDefault();
 
@@ -323,6 +330,12 @@ if (playerBoard !== null) {
       websocket.send(returnToLobbyPacket());
       switchPages(PagesID.LOBBY);
       startBackgroundMusic();
+    });
+
+    advanceBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+
+      websocket.send(nextQuestionPacket());
     });
   } else {
     console.error("No start game or return to lobby button!");
@@ -487,8 +500,6 @@ function handlePackets(data, ws) {
         q.style.display = "none";
       });
 
-      console.dir(gameDetailsPacket.titleScreenWait);
-
       progressBars.forEach((progressBar) =>
         progressBar.animate(progressbarKeyframes(), {
           duration: gameDetailsPacket.titleScreenWait,
@@ -498,6 +509,12 @@ function handlePackets(data, ws) {
       // TODO: Come up with better idea to control this thing...
       setTimeout(() => {
         if (quizTitle && questionSection && question.length > 0) {
+          if (hideProgressBar) {
+            progressBarsBlankPage.forEach((x) => {
+              x.classList.add("hidden");
+            });
+          }
+
           progressBars.forEach((progressBar) =>
             progressBar.animate(progressbarKeyframes(), {
               duration: nextProgressBarDuration,
@@ -532,7 +549,15 @@ function handlePackets(data, ws) {
           packet.value
         );
 
-      console.dir(questionInfoPacket);
+      progressBarsBlankPage.forEach((x) => {
+        x.classList.remove("hidden");
+      });
+
+      if (advanceBtn) {
+        advanceBtn.classList.add("hidden");
+      } else {
+        console.error("No advanceBtn?");
+      }
 
       if (questionInfoPacket.image) {
         if (answersPage && questionWithoutImage) {
@@ -1119,6 +1144,51 @@ function handlePackets(data, ws) {
       updatePlayerBoard();
 
       break;
+    case S2CPacketID.BlankPageInfo:
+      const blankPageInfo =
+        /** @type {import("./modules/protocol.mjs").BlankPageInfoPacket} */ (
+          packet.value
+        );
+
+      console.dir(blankPageInfo);
+
+      if (blankPageInfo.pageIndex !== 0) {
+        progressBarsBlankPage.forEach((x) => {
+          x.classList.add("hidden");
+        });
+      } else {
+        hideProgressBar = true;
+      }
+
+      if (questionNum) {
+        questionNum.forEach((x) => {
+          x.textContent = (blankPageInfo.pageIndex + 1).toString();
+        });
+      } else {
+        console.error("No question number!");
+      }
+
+      if (question.length > 0) {
+        question.forEach((q) => {
+          q.textContent = blankPageInfo.text;
+          const textLength = blankPageInfo.text.length;
+          q.style.setProperty("--chars", `${textLength}`);
+        });
+      } else {
+        console.error("No questions!");
+      }
+
+      questionImage.forEach((x) => {
+        x.classList.add("hidden");
+      });
+
+      if (advanceBtn) {
+        advanceBtn.classList.remove("hidden");
+      } else {
+        console.error("No advanceBtn?");
+      }
+
+      switchPages(PagesID.QUESTION);
     default:
       break;
   }

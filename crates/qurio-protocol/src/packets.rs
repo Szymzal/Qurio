@@ -79,6 +79,9 @@ pub mod s2c {
         #[bw(magic = 22u8)]
         /// Host Packet
         UpdateClientAvatar(UpdateClientAvatarPacket),
+        #[bw(magic = 23u8)]
+        /// Host Packet
+        BlankPageInfo(BlankPageInfoPacket),
     }
 
     #[derive(BinWrite, Clone, Debug)]
@@ -189,6 +192,8 @@ pub mod s2c {
         EndGameState {
             player_stats: PlayerOverallStatsPacket,
         },
+        #[bw(magic = 5u8)]
+        BlankPageState,
     }
 
     #[derive(BinWrite, Clone, Debug)]
@@ -202,6 +207,12 @@ pub mod s2c {
     pub struct UpdateClientAvatarPacket {
         pub user_id: UserId,
         pub avatar: AvatarInfo,
+    }
+
+    #[derive(BinWrite, Clone, Debug)]
+    pub struct BlankPageInfoPacket {
+        pub page_index: u8,
+        pub text: BinString,
     }
 
     impl S2CPackets {
@@ -246,6 +257,7 @@ pub mod s2c {
     packet!(GameDetailsPacket, GameDetails);
     packet!(GameStateInfoPacket, GameStateInfo);
     packet!(UpdateClientAvatarPacket, UpdateClientAvatar);
+    packet!(BlankPageInfoPacket, BlankPageInfo);
 }
 
 pub mod c2s {
