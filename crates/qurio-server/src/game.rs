@@ -296,6 +296,7 @@ impl Game {
                         actions.push(ServerAction::SendPacket(OutgoingPacket {
                             replicant: Replicant::Host,
                             packet: BlankPageInfoPacket {
+                                page_index: self.quiz_state.question_index,
                                 text: blank_page.text.clone(),
                             }
                             .as_packet(),
@@ -651,8 +652,24 @@ impl Game {
                     packet: S2CPackets::NextQuestion,
                 }));
 
-                let mut new_actions = self.question(false);
-                actions.append(&mut new_actions);
+                let question = &self.quiz_state.quiz.pages[self.quiz_state.question_index as usize];
+
+                match question {
+                    Page::Question(_) => {
+                        let mut new_actions = self.question(false);
+                        actions.append(&mut new_actions);
+                    }
+                    Page::Blank(blank_info) => {
+                        actions.push(ServerAction::SendPacket(OutgoingPacket {
+                            replicant: Replicant::Host,
+                            packet: BlankPageInfoPacket {
+                                page_index: self.quiz_state.question_index,
+                                text: blank_info.text.clone(),
+                            }
+                            .as_packet(),
+                        }));
+                    }
+                }
             }
         }
 

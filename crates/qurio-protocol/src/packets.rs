@@ -211,6 +211,7 @@ pub mod s2c {
 
     #[derive(BinWrite, Clone, Debug)]
     pub struct BlankPageInfoPacket {
+        pub page_index: u8,
         pub text: BinString,
     }
 

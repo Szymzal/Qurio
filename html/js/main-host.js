@@ -46,6 +46,10 @@ const wellIDontReallyKnowHowToNameThis = document.querySelectorAll(
 );
 /** @type NodeListOf<HTMLDivElement> */
 const progressBars = document.querySelectorAll(".progressBar");
+/** @type NodeListOf<HTMLDivElement> */
+const progressBarsBlankPage = document.querySelectorAll(
+  ".progressBar.blankPageVisible",
+);
 
 /** @type HTMLDivElement | null */
 const answersPage = document.querySelector("#answers");
@@ -280,6 +284,7 @@ const users = [];
 let currentPage = PagesID.LOBBY;
 let nextProgressBarDuration = 0;
 let nextAnswerProgressBarDuration = 0;
+let hideProgressBar = false;
 
 // ====== WEBSOCKET CONNECTION ======
 if (playerBoard !== null) {
@@ -495,8 +500,6 @@ function handlePackets(data, ws) {
         q.style.display = "none";
       });
 
-      console.dir(gameDetailsPacket.titleScreenWait);
-
       progressBars.forEach((progressBar) =>
         progressBar.animate(progressbarKeyframes(), {
           duration: gameDetailsPacket.titleScreenWait,
@@ -506,6 +509,12 @@ function handlePackets(data, ws) {
       // TODO: Come up with better idea to control this thing...
       setTimeout(() => {
         if (quizTitle && questionSection && question.length > 0) {
+          if (hideProgressBar) {
+            progressBarsBlankPage.forEach((x) => {
+              x.classList.add("hidden");
+            });
+          }
+
           progressBars.forEach((progressBar) =>
             progressBar.animate(progressbarKeyframes(), {
               duration: nextProgressBarDuration,
@@ -539,6 +548,10 @@ function handlePackets(data, ws) {
         /** @type {import("./modules/protocol.mjs").QuestionInfoPacket} */ (
           packet.value
         );
+
+      progressBarsBlankPage.forEach((x) => {
+        x.classList.remove("hidden");
+      });
 
       if (advanceBtn) {
         advanceBtn.classList.add("hidden");
@@ -1138,6 +1151,22 @@ function handlePackets(data, ws) {
         );
 
       console.dir(blankPageInfo);
+
+      if (blankPageInfo.pageIndex !== 0) {
+        progressBarsBlankPage.forEach((x) => {
+          x.classList.add("hidden");
+        });
+      } else {
+        hideProgressBar = true;
+      }
+
+      if (questionNum) {
+        questionNum.forEach((x) => {
+          x.textContent = (blankPageInfo.pageIndex + 1).toString();
+        });
+      } else {
+        console.error("No question number!");
+      }
 
       if (question.length > 0) {
         question.forEach((q) => {

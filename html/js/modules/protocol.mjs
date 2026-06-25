@@ -1506,6 +1506,7 @@ const blankPageInfoPacket =
    * A Server to Host Packet
    *
    * @typedef {Object} BlankPageInfoPacket
+   * @property {number} pageIndex - text to show on screen
    * @property {string} text - text to show on screen
    */
 
@@ -1518,10 +1519,14 @@ const blankPageInfoPacket =
    * @returns {UpdateClientAvatar}
    */
   (dataView, offset) => {
+    const pageIndex = dataView.getUint8(offset);
+    offset++;
+
     const [text, newOffset] = readBinString(dataView, offset);
     offset += newOffset;
 
     return {
+      pageIndex: pageIndex,
       text: text,
     };
   };

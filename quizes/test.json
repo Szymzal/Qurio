@@ -9,6 +9,11 @@
       }
     },
     {
+      "blank": {
+        "text": "Test blank page 2"
+      }
+    },
+    {
       "question": {
         "question": "Is this better than Kahoot?",
         "showImageDuringAnswers": false,
@@ -19,6 +24,11 @@
           {"text": "Yes", "correct": true},
           {"text": "No", "correct": false}
         ]
+      }
+    },
+    {
+      "blank": {
+        "text": "Test blank page 3"
       }
     },
     {
