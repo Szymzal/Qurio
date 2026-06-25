@@ -830,3 +830,7 @@ canvas {
   border: 0.5rem solid #202338;
   background-color: #2c2e43;
 }
+
+.incorrectAnswer {
+  filter: grayscale(0.7);
+}

@@ -71,6 +71,14 @@ const answer1Text = document.querySelectorAll(".answer1Text");
 const answer2Text = document.querySelectorAll(".answer2Text");
 /** @type NodeListOf<HTMLParagraphElement> */
 const answer3Text = document.querySelectorAll(".answer3Text");
+/** @type HTMLParagraphElement | null */
+const answer0Stats = document.querySelector("#questionStats .answer0Text");
+/** @type HTMLParagraphElement | null */
+const answer1Stats = document.querySelector("#questionStats .answer1Text");
+/** @type HTMLParagraphElement | null */
+const answer2Stats = document.querySelector("#questionStats .answer2Text");
+/** @type HTMLParagraphElement | null */
+const answer3Stats = document.querySelector("#questionStats .answer3Text");
 
 /** @type HTMLDivElement | null */
 const questionStats = document.querySelector("#questionStats");
@@ -713,26 +721,42 @@ function handlePackets(data, ws) {
       if (stats0Correct && stats1Correct && stats2Correct && stats3Correct) {
         if ((correctAnswer & 1) != 0) {
           stats0Correct.style.display = "";
+          stats0?.classList.remove("incorrectAnswer");
+          answer0Stats?.classList.remove("incorrectAnswer");
         } else {
           stats0Correct.style.display = "none";
+          stats0?.classList.add("incorrectAnswer");
+          answer0Stats?.classList.add("incorrectAnswer");
         }
 
         if ((correctAnswer & 2) != 0) {
           stats1Correct.style.display = "";
+          stats1?.classList.remove("incorrectAnswer");
+          answer1Stats?.classList.remove("incorrectAnswer");
         } else {
           stats1Correct.style.display = "none";
+          stats1?.classList.add("incorrectAnswer");
+          answer1Stats?.classList.add("incorrectAnswer");
         }
 
         if ((correctAnswer & 4) != 0) {
           stats2Correct.style.display = "";
+          stats2?.classList.remove("incorrectAnswer");
+          answer2Stats?.classList.remove("incorrectAnswer");
         } else {
           stats2Correct.style.display = "none";
+          stats2?.classList.add("incorrectAnswer");
+          answer2Stats?.classList.add("incorrectAnswer");
         }
 
         if ((correctAnswer & 8) != 0) {
           stats3Correct.style.display = "";
+          stats3?.classList.remove("incorrectAnswer");
+          answer3Stats?.classList.remove("incorrectAnswer");
         } else {
           stats3Correct.style.display = "none";
+          stats3?.classList.add("incorrectAnswer");
+          answer3Stats?.classList.add("incorrectAnswer");
         }
       } else {
         console.error("No indication of correct answer?");
