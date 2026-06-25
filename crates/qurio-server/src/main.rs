@@ -694,7 +694,8 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                     let answer_mask = 1 << answer_packet.index;
                     let correct = question.correct_answer_mask & answer_mask != 0;
                     let points_to_add = if correct {
-                        ((1.0 - (answer_time as f32 / question.answer_milis as f32)) * 500.0) as u16 + 500
+                        ((1.0 - (answer_time as f32 / question.answer_milis as f32)) * 500.0) as u16
+                            + 500
                     } else {
                         0
                     };
@@ -1358,144 +1359,9 @@ async fn js_host() -> impl IntoResponse {
 
 async fn assets(Path(path): Path<String>) -> impl IntoResponse {
     match path.as_str() {
-        "avatar111" => (
+        "avatars" => (
             [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar111.png"),
-        )
-            .into_response(),
-        "avatar121" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar121.png"),
-        )
-            .into_response(),
-        "avatar131" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar131.png"),
-        )
-            .into_response(),
-        "avatar141" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar141.png"),
-        )
-            .into_response(),
-        "avatar151" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar151.png"),
-        )
-            .into_response(),
-        "avatar211" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar211.png"),
-        )
-            .into_response(),
-        "avatar221" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar221.png"),
-        )
-            .into_response(),
-        "avatar231" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar231.png"),
-        )
-            .into_response(),
-        "avatar241" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar241.png"),
-        )
-            .into_response(),
-        "avatar251" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar251.png"),
-        )
-            .into_response(),
-        "avatar31" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar31.png"),
-        )
-            .into_response(),
-        "avatar32" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar32.png"),
-        )
-            .into_response(),
-        "avatar33" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar33.png"),
-        )
-            .into_response(),
-        "avatar34" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar34.png"),
-        )
-            .into_response(),
-        "avatar35" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar35.png"),
-        )
-            .into_response(),
-        "avatar36" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar36.png"),
-        )
-            .into_response(),
-        "avatar37" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar37.png"),
-        )
-            .into_response(),
-        "avatar38" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar38.png"),
-        )
-            .into_response(),
-        "avatar39" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar39.png"),
-        )
-            .into_response(),
-        "avatar41" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar41.png"),
-        )
-            .into_response(),
-        "avatar42" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar42.png"),
-        )
-            .into_response(),
-        "avatar43" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar43.png"),
-        )
-            .into_response(),
-        "avatar44" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar44.png"),
-        )
-            .into_response(),
-        "avatar45" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar45.png"),
-        )
-            .into_response(),
-        "avatar46" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar46.png"),
-        )
-            .into_response(),
-        "avatar47" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar47.png"),
-        )
-            .into_response(),
-        "avatar48" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar48.png"),
-        )
-            .into_response(),
-        "avatar49" => (
-            [(header::CONTENT_TYPE, "image/png")],
-            include_bytes!("../../../html/assets/avatar/avatar49.png"),
+            include_bytes!("../../../html/assets/avatar/avatars.png"),
         )
             .into_response(),
         "stopwatch.svg" => (

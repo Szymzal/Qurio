@@ -267,6 +267,14 @@ const pages = [
  */
 const users = [];
 
+const maxColor = 9;
+const maxBody = 5;
+const maxHead = 5;
+const maxEyes = 9;
+const maxLips = 9;
+const avatarAtlas = new Image();
+avatarAtlas.src = "../assets/avatars";
+
 let currentPage = PagesID.LOBBY;
 let nextProgressBarDuration = 0;
 let nextAnswerProgressBarDuration = 0;
@@ -451,7 +459,7 @@ function handlePackets(data, ws) {
 
       if (wellIDontReallyKnowHowToNameThis) {
         wellIDontReallyKnowHowToNameThis.forEach((x) => {
-          x.style.display = "none"
+          x.style.display = "none";
         });
       } else {
         console.error(
@@ -468,8 +476,7 @@ function handlePackets(data, ws) {
 
       if (numOfQuestions) {
         numOfQuestions.forEach((x) => {
-          x.textContent =
-            gameDetailsPacket.numOfQuestions.toString();
+          x.textContent = gameDetailsPacket.numOfQuestions.toString();
         });
       } else {
         console.error("No number of questions!");
@@ -546,9 +553,7 @@ function handlePackets(data, ws) {
 
       if (questionNum) {
         questionNum.forEach((x) => {
-          x.textContent = (
-            questionInfoPacket.questionIndex + 1
-          ).toString();
+          x.textContent = (questionInfoPacket.questionIndex + 1).toString();
         });
       } else {
         console.error("No question number!");
@@ -595,43 +600,43 @@ function handlePackets(data, ws) {
 
         switch (numOfAnswers) {
           case 1:
-            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
             stats0.style.display = "";
-            answer1Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer1Text.forEach((answer) => answer.classList.add("hidden"));
             stats1.style.display = "none";
-            answer2Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer2Text.forEach((answer) => answer.classList.add("hidden"));
             stats2.style.display = "none";
-            answer3Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer3Text.forEach((answer) => answer.classList.add("hidden"));
             stats3.style.display = "none";
             break;
           case 2:
-            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
             stats0.style.display = "";
-            answer1Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer1Text.forEach((answer) => answer.classList.remove("hidden"));
             stats1.style.display = "";
-            answer2Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer2Text.forEach((answer) => answer.classList.add("hidden"));
             stats2.style.display = "none";
-            answer3Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer3Text.forEach((answer) => answer.classList.add("hidden"));
             stats3.style.display = "none";
             break;
           case 3:
-            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
             stats0.style.display = "";
-            answer1Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer1Text.forEach((answer) => answer.classList.remove("hidden"));
             stats1.style.display = "";
-            answer2Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer2Text.forEach((answer) => answer.classList.remove("hidden"));
             stats2.style.display = "";
-            answer3Text.forEach((answer) => (answer.classList.add("hidden")));
+            answer3Text.forEach((answer) => answer.classList.add("hidden"));
             stats3.style.display = "none";
             break;
           case 4:
-            answer0Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
             stats0.style.display = "";
-            answer1Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer1Text.forEach((answer) => answer.classList.remove("hidden"));
             stats1.style.display = "";
-            answer2Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer2Text.forEach((answer) => answer.classList.remove("hidden"));
             stats2.style.display = "";
-            answer3Text.forEach((answer) => (answer.classList.remove("hidden")));
+            answer3Text.forEach((answer) => answer.classList.remove("hidden"));
             stats3.style.display = "";
             break;
           default:
@@ -1139,30 +1144,11 @@ function createPlayer(user) {
   const avatar = document.createElement("div");
   avatar.className = "avatar";
 
-  const body = document.createElement("img");
-  body.className = "body";
-  body.src = `../assets/avatar1${user.avatar.body}1`;
-  body.alt = "Body";
+  const canvas = document.createElement("canvas");
+  canvas.classList.add("avatarCanvas");
+  updateCanvas(canvas, user.avatar);
 
-  const head = document.createElement("img");
-  head.className = "head";
-  head.src = `../assets/avatar2${user.avatar.head}1`;
-  head.alt = "Head";
-
-  const eyes = document.createElement("img");
-  eyes.className = "eyes";
-  eyes.src = `../assets/avatar3${user.avatar.eyes}`;
-  eyes.alt = "Eyes";
-
-  const lips = document.createElement("img");
-  lips.className = "lips";
-  lips.src = `../assets/avatar4${user.avatar.lips}`;
-  lips.alt = "Lips";
-
-  avatar.append(body);
-  avatar.append(head);
-  avatar.append(lips);
-  avatar.append(eyes);
+  avatar.append(canvas);
 
   const usernameElement = document.createElement("p");
   usernameElement.className = "username";
@@ -1220,30 +1206,11 @@ function setLeaderboard(leaderboard, players) {
     if (userInfo) {
       username.textContent = userInfo.username;
 
-      const body = document.createElement("img");
-      body.className = "body";
-      body.src = `../assets/avatar1${userInfo.avatar.body}1`;
-      body.alt = "Body";
+      const canvas = document.createElement("canvas");
+      canvas.classList.add("avatarCanvas");
+      updateCanvas(canvas, userInfo.avatar);
 
-      const head = document.createElement("img");
-      head.className = "head";
-      head.src = `../assets/avatar2${userInfo.avatar.head}1`;
-      head.alt = "Head";
-
-      const eyes = document.createElement("img");
-      eyes.className = "eyes";
-      eyes.src = `../assets/avatar3${userInfo.avatar.eyes}`;
-      eyes.alt = "Eyes";
-
-      const lips = document.createElement("img");
-      lips.className = "lips";
-      lips.src = `../assets/avatar4${userInfo.avatar.lips}`;
-      lips.alt = "Lips";
-
-      miniAvatar.append(body);
-      miniAvatar.append(head);
-      miniAvatar.append(lips);
-      miniAvatar.append(eyes);
+      miniAvatar.append(canvas);
     } else {
       console.error("User does not exist! Leaderboards will be unfinished!");
       username.textContent = "ERROR";
@@ -1267,53 +1234,132 @@ function setLeaderboard(leaderboard, players) {
 }
 
 /**
+ * @param {import("./modules/protocol.mjs").AvatarInfo} avatar
+ * @param {HTMLCanvasElement} canvas
+ */
+function saveDataInCanvas(avatar, canvas) {
+  canvas.setAttribute("bodyIndex", `${avatar.body}`);
+  canvas.setAttribute("headIndex", `${avatar.head}`);
+  canvas.setAttribute("eyesIndex", `${avatar.eyes}`);
+  canvas.setAttribute("lipsIndex", `${avatar.lips}`);
+}
+
+/**
  * @param {Element} element
  * @param {import("./modules/protocol.mjs").AvatarInfo} avatar
  */
 function updateUserAvatar(element, avatar) {
-  /** @type NodeListOf<HTMLImageElement> */
-  const bodyAvatar = element.querySelectorAll(".body");
-  bodyAvatar.forEach((x) => {
-    if (avatar.body === 0) {
-      x.style.display = "none";
-    } else {
-      x.style.display = "";
-      x.src = `../assets/avatar1${avatar.body}1`;
-    }
-  });
+  const canvas = element.querySelector("canvas");
+  updateCanvas(canvas, avatar);
+}
 
-  /** @type NodeListOf<HTMLImageElement> */
-  const headAvatar = element.querySelectorAll(".head");
-  headAvatar.forEach((x) => {
-    if (avatar.head === 0) {
-      x.style.display = "none";
-    } else {
-      x.style.display = "";
-      x.src = `../assets/avatar2${avatar.head}1`;
-    }
-  });
+/**
+ * @param {HTMLCanvasElement} canvas
+ * @param {import("./modules/protocol.mjs").AvatarInfo} avatar
+ */
+function updateCanvas(canvas, avatar) {
+  saveDataInCanvas(avatar, canvas);
+  refreshCanvas(canvas);
+}
 
-  /** @type NodeListOf<HTMLImageElement> */
-  const eyesAvatar = element.querySelectorAll(".eyes");
-  eyesAvatar.forEach((x) => {
-    if (avatar.eyes === 0) {
-      x.style.display = "none";
-    } else {
-      x.style.display = "";
-      x.src = `../assets/avatar3${avatar.eyes}`;
-    }
-  });
+/**
+ * @param {HTMLCanvasElement} canvas
+ */
+function refreshCanvas(canvas) {
+  // TODO: What if there is no indexes?
+  const canvasBody = Number.parseInt(canvas.getAttribute("bodyIndex"));
+  const canvasHead = Number.parseInt(canvas.getAttribute("headIndex"));
+  const canvasEyes = Number.parseInt(canvas.getAttribute("eyesIndex"));
+  const canvasLips = Number.parseInt(canvas.getAttribute("lipsIndex"));
 
-  /** @type NodeListOf<HTMLImageElement> */
-  const lipsAvatar = element.querySelectorAll(".lips");
-  lipsAvatar.forEach((x) => {
-    if (avatar.lips === 0) {
-      x.style.display = "none";
-    } else {
-      x.style.display = "";
-      x.src = `../assets/avatar4${avatar.lips}`;
-    }
-  });
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    console.error("Failed to get canvas context!");
+    return;
+  }
+
+  // Prepare new image
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Body
+  const bodyIndex = (canvasBody - 1) * maxColor;
+  let imagePos = calculateAtlas(bodyIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+
+  // Head
+  const headIndex = maxBody * maxColor + (canvasHead - 1) * maxColor;
+  imagePos = calculateAtlas(headIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+
+  // Eyes
+  const eyesIndex = maxBody * maxColor + maxHead * maxColor + (canvasEyes - 1);
+  imagePos = calculateAtlas(eyesIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+
+  // Lips
+  const lipsIndex =
+    maxBody * maxColor + maxHead * maxColor + maxEyes + (canvasLips - 1);
+  imagePos = calculateAtlas(lipsIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+}
+
+/** @argument {Number} index
+ * @returns {Object} */
+function calculateAtlas(index) {
+  const pieceWidth = 256;
+  const pieceHeight = 256;
+  const piecesInRow = Math.floor(avatarAtlas.width / pieceWidth);
+
+  const x = (index * pieceWidth) % (piecesInRow * pieceWidth);
+  const y =
+    Math.floor((index * pieceWidth) / (piecesInRow * pieceWidth)) * pieceHeight;
+
+  return {
+    x: x,
+    y: y,
+    width: pieceWidth,
+    height: pieceHeight,
+  };
 }
 
 function startBackgroundMusic() {

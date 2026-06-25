@@ -63,7 +63,7 @@ requestAnimationFrame(update);
 window.addEventListener("resize", (event) => {
   event.preventDefault();
 
-  const canvas = document.querySelectorAll("canvas");
+  const canvas = document.querySelectorAll("canvas:not(.avatarCanvas)");
   canvas.forEach((c) => {
     c.width = window.innerWidth;
     c.height = window.innerHeight;
