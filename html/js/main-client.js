@@ -24,6 +24,8 @@ const loginPage = document.querySelector("#login");
 
 /** @type NodeListOf<HTMLCanvasElement> */
 const avatarCanvas = document.querySelectorAll(".avatarCanvas");
+/** @type NodeListOf<HTMLCanvasElement> */
+const currentPlayerAvatars = document.querySelectorAll(".playerAvatar");
 
 /** @type NodeListOf<HTMLParagraphElement> */
 const prevBodyBtns = document.querySelectorAll(".prevBody");
@@ -252,7 +254,9 @@ if (join_btn && usernameInput && error_box) {
             lips: lips,
           };
           websocket.send(updateAvatarPacket(avatar));
-          updateUserAvatar(avatar);
+          for (let playerAvatar of currentPlayerAvatars) {
+            updateUserAvatar(avatar, playerAvatar);
+          }
         });
       });
 
@@ -276,7 +280,9 @@ if (join_btn && usernameInput && error_box) {
             lips: lips,
           };
           websocket.send(updateAvatarPacket(avatar));
-          updateUserAvatar(avatar);
+          for (let playerAvatar of currentPlayerAvatars) {
+            updateUserAvatar(avatar, playerAvatar);
+          }
         });
       });
     } else {
@@ -304,7 +310,9 @@ if (join_btn && usernameInput && error_box) {
             lips: lips,
           };
           websocket.send(updateAvatarPacket(avatar));
-          updateUserAvatar(avatar);
+          for (let playerAvatar of currentPlayerAvatars) {
+            updateUserAvatar(avatar, playerAvatar);
+          }
         });
       });
 
@@ -328,7 +336,9 @@ if (join_btn && usernameInput && error_box) {
             lips: lips,
           };
           websocket.send(updateAvatarPacket(avatar));
-          updateUserAvatar(avatar);
+          for (let playerAvatar of currentPlayerAvatars) {
+            updateUserAvatar(avatar, playerAvatar);
+          }
         });
       });
     } else {
@@ -356,7 +366,9 @@ if (join_btn && usernameInput && error_box) {
             lips: lips,
           };
           websocket.send(updateAvatarPacket(avatar));
-          updateUserAvatar(avatar);
+          for (let playerAvatar of currentPlayerAvatars) {
+            updateUserAvatar(avatar, playerAvatar);
+          }
         });
       });
 
@@ -380,7 +392,9 @@ if (join_btn && usernameInput && error_box) {
             lips: lips,
           };
           websocket.send(updateAvatarPacket(avatar));
-          updateUserAvatar(avatar);
+          for (let playerAvatar of currentPlayerAvatars) {
+            updateUserAvatar(avatar, playerAvatar);
+          }
         });
       });
     } else {
@@ -408,7 +422,9 @@ if (join_btn && usernameInput && error_box) {
             lips: lips,
           };
           websocket.send(updateAvatarPacket(avatar));
-          updateUserAvatar(avatar);
+          for (let playerAvatar of currentPlayerAvatars) {
+            updateUserAvatar(avatar, playerAvatar);
+          }
         });
       });
 
@@ -432,7 +448,9 @@ if (join_btn && usernameInput && error_box) {
             lips: lips,
           };
           websocket.send(updateAvatarPacket(avatar));
-          updateUserAvatar(avatar);
+          for (let playerAvatar of currentPlayerAvatars) {
+            updateUserAvatar(avatar, playerAvatar);
+          }
         });
       });
     } else {
@@ -467,7 +485,9 @@ function handlePackets(data) {
         );
       user_id = handshakeAcceptedPacket.userID;
 
-      updateUserAvatar(handshakeAcceptedPacket.randomAvatar);
+      for (let playerAvatar of currentPlayerAvatars) {
+        updateUserAvatar(handshakeAcceptedPacket.randomAvatar, playerAvatar);
+      }
 
       body = handshakeAcceptedPacket.randomAvatar.body;
       head = handshakeAcceptedPacket.randomAvatar.head;
@@ -970,12 +990,9 @@ function setResultTips(correct) {
 // TODO: Make sure that is the user's avatar and not the opponents
 if (avatarCanvas.length > 0) {
   const resizeObserver = new ResizeObserver((entries) => {
-    updateUserAvatar({
-      body: body,
-      head: head,
-      eyes: eyes,
-      lips: lips,
-    });
+    for (let canvas of entries) {
+      refreshCanvas(canvas.target);
+    }
   });
 
   // 4. Tell the observer to watch your canvas
@@ -986,85 +1003,103 @@ if (avatarCanvas.length > 0) {
 
 /**
  * @param {import("./modules/protocol.mjs").AvatarInfo} avatar
+ * @param {HTMLCanvasElement} canvas
  */
-function updateUserAvatar(avatar) {
-  if (avatarCanvas.length === 0) {
-    console.error("No avatarCanvas!");
+function saveDataInCanvas(avatar, canvas) {
+  canvas.setAttribute("bodyIndex", `${avatar.body}`);
+  canvas.setAttribute("headIndex", `${avatar.head}`);
+  canvas.setAttribute("eyesIndex", `${avatar.eyes}`);
+  canvas.setAttribute("lipsIndex", `${avatar.lips}`);
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").AvatarInfo} avatar
+ * @param {HTMLCanvasElement} canvas
+ */
+function updateUserAvatar(avatar, canvas) {
+  saveDataInCanvas(avatar, canvas);
+  refreshCanvas(canvas);
+}
+
+/**
+ * @param {HTMLCanvasElement} canvas
+ */
+function refreshCanvas(canvas) {
+  // TODO: What if there is no indexes?
+  const canvasBody = Number.parseInt(canvas.getAttribute("bodyIndex"));
+  const canvasHead = Number.parseInt(canvas.getAttribute("headIndex"));
+  const canvasEyes = Number.parseInt(canvas.getAttribute("eyesIndex"));
+  const canvasLips = Number.parseInt(canvas.getAttribute("lipsIndex"));
+
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    console.error("Failed to get canvas context!");
     return;
   }
 
-  for (let canvas of avatarCanvas) {
-    const ctx = canvas.getContext("2d");
-    if (ctx === null) {
-      console.error("Failed to get canvas context!");
-      return;
-    }
+  // Prepare new image
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Prepare new image
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Body
+  const bodyIndex = (canvasBody - 1) * maxColor;
+  let imagePos = calculateAtlas(bodyIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
 
-    // Body
-    const bodyIndex = (avatar.body - 1) * maxColor;
-    let imagePos = calculateAtlas(bodyIndex);
-    ctx.drawImage(
-      avatarAtlas,
-      imagePos.x,
-      imagePos.y,
-      imagePos.width,
-      imagePos.height,
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-    );
+  // Head
+  const headIndex = maxBody * maxColor + (canvasHead - 1) * maxColor;
+  imagePos = calculateAtlas(headIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
 
-    // Head
-    const headIndex = maxBody * maxColor + (avatar.head - 1) * maxColor;
-    imagePos = calculateAtlas(headIndex);
-    ctx.drawImage(
-      avatarAtlas,
-      imagePos.x,
-      imagePos.y,
-      imagePos.width,
-      imagePos.height,
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-    );
+  // Eyes
+  const eyesIndex = maxBody * maxColor + maxHead * maxColor + (canvasEyes - 1);
+  imagePos = calculateAtlas(eyesIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
 
-    // Eyes
-    const eyesIndex =
-      maxBody * maxColor + maxHead * maxColor + (avatar.eyes - 1);
-    imagePos = calculateAtlas(eyesIndex);
-    ctx.drawImage(
-      avatarAtlas,
-      imagePos.x,
-      imagePos.y,
-      imagePos.width,
-      imagePos.height,
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-    );
-
-    // Lips
-    const lipsIndex =
-      maxBody * maxColor + maxHead * maxColor + maxEyes + (avatar.lips - 1);
-    imagePos = calculateAtlas(lipsIndex);
-    ctx.drawImage(
-      avatarAtlas,
-      imagePos.x,
-      imagePos.y,
-      imagePos.width,
-      imagePos.height,
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-    );
-  }
+  // Lips
+  const lipsIndex =
+    maxBody * maxColor + maxHead * maxColor + maxEyes + (canvasLips - 1);
+  imagePos = calculateAtlas(lipsIndex);
+  ctx.drawImage(
+    avatarAtlas,
+    imagePos.x,
+    imagePos.y,
+    imagePos.width,
+    imagePos.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
 }
 
 /** @argument {Number} index
@@ -1091,49 +1126,8 @@ function calculateAtlas(index) {
  * @param {import("./modules/protocol.mjs").AvatarInfo} avatar
  */
 function updateOtherUserAvatar(element, avatar) {
-  /** @type NodeListOf<HTMLImageElement> */
-  const bodyAvatar = element.querySelectorAll(".body");
-  bodyAvatar.forEach((x) => {
-    if (avatar.body === 0) {
-      x.style.display = "none";
-    } else {
-      x.style.display = "";
-      x.src = `../assets/avatar1${avatar.body}1`;
-    }
-  });
-
-  /** @type NodeListOf<HTMLImageElement> */
-  const headAvatar = element.querySelectorAll(".head");
-  headAvatar.forEach((x) => {
-    if (avatar.head === 0) {
-      x.style.display = "none";
-    } else {
-      x.style.display = "";
-      x.src = `../assets/avatar2${avatar.head}1`;
-    }
-  });
-
-  /** @type NodeListOf<HTMLImageElement> */
-  const eyesAvatar = element.querySelectorAll(".eyes");
-  eyesAvatar.forEach((x) => {
-    if (avatar.eyes === 0) {
-      x.style.display = "none";
-    } else {
-      x.style.display = "";
-      x.src = `../assets/avatar3${avatar.eyes}`;
-    }
-  });
-
-  /** @type NodeListOf<HTMLImageElement> */
-  const lipsAvatar = element.querySelectorAll(".lips");
-  lipsAvatar.forEach((x) => {
-    if (avatar.lips === 0) {
-      x.style.display = "none";
-    } else {
-      x.style.display = "";
-      x.src = `../assets/avatar4${avatar.lips}`;
-    }
-  });
+  const canvas = element.querySelector("canvas");
+  updateUserAvatar(avatar, canvas);
 }
 
 // ====== ASSETS INITIALIZATION ======
