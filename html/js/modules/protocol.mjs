@@ -786,7 +786,8 @@ const handshakeRejectedPacket =
       reason === HandshakeRejectionReason.INCORRECT_PROTOCOL_VERSION ||
       reason === HandshakeRejectionReason.INVALID_HANDSHAKE ||
       reason === HandshakeRejectionReason.USERNAME_TAKEN ||
-      reason === HandshakeRejectionReason.USERNAME_ILLEGAL_CHARACTERS
+      reason === HandshakeRejectionReason.USERNAME_ILLEGAL_CHARACTERS ||
+      reason === HandshakeRejectionReason.HOST_IS_TAKEN
     ) {
       return {
         reason: reason,

@@ -39,19 +39,41 @@ pub struct Game {
 }
 
 pub struct IDManager {
+    id_used: Vec<u8>,
     last_user_id_used: u8,
 }
 
 impl IDManager {
     pub fn new() -> Self {
         Self {
+            id_used: vec![],
             last_user_id_used: 0,
         }
     }
 
     pub fn new_user_id(&mut self) -> UserId {
-        self.last_user_id_used += 1;
-        UserId::new(self.last_user_id_used)
+        if self.last_user_id_used < 250u8 {
+            self.last_user_id_used += 1;
+            self.id_used.push(self.last_user_id_used);
+            return UserId::new(self.last_user_id_used);
+        }
+
+        let mut id = 1;
+        while self.id_used.contains(&id) {
+            id += 1;
+
+            if id > 253u8 {
+                error!("No UserID left!");
+                return UserId::new(0);
+            }
+        }
+
+        self.id_used.push(id);
+        UserId::new(id)
+    }
+
+    pub fn release_id(&mut self, user_id: UserId) {
+        self.id_used.retain(|x| *x != user_id.get_inner_value());
     }
 }
 
@@ -229,6 +251,11 @@ impl Game {
                     Ok(value) => value,
                     Err(error) => {
                         tracing::warn!("Failed to parse handshake: {error}");
+                        self.process_game_command(GameCommand::RemoveConnection(
+                            ConnectionRemovalData {
+                                connection_id: player_handshake_data.connection_id,
+                            },
+                        ));
                         return actions;
                     }
                 };
@@ -240,6 +267,15 @@ impl Game {
             GameCommand::AddHost(host_data) => {
                 if let Err(error) = self.initialize_host_handshake(&host_data) {
                     tracing::warn!("Failed to add host: {error}");
+                    actions.push(ServerAction::SendPacket(OutgoingPacket {
+                        replicant: Replicant::PendingConnection(host_data.connection_id.clone()),
+                        packet: error.into(),
+                    }));
+                    self.process_game_command(GameCommand::RemoveConnection(
+                        ConnectionRemovalData {
+                            connection_id: host_data.connection_id,
+                        },
+                    ));
                     return actions;
                 }
 
@@ -255,6 +291,10 @@ impl Game {
                 } else if self.host_connection.is_some()
                     && self.host_connection.clone().unwrap() == removal_player_data.connection_id
                 {
+                    actions.push(ServerAction::SendPacket(OutgoingPacket {
+                        replicant: Replicant::AllPlayers,
+                        packet: S2CPackets::HostLeft,
+                    }));
                     self.host_connection = None;
                 }
             }
@@ -1058,6 +1098,10 @@ impl Game {
                     users: users_vec,
                 }
                 .as_packet(),
+            }),
+            ServerAction::SendPacket(OutgoingPacket {
+                replicant: Replicant::AllPlayers,
+                packet: S2CPackets::HostJoined,
             }),
         ]
     }

@@ -51,9 +51,13 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
                 break; // Klient się rozłączył
             }
         }
+
+        let _ = sender.send(Message::Close(None)).await;
     });
 
     let connection_id = ConnectionId(state.next_connection_id.fetch_add(1, Ordering::Relaxed));
+
+    let mut local_tx = Some(tx);
 
     while let Some(Ok(message)) = receiver.next().await {
         if let Message::Binary(bytes) = message {
@@ -67,31 +71,45 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
                     );
                     tracing::debug!("Error in mind: {:?}", err);
 
-                    let _ = tx
-                        .send(
-                            HandshakeRejectedPacket {
-                                reason: HandshakeRejectionReason::InvalidHandshake,
-                            }
-                            .as_packet(),
-                        )
-                        .await;
+                    if let Some(reply_tx) = local_tx.take() {
+                        let _ = reply_tx
+                            .send(
+                                HandshakeRejectedPacket {
+                                    reason: HandshakeRejectionReason::InvalidHandshake,
+                                }
+                                .as_packet(),
+                            )
+                            .await;
+                    }
 
                     return;
                 }
             };
 
             let command = match packet {
-                C2SPackets::InitializeHandshake(packet) => GameCommand::AddPlayer(PlayerData {
-                    protocol_version: packet.protocol_version,
-                    username: packet.proposed_username,
-                    connection_id: connection_id.clone(),
-                    reply_tx: tx.clone(),
-                }),
-                C2SPackets::InitializeHostHandshake(packet) => GameCommand::AddHost(HostData {
-                    protocol_version: packet.protocol_version,
-                    connection_id: connection_id.clone(),
-                    reply_tx: tx.clone(),
-                }),
+                C2SPackets::InitializeHandshake(packet) => {
+                    if let Some(reply_tx) = local_tx.take() {
+                        GameCommand::AddPlayer(PlayerData {
+                            protocol_version: packet.protocol_version,
+                            username: packet.proposed_username,
+                            connection_id: connection_id.clone(),
+                            reply_tx,
+                        })
+                    } else {
+                        return;
+                    }
+                }
+                C2SPackets::InitializeHostHandshake(packet) => {
+                    if let Some(reply_tx) = local_tx.take() {
+                        GameCommand::AddHost(HostData {
+                            protocol_version: packet.protocol_version,
+                            connection_id: connection_id.clone(),
+                            reply_tx,
+                        })
+                    } else {
+                        return;
+                    }
+                }
                 C2SPackets::StartGame => GameCommand::StartGame {
                     sender: connection_id.clone(),
                 },

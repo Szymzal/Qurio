@@ -314,6 +314,7 @@ if (playerBoard !== null) {
 
   websocket.onclose = function () {
     console.log("connection closed");
+    showError("Connection closed");
   };
 
   websocket.onmessage = function (e) {
@@ -447,6 +448,16 @@ function handlePackets(data, ws) {
         "Handshake was rejected! {}",
         handshakeRejectedPacket.reason,
       );
+
+      let msg = "";
+      if (handshakeRejectedPacket.reason === 6) {
+        msg = "Host is taken";
+      } else {
+        msg = `Internal server error: ${handshakeRejectedPacket.reason}`;
+      }
+
+      showError(msg);
+
       break;
     case S2CPacketID.UserJoined:
       const userJoinedPacket =
@@ -1532,6 +1543,71 @@ backgroundMusicList[2].addEventListener("ended", (_) => {
   backgroundMusicList[0].play();
   backgroundMusicList[0].currentTime = 0;
 });
+
+/**
+ * @param {string} message
+ * @param {number} duration
+ */
+function showError(message, duration = 3000) {
+  // 1. Create the container if it doesn't exist
+  let container = document.getElementById("error-toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "error-toast-container";
+
+    // Inject CSS directly into the container
+    Object.assign(container.style, {
+      position: "fixed",
+      top: "20px",
+      left: "20px",
+      zIndex: "9999",
+      display: "flex",
+      flexDirection: "column",
+      gap: "10px", // Handles the spacing for stacking
+      pointerEvents: "none", // Lets clicks pass through the container
+    });
+    document.body.appendChild(container);
+  }
+
+  // 2. Create the individual error popup
+  const toast = document.createElement("div");
+  toast.textContent = message;
+
+  // Inject CSS for the popup
+  Object.assign(toast.style, {
+    background: "#ff4d4f", // Red background for errors
+    color: "#ffffff",
+    padding: "12px 20px",
+    borderRadius: "6px",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+    fontFamily: "system-ui, sans-serif",
+    fontSize: "14px",
+    opacity: "0", // Start invisible for fade-in
+    transform: "translateX(-20px)",
+    transition: "all 0.3s ease",
+    pointerEvents: "auto",
+  });
+
+  // 3. Add it to the screen
+  container.appendChild(toast);
+
+  // 4. Trigger the fade-in animation
+  requestAnimationFrame(() => {
+    toast.style.opacity = "1";
+    toast.style.transform = "translateX(0)";
+  });
+
+  // 5. Remove the popup after the duration ends
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateX(-20px)";
+
+    // Wait for the fade-out transition to finish before removing from DOM
+    toast.addEventListener("transitionend", () => {
+      toast.remove();
+    });
+  }, duration);
+}
 
 // ------ DEBUGGING -------
 
