@@ -23,6 +23,7 @@ const PROTOCOL_MAGIC_LENGTH = PROTOCOL_MAGIC.length + 1; // Adding one more byte
  * @property {number} head - ID of the head
  * @property {number} eyes - ID of the eyes
  * @property {number} lips - ID of the lips
+ * @property {number} color - ID of the color
  */
 
 /**
@@ -225,12 +226,16 @@ const readAvatar =
     const lips = dataView.getUint8(offset);
     offset++;
 
+    const color = dataView.getUint8(offset);
+    offset++;
+
     return [
       {
         body: body,
         head: head,
         eyes: eyes,
         lips: lips,
+        color: color,
       },
       offset - oldOffset,
     ];
@@ -565,7 +570,7 @@ export const updateAvatarPacket =
    * @returns {ArrayBuffer}
    */
   (avatar) => {
-    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH + 4);
+    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH + 5);
     const dataView = new DataView(buffer, 0, buffer.byteLength);
 
     // Offset from start of the buffer
@@ -583,6 +588,9 @@ export const updateAvatarPacket =
     offset++;
 
     dataView.setUint8(offset, avatar.lips);
+    offset++;
+
+    dataView.setUint8(offset, avatar.color);
 
     return buffer;
   };

@@ -840,7 +840,7 @@ function handlePackets(data, ws) {
           quickUser = {
             userID: 0,
             username: "Nobody",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
           };
         }
 
@@ -881,7 +881,7 @@ function handlePackets(data, ws) {
           streakUser = {
             userID: 0,
             username: "Nobody",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
           };
         }
 
@@ -932,7 +932,7 @@ function handlePackets(data, ws) {
           firstRealUser = {
             userID: 0,
             username: "_ERROR_",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
           };
         }
 
@@ -958,7 +958,7 @@ function handlePackets(data, ws) {
             secondRealUser = {
               userID: 0,
               username: "_ERROR_",
-              avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+              avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
             };
           }
 
@@ -1018,7 +1018,7 @@ function handlePackets(data, ws) {
           quickUser = {
             userID: 0,
             username: "Nobody",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
           };
         }
 
@@ -1086,7 +1086,7 @@ function handlePackets(data, ws) {
           ratioUser = {
             userID: 0,
             username: "Nobody",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
           };
         }
 
@@ -1384,6 +1384,7 @@ function saveDataInCanvas(avatar, canvas) {
   canvas.setAttribute("headIndex", `${avatar.head}`);
   canvas.setAttribute("eyesIndex", `${avatar.eyes}`);
   canvas.setAttribute("lipsIndex", `${avatar.lips}`);
+  canvas.setAttribute("colorIndex", `${avatar.color}`);
 }
 
 /**
@@ -1413,6 +1414,7 @@ function refreshCanvas(canvas) {
   const canvasHead = Number.parseInt(canvas.getAttribute("headIndex"));
   const canvasEyes = Number.parseInt(canvas.getAttribute("eyesIndex"));
   const canvasLips = Number.parseInt(canvas.getAttribute("lipsIndex"));
+  const canvasColor = Number.parseInt(canvas.getAttribute("colorIndex"));
 
   const ctx = canvas.getContext("2d");
   if (ctx === null) {
@@ -1424,7 +1426,7 @@ function refreshCanvas(canvas) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Body
-  const bodyIndex = (canvasBody - 1) * maxColor;
+  const bodyIndex = (canvasBody - 1) * maxColor + (canvasColor - 1);
   let imagePos = calculateAtlas(bodyIndex);
   ctx.drawImage(
     avatarAtlas,
@@ -1439,7 +1441,8 @@ function refreshCanvas(canvas) {
   );
 
   // Head
-  const headIndex = maxBody * maxColor + (canvasHead - 1) * maxColor;
+  const headIndex =
+    maxBody * maxColor + (canvasHead - 1) * maxColor + (canvasColor - 1);
   imagePos = calculateAtlas(headIndex);
   ctx.drawImage(
     avatarAtlas,

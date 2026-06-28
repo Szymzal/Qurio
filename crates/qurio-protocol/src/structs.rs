@@ -111,7 +111,7 @@ pub struct GameAdvancements {
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct BinBool(bool);
 
-pub const AVATAR_LAYERS: u8 = 4;
+pub const AVATAR_LAYERS: u8 = 5;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct AvatarBodyID(u8);
@@ -124,6 +124,9 @@ pub struct AvatarHeadID(u8);
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct AvatarLipsID(u8);
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct AvatarColorID(u8);
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, BinWrite)]
 pub struct AvatarInfo([u8; AVATAR_LAYERS as usize]);
@@ -324,6 +327,7 @@ avatar_id!(AvatarBodyID, 5, 0);
 avatar_id!(AvatarHeadID, 5, 1);
 avatar_id!(AvatarEyesID, 9, 2);
 avatar_id!(AvatarLipsID, 9, 3);
+avatar_id!(AvatarColorID, 9, 4);
 
 impl AvatarInfo {
     pub fn new(
@@ -331,6 +335,7 @@ impl AvatarInfo {
         head: AvatarHeadID,
         eyes: AvatarEyesID,
         lips: AvatarLipsID,
+        color: AvatarColorID,
     ) -> Self {
         let mut result_value = [0u8; AVATAR_LAYERS as usize];
 
@@ -338,6 +343,7 @@ impl AvatarInfo {
         result_value[AvatarHeadID::id()] = head.0;
         result_value[AvatarEyesID::id()] = eyes.0;
         result_value[AvatarLipsID::id()] = lips.0;
+        result_value[AvatarColorID::id()] = color.0;
 
         Self(result_value)
     }
@@ -347,8 +353,9 @@ impl AvatarInfo {
         let head = AvatarHeadID::random();
         let eyes = AvatarEyesID::random();
         let lips = AvatarLipsID::random();
+        let color = AvatarColorID::random();
 
-        Self::new(body, head, eyes, lips)
+        Self::new(body, head, eyes, lips, color)
     }
 }
 
@@ -360,7 +367,8 @@ impl TryInto<AvatarInfo> for UncheckedAvatarInfo {
         let head = AvatarHeadID::new(self.0[AvatarHeadID::id()])?;
         let eyes = AvatarEyesID::new(self.0[AvatarEyesID::id()])?;
         let lips = AvatarLipsID::new(self.0[AvatarLipsID::id()])?;
+        let color = AvatarColorID::new(self.0[AvatarColorID::id()])?;
 
-        Ok(AvatarInfo::new(body, head, eyes, lips))
+        Ok(AvatarInfo::new(body, head, eyes, lips, color))
     }
 }

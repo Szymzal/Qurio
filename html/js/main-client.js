@@ -5,7 +5,6 @@
 import {
   answerPacket,
   gameStateID,
-  HandshakeRejectionReason,
   initializeHandshakePacket,
   readPacket,
   S2CPacketID,
@@ -44,6 +43,10 @@ const nextEyesBtns = document.querySelectorAll(".nextEyes");
 const prevLipsBtns = document.querySelectorAll(".prevLips");
 /** @type NodeListOf<HTMLParagraphElement> */
 const nextLipsBtns = document.querySelectorAll(".nextLips");
+/** @type NodeListOf<HTMLParagraphElement> */
+const prevColorBtns = document.querySelectorAll(".prevColor");
+/** @type NodeListOf<HTMLParagraphElement> */
+const nextColorBtns = document.querySelectorAll(".nextColor");
 
 /** @type HTMLDivElement | null */
 const wait = document.querySelector("#wait");
@@ -170,6 +173,7 @@ let user_id = -1;
 let username = "";
 
 const maxColor = 9;
+let color = 1;
 const maxBody = 5;
 let body = 1;
 const maxHead = 5;
@@ -254,6 +258,7 @@ if (join_btn && usernameInput && error_box) {
             head: head,
             eyes: eyes,
             lips: lips,
+            color: color,
           };
           websocket.send(updateAvatarPacket(avatar));
           for (let playerAvatar of currentPlayerAvatars) {
@@ -280,6 +285,7 @@ if (join_btn && usernameInput && error_box) {
             head: head,
             eyes: eyes,
             lips: lips,
+            color: color,
           };
           websocket.send(updateAvatarPacket(avatar));
           for (let playerAvatar of currentPlayerAvatars) {
@@ -310,6 +316,7 @@ if (join_btn && usernameInput && error_box) {
             head: head,
             eyes: eyes,
             lips: lips,
+            color: color,
           };
           websocket.send(updateAvatarPacket(avatar));
           for (let playerAvatar of currentPlayerAvatars) {
@@ -336,6 +343,7 @@ if (join_btn && usernameInput && error_box) {
             head: head,
             eyes: eyes,
             lips: lips,
+            color: color,
           };
           websocket.send(updateAvatarPacket(avatar));
           for (let playerAvatar of currentPlayerAvatars) {
@@ -366,6 +374,7 @@ if (join_btn && usernameInput && error_box) {
             head: head,
             eyes: eyes,
             lips: lips,
+            color: color,
           };
           websocket.send(updateAvatarPacket(avatar));
           for (let playerAvatar of currentPlayerAvatars) {
@@ -392,6 +401,7 @@ if (join_btn && usernameInput && error_box) {
             head: head,
             eyes: eyes,
             lips: lips,
+            color: color,
           };
           websocket.send(updateAvatarPacket(avatar));
           for (let playerAvatar of currentPlayerAvatars) {
@@ -422,6 +432,7 @@ if (join_btn && usernameInput && error_box) {
             head: head,
             eyes: eyes,
             lips: lips,
+            color: color,
           };
           websocket.send(updateAvatarPacket(avatar));
           for (let playerAvatar of currentPlayerAvatars) {
@@ -448,6 +459,65 @@ if (join_btn && usernameInput && error_box) {
             head: head,
             eyes: eyes,
             lips: lips,
+            color: color,
+          };
+          websocket.send(updateAvatarPacket(avatar));
+          for (let playerAvatar of currentPlayerAvatars) {
+            updateUserAvatar(avatar, playerAvatar);
+          }
+        });
+      });
+    } else {
+      console.error("No lips buttons!");
+    }
+
+    if (prevColorBtns && nextColorBtns) {
+      prevColorBtns.forEach((x) => {
+        x.addEventListener("click", (event) => {
+          event.preventDefault();
+
+          let nextValue = color - 1;
+
+          if (nextValue < 1) {
+            nextValue = maxColor;
+          }
+
+          color = nextValue;
+
+          /** @type {import("./modules/protocol.mjs").AvatarInfo} */
+          const avatar = {
+            body: body,
+            head: head,
+            eyes: eyes,
+            lips: lips,
+            color: color,
+          };
+          websocket.send(updateAvatarPacket(avatar));
+          for (let playerAvatar of currentPlayerAvatars) {
+            updateUserAvatar(avatar, playerAvatar);
+          }
+        });
+      });
+
+      nextColorBtns.forEach((x) => {
+        x.addEventListener("click", (event) => {
+          event.preventDefault();
+
+          let nextValue = color + 1;
+
+          if (nextValue > maxColor) {
+            nextValue = 1;
+          }
+
+          color = nextValue;
+
+          /** @type {import("./modules/protocol.mjs").AvatarInfo} */
+          const avatar = {
+            body: body,
+            head: head,
+            eyes: eyes,
+            lips: lips,
+            color: color,
           };
           websocket.send(updateAvatarPacket(avatar));
           for (let playerAvatar of currentPlayerAvatars) {
@@ -495,6 +565,7 @@ function handlePackets(data) {
       head = handshakeAcceptedPacket.randomAvatar.head;
       eyes = handshakeAcceptedPacket.randomAvatar.eyes;
       lips = handshakeAcceptedPacket.randomAvatar.lips;
+      color = handshakeAcceptedPacket.randomAvatar.color;
 
       if (usernameTexts && usernameTexts.length > 0) {
         usernameTexts.forEach((x) => {
@@ -606,6 +677,7 @@ function handlePackets(data) {
           head: head,
           eyes: eyes,
           lips: lips,
+          color: color,
         });
       } else {
         console.error("No player position & points");
@@ -1019,6 +1091,7 @@ function saveDataInCanvas(avatar, canvas) {
   canvas.setAttribute("headIndex", `${avatar.head}`);
   canvas.setAttribute("eyesIndex", `${avatar.eyes}`);
   canvas.setAttribute("lipsIndex", `${avatar.lips}`);
+  canvas.setAttribute("colorIndex", `${avatar.color}`);
 }
 
 /**
@@ -1039,6 +1112,7 @@ function refreshCanvas(canvas) {
   const canvasHead = Number.parseInt(canvas.getAttribute("headIndex"));
   const canvasEyes = Number.parseInt(canvas.getAttribute("eyesIndex"));
   const canvasLips = Number.parseInt(canvas.getAttribute("lipsIndex"));
+  const canvasColor = Number.parseInt(canvas.getAttribute("colorIndex"));
 
   const ctx = canvas.getContext("2d");
   if (ctx === null) {
@@ -1050,7 +1124,7 @@ function refreshCanvas(canvas) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Body
-  const bodyIndex = (canvasBody - 1) * maxColor;
+  const bodyIndex = (canvasBody - 1) * maxColor + (canvasColor - 1);
   let imagePos = calculateAtlas(bodyIndex);
   ctx.drawImage(
     avatarAtlas,
@@ -1065,7 +1139,8 @@ function refreshCanvas(canvas) {
   );
 
   // Head
-  const headIndex = maxBody * maxColor + (canvasHead - 1) * maxColor;
+  const headIndex =
+    maxBody * maxColor + (canvasHead - 1) * maxColor + (canvasColor - 1);
   imagePos = calculateAtlas(headIndex);
   ctx.drawImage(
     avatarAtlas,
