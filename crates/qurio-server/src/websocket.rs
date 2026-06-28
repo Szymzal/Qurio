@@ -135,6 +135,9 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
                         data: update_avatar_packet.0,
                     })
                 }
+                C2SPackets::Ping => GameCommand::TimeCalibration {
+                    sender: connection_id.clone(),
+                },
             };
 
             if state.command_tx.send(command).await.is_err() {

@@ -7,6 +7,7 @@ import {
   finishStatsPacket,
   initializeHostHandshakePacket,
   nextQuestionPacket,
+  pingPacket,
   readPacket,
   returnToLobbyPacket,
   S2CPacketID,
@@ -302,6 +303,11 @@ let nextProgressBarDuration = 0;
 let nextAnswerProgressBarDuration = 0;
 let hideProgressBar = false;
 
+const CALIBRATION_TRIES = 5;
+let calibration_num = 0;
+let calibrationTimes = [];
+let serverTimeOffset = 0;
+
 // ====== WEBSOCKET CONNECTION ======
 if (playerBoard !== null) {
   const websocket = new WebSocket(`ws://${window.location.host}/ws`);
@@ -425,6 +431,8 @@ function handlePackets(data, ws) {
   }
 
   console.debug("Received packet ID: ", packet.packetID);
+  console.log(`Blank page id: ${S2CPacketID.BlankPageInfo}`);
+  console.log(`Pong id: ${S2CPacketID.Pong}`);
 
   switch (packet.packetID) {
     case S2CPacketID.HostHandshakeAccepted:
@@ -436,6 +444,9 @@ function handlePackets(data, ws) {
       hostHandshakeAcceptedPacket.users.forEach((user) => {
         users.push(user);
       });
+
+      ws.send(pingPacket());
+      calibrationTimes[calibration_num] = Date.now();
 
       updatePlayerBoard();
       break;
@@ -901,13 +912,25 @@ function handlePackets(data, ws) {
       switchPages(PagesID.QUESTION_STATS);
       break;
     case S2CPacketID.StartAnswering:
-      progressBars.forEach((progressBar) =>
-        progressBar.animate(progressbarKeyframes(), {
-          duration: nextAnswerProgressBarDuration,
-        }),
-      );
+      const startAnsweringPacket =
+        /** @type {import("./modules/protocol.mjs").StartAnsweringPacket} */ (
+          packet.value
+        );
+      let now = Date.now();
+      console.log("what");
 
-      switchPages(PagesID.ANSWERS);
+      const whenStart =
+        startAnsweringPacket.whenTimestamp - now + serverTimeOffset;
+      setTimeout(() => {
+        console.log("ehh");
+        progressBars.forEach((progressBar) =>
+          progressBar.animate(progressbarKeyframes(), {
+            duration: nextAnswerProgressBarDuration,
+          }),
+        );
+        switchPages(PagesID.ANSWERS);
+      }, whenStart);
+
       break;
     case S2CPacketID.GameStats:
       const gameStatsPacket =
@@ -1232,6 +1255,38 @@ function handlePackets(data, ws) {
       }
 
       switchPages(PagesID.QUESTION);
+      break;
+    case S2CPacketID.Pong:
+      const pongPacket =
+        /** @type {import("./modules/protocol.mjs").PongPacket} */ (
+          packet.value
+        );
+
+      console.dir(pongPacket);
+
+      const currentTime = Date.now();
+      const rtt = currentTime - calibrationTimes[calibration_num];
+      const latency = rtt / 2;
+      const serverTime = Number(pongPacket.timestamp);
+      const timeOffset = serverTime - (currentTime - latency);
+      calibrationTimes[calibration_num] = timeOffset;
+      calibration_num++;
+      console.log(`Time offset: ${timeOffset}`);
+
+      if (calibration_num < CALIBRATION_TRIES) {
+        setTimeout(() => {
+          ws.send(pingPacket());
+          calibrationTimes[calibration_num] = Date.now();
+        }, 500);
+      } else {
+        let sum = 0;
+        for (let offset of calibrationTimes) {
+          sum += offset;
+        }
+
+        serverTimeOffset = sum / CALIBRATION_TRIES;
+        console.log(`Server time offset: ${serverTimeOffset}`);
+      }
     default:
       break;
   }

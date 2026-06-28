@@ -6,6 +6,7 @@ import {
   answerPacket,
   gameStateID,
   initializeHandshakePacket,
+  pingPacket,
   readPacket,
   S2CPacketID,
   updateAvatarPacket,
@@ -166,11 +167,16 @@ const pages = [
 /** @type {import("./NoSleep.js/dist/NoSleep.min.js").NoSleep} */
 const noSleep = new NoSleep();
 
+const CALIBRATION_TRIES = 5;
+let calibration_num = 0;
+
 let tips = null;
 let currentPage = PagesID.LOGIN;
 let numberOfAnswers = 0;
 let user_id = -1;
 let username = "";
+let calibrationTimes = [];
+let serverTimeOffset = 0;
 
 const maxColor = 9;
 let color = 1;
@@ -212,7 +218,7 @@ if (join_btn && usernameInput && error_box) {
 
     websocket.onmessage = function (e) {
       if (e.data instanceof ArrayBuffer) {
-        handlePackets(e.data);
+        handlePackets(e.data, websocket);
       } else {
         console.warn("Data are not in Blob");
       }
@@ -539,8 +545,9 @@ if (join_btn && usernameInput && error_box) {
 
 /**
  * @param {ArrayBuffer} data
+ * @param {WebSocket} websocket
  */
-function handlePackets(data) {
+function handlePackets(data, websocket) {
   const packet = readPacket(data);
 
   if (Object.values(packet).length === 0) {
@@ -575,6 +582,9 @@ function handlePackets(data) {
       } else {
         console.error("No usernameTexts?");
       }
+
+      websocket.send(pingPacket());
+      calibrationTimes[calibration_num] = Date.now();
 
       switchPages(PagesID.WAIT);
       break;
@@ -639,7 +649,17 @@ function handlePackets(data) {
 
       break;
     case S2CPacketID.StartAnswering:
-      switchPages(PagesID.ANSWER);
+      const startAnsweringPacket =
+        /** @type {import("./modules/protocol.mjs").StartAnsweringPacket} */ (
+          packet.value
+        );
+
+      let now = Date.now();
+      const whenStart =
+        startAnsweringPacket.whenTimestamp - now + serverTimeOffset;
+      setTimeout(() => {
+        switchPages(PagesID.ANSWER);
+      }, whenStart);
       break;
     case S2CPacketID.PlayerStats:
       const playerStatsPacket =
@@ -1020,6 +1040,35 @@ function handlePackets(data) {
       }
 
       break;
+    case S2CPacketID.Pong:
+      const pongPacket =
+        /** @type {import("./modules/protocol.mjs").PongPacket} */ (
+          packet.value
+        );
+
+      const currentTime = Date.now();
+      const rtt = currentTime - calibrationTimes[calibration_num];
+      const latency = rtt / 2;
+      const serverTime = Number(pongPacket.timestamp);
+      const timeOffset = serverTime - (currentTime - latency);
+      calibrationTimes[calibration_num] = timeOffset;
+      calibration_num++;
+      console.log(`Time offset: ${timeOffset}`);
+
+      if (calibration_num < CALIBRATION_TRIES) {
+        setTimeout(() => {
+          websocket.send(pingPacket());
+          calibrationTimes[calibration_num] = Date.now();
+        }, 500);
+      } else {
+        let sum = 0;
+        for (let offset of calibrationTimes) {
+          sum += offset;
+        }
+
+        serverTimeOffset = sum / CALIBRATION_TRIES;
+        console.log(`Server time offset: ${serverTimeOffset}`);
+      }
     default:
   }
 }

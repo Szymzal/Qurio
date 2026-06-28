@@ -147,6 +147,7 @@ export const S2CPacketID = {
   GameStateInfo: 21,
   UpdateClientAvatar: 22,
   BlankPageInfo: 23,
+  Pong: 24,
 };
 
 const readLeaderboards =
@@ -595,6 +596,29 @@ export const updateAvatarPacket =
     return buffer;
   };
 
+const PING_PACKET_ID = 9;
+export const pingPacket =
+  /**
+   * Client to Server Packet
+   * Indicates that Client changed his avatar
+   *
+   * Binary layout:
+   * - 3 bytes (Magic)
+   * - 1 byte  (Packet ID)
+   *
+   * @returns {ArrayBuffer}
+   */
+  () => {
+    const buffer = new ArrayBuffer(PROTOCOL_MAGIC_LENGTH);
+    const dataView = new DataView(buffer, 0, buffer.byteLength);
+
+    // Offset from start of the buffer
+    let offset = writeMagic(dataView);
+    dataView.setUint8(offset, PING_PACKET_ID);
+
+    return buffer;
+  };
+
 // ======== S2C ========
 
 export const readPacket =
@@ -626,7 +650,8 @@ export const readPacket =
    *            GoAheadPacket|
    *            GameStateInfoPacket|
    *            UpdateClientAvatar|
-   *            BlankPageInfoPacket} value - value of the packet
+   *            BlankPageInfoPacket|
+   *            PongPacket} value - value of the packet
    */
 
   /**
@@ -701,7 +726,7 @@ export const readPacket =
         returnValue.value = gameDetailsPacket(dataView, offset);
         return returnValue;
       case S2CPacketID.StartAnswering:
-        returnValue.value = {};
+        returnValue.value = startAnsweringPacket(dataView, offset);
         return returnValue;
       case S2CPacketID.HostJoined:
         returnValue.value = {};
@@ -723,6 +748,9 @@ export const readPacket =
         return returnValue;
       case S2CPacketID.BlankPageInfo:
         returnValue.value = blankPageInfoPacket(dataView, offset);
+        return returnValue;
+      case S2CPacketID.Pong:
+        returnValue.value = pongPacket(dataView, offset);
         return returnValue;
       default:
         console.error("Packet ID not matched");
@@ -1338,12 +1366,31 @@ const gameDetailsPacket =
     };
   };
 
-/**
- * Indication that now is the moment to answer
- * A Server to Client Packet
- *
- * @typedef {Object} StartAnsweringPacket
- */
+const startAnsweringPacket =
+  /**
+   * Indication that now is the moment to answer
+   * A Server to Client Packet
+   *
+   * @typedef {Object} StartAnsweringPacket
+   * @property {Number} whenTimestamp - when to start answering
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {StartAnsweringPacket}
+   */
+  (dataView, offset) => {
+    const whenTimestamp = dataView.getBigUint64(offset);
+    offset += 8;
+
+    return {
+      whenTimestamp: Number(whenTimestamp),
+    };
+  };
 
 /**
  * Indication host have joined
@@ -1511,7 +1558,7 @@ const updateClientAvatar =
 
 const blankPageInfoPacket =
   /**
-   * Indication to update client avatar
+   * Information about blank page
    * A Server to Host Packet
    *
    * @typedef {Object} BlankPageInfoPacket
@@ -1537,5 +1584,31 @@ const blankPageInfoPacket =
     return {
       pageIndex: pageIndex,
       text: text,
+    };
+  };
+
+const pongPacket =
+  /**
+   * Time calibration stuff
+   * A Server to Client/Host Packet
+   *
+   * @typedef {Object} PongPacket
+   * @property {Number} timestamp - the time which server got ping
+   */
+
+  /** AWARE: You should not use this function directly only with conjuction with readPacket.
+   * This function handles only specfific to this packet values from the packet.
+   * There is no check for magic value or even packet ID.
+   *
+   * @param {number} offset
+   * @param {DataView} dataView
+   * @returns {PongPacket}
+   */
+  (dataView, offset) => {
+    const timestamp = dataView.getBigUint64(offset);
+    offset += 8;
+
+    return {
+      timestamp: Number(timestamp),
     };
   };

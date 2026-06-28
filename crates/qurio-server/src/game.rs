@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     ops::Index,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     vec,
 };
 
@@ -10,9 +10,9 @@ use qurio_protocol::{
     packets::s2c::{
         AnswerDetailsPacket, BlankPageInfoPacket, GameDetailsPacket, GameStateInfoClient,
         GameStateInfoPacket, GameStatsPacket, HandshakeAcceptedPacket, HandshakeRejectedPacket,
-        HostHandshakeAcceptedPacket, PlayerOverallStatsPacket, PlayerStatsPacket,
-        QuestionInfoPacket, QuestionStatsPacket, S2CPackets, UpdateClientAvatarPacket,
-        UserJoinedPacket, UserLeftPacket,
+        HostHandshakeAcceptedPacket, PlayerOverallStatsPacket, PlayerStatsPacket, PongPacket,
+        QuestionInfoPacket, QuestionStatsPacket, S2CPackets, StartAnsweringPacket,
+        UpdateClientAvatarPacket, UserJoinedPacket, UserLeftPacket,
     },
     structs::{
         AvatarInfo, GameAdvancements, HandshakeRejectionReason, KnownPlayerStats, Leaderboard,
@@ -21,7 +21,7 @@ use qurio_protocol::{
     },
 };
 use tokio::sync::mpsc;
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 use crate::{
     GameState, HandshakeInitializationError,
@@ -210,6 +210,7 @@ pub enum GameCommand {
     NextQuestion { sender: ConnectionId },
     FinishStats { sender: ConnectionId },
     ReturnToLobby { sender: ConnectionId },
+    TimeCalibration { sender: ConnectionId },
 }
 
 #[derive(Clone, Debug)]
@@ -352,15 +353,6 @@ impl Game {
                 }
 
                 self.game_state = GameState::Answering;
-
-                actions.push(ServerAction::SendPacket(OutgoingPacket {
-                    replicant: Replicant::Host,
-                    packet: S2CPackets::StartAnswering,
-                }));
-                actions.push(ServerAction::SendPacket(OutgoingPacket {
-                    replicant: Replicant::AllPlayers,
-                    packet: S2CPackets::StartAnswering,
-                }));
 
                 for user in self.users.values_mut() {
                     user.answered = UserAnswered::NotAnswered;
@@ -710,6 +702,43 @@ impl Game {
                         }));
                     }
                 }
+            }
+            GameCommand::TimeCalibration { sender } => {
+                let replicant = match self.connections.get(&sender) {
+                    Some(user_id) => Replicant::Player(*user_id),
+                    None => match &self.host_connection {
+                        Some(connection_id) => {
+                            if *connection_id == sender {
+                                Replicant::Host
+                            } else {
+                                error!(
+                                    "Time calibration failed, could not find a connection: {:?}",
+                                    sender
+                                );
+
+                                return actions;
+                            }
+                        }
+                        None => {
+                            error!(
+                                "Time calibration failed, could not find a connection: {:?}",
+                                sender
+                            );
+
+                            return actions;
+                        }
+                    },
+                };
+
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Time should go forward")
+                    .as_millis() as u64;
+
+                actions.push(ServerAction::SendPacket(OutgoingPacket {
+                    replicant,
+                    packet: PongPacket { timestamp }.as_packet(),
+                }));
             }
         }
 
@@ -1065,11 +1094,10 @@ impl Game {
 
     fn did_user_answer_correctly(&self, user_id: &UserId) -> bool {
         let user = self.users.get(user_id);
-        let answer_mask = 1
-            << user.map_or(0, |x| match x.answered {
-                UserAnswered::NotAnswered => 0,
-                UserAnswered::Answered(index) => index,
-            });
+        let answer_mask = user.map_or(0, |x| match x.answered {
+            UserAnswered::NotAnswered => 0,
+            UserAnswered::Answered(index) => 1 << index,
+        });
 
         let question = &self.quiz_state.quiz.pages[self.quiz_state.question_index as usize];
         match question {
@@ -1250,17 +1278,39 @@ impl Game {
             .as_packet(),
         }));
 
+        let duration = question.read_question_milis as u64
+            + (if title_screen_wait {
+                self.quiz_state.quiz.title_screen_wait as u64
+            } else {
+                0
+            });
         actions.push(ServerAction::StartTimer {
-            duration_ms: (question.read_question_milis as u64
-                + (if title_screen_wait {
-                    self.quiz_state.quiz.title_screen_wait as u64
-                } else {
-                    0
-                })),
+            duration_ms: duration,
             command: GameCommand::StartAnswering(StartAnsweringData {
                 question_index: self.quiz_state.question_index,
             }),
         });
+
+        let next_time = SystemTime::now()
+            .checked_add(Duration::from_millis(duration))
+            .expect("Time goes backwards?")
+            .duration_since(UNIX_EPOCH)
+            .expect("Time goes forward")
+            .as_millis() as u64;
+        actions.push(ServerAction::SendPacket(OutgoingPacket {
+            replicant: Replicant::Host,
+            packet: StartAnsweringPacket {
+                when_timestamp: next_time,
+            }
+            .as_packet(),
+        }));
+        actions.push(ServerAction::SendPacket(OutgoingPacket {
+            replicant: Replicant::AllPlayers,
+            packet: StartAnsweringPacket {
+                when_timestamp: next_time,
+            }
+            .as_packet(),
+        }));
 
         actions
     }

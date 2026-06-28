@@ -60,7 +60,7 @@ pub mod s2c {
         GameDetails(GameDetailsPacket),
         #[bw(magic = 16u8)]
         /// Client/Host Packet
-        StartAnswering,
+        StartAnswering(StartAnsweringPacket),
         #[bw(magic = 17u8)]
         /// Client Packet
         HostJoined,
@@ -82,6 +82,9 @@ pub mod s2c {
         #[bw(magic = 23u8)]
         /// Host Packet
         BlankPageInfo(BlankPageInfoPacket),
+        #[bw(magic = 24u8)]
+        /// Client/Host Packet
+        Pong(PongPacket),
     }
 
     #[derive(BinWrite, Clone, Debug)]
@@ -215,6 +218,16 @@ pub mod s2c {
         pub text: BinString,
     }
 
+    #[derive(BinWrite, Clone, Debug)]
+    pub struct PongPacket {
+        pub timestamp: u64,
+    }
+
+    #[derive(BinWrite, Clone, Debug)]
+    pub struct StartAnsweringPacket {
+        pub when_timestamp: u64,
+    }
+
     impl S2CPackets {
         pub fn write_as_binary(self) -> Result<Vec<u8>, binrw::Error> {
             let mut writer = Cursor::new(Vec::new());
@@ -255,9 +268,11 @@ pub mod s2c {
     packet!(PlayerStatsPacket, PlayerStats);
     packet!(PlayerOverallStatsPacket, PlayerOverallStats);
     packet!(GameDetailsPacket, GameDetails);
+    packet!(StartAnsweringPacket, StartAnswering);
     packet!(GameStateInfoPacket, GameStateInfo);
     packet!(UpdateClientAvatarPacket, UpdateClientAvatar);
     packet!(BlankPageInfoPacket, BlankPageInfo);
+    packet!(PongPacket, Pong);
 }
 
 pub mod c2s {
@@ -297,6 +312,9 @@ pub mod c2s {
         #[br(magic = 8u8)]
         /// Client Packet
         UpdateAvatar(UpdateAvatarPacket),
+        #[br(magic = 9u8)]
+        /// Client/Host Packet
+        Ping,
     }
 
     #[derive(BinRead, Clone, Debug)]
