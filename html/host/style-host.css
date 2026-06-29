@@ -754,6 +754,7 @@ canvas {
 
 .questionImage {
   max-height: 75%;
+  max-width: 50%;
   object-fit: contain;
   margin-right: 5rem;
 }

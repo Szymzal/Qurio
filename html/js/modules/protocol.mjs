@@ -966,7 +966,7 @@ const questionInfoPacket =
     offset++;
 
     let image = null;
-    if (offset + dataView.byteOffset + 8 < dataView.byteLength) {
+    if (offset + dataView.byteOffset + 1 < dataView.byteLength) {
       const [string, newOffset] = readBinString(dataView, offset);
       offset += newOffset;
       image = string;
