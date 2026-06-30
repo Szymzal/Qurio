@@ -6,16 +6,36 @@
     "Isn't it stressful?",
     "Doing great! I think...",
     "Feeling extra lucky?",
-    "Did u even read the question right?"
+    "Did u even read the question right?",
+    "A choice was made.",
+    "Is that your final answer?",
+    "Bold strategy, let's see if it pays off",
+    "Calculated... but man, am I bad at math",
+    "Processing your life choices...",
+    "Brain.exe has stopped working",
+    "Just picking random colors at this point?"
   ],
   "wrong": [
     "Never give up!",
     "That was a missclick",
-    "Unlucky"
+    "Unlucky",
+    "Oof, that's gotta hurt",
+    "Mission failed, we'll get 'em next time",
+    "The risk was calculated, but...",
+    "Close enough? Not really, but nice try",
+    "At least your avatar looks cool",
+    "We will pretend that didn't happen"
   ],
   "correct": [
     "Keep going!!!",
     "You are amazing",
-    "Great guess..."
+    "Great guess...",
+    "Absolute genius!",
+    "Look at you go!",
+    "Is it possible to learn this power?",
+    "Unstoppable!",
+    "Are you cheating or just built different?",
+    "Clean streak!",
+    "Easiest points of your life"
   ]
 }
