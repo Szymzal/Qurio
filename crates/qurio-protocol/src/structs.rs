@@ -323,10 +323,10 @@ macro_rules! avatar_id {
     };
 }
 
-avatar_id!(AvatarBodyID, 5, 0);
-avatar_id!(AvatarHeadID, 5, 1);
-avatar_id!(AvatarEyesID, 9, 2);
-avatar_id!(AvatarLipsID, 9, 3);
+avatar_id!(AvatarBodyID, 7, 0);
+avatar_id!(AvatarHeadID, 7, 1);
+avatar_id!(AvatarEyesID, 16, 2);
+avatar_id!(AvatarLipsID, 16, 3);
 avatar_id!(AvatarColorID, 9, 4);
 
 impl AvatarInfo {

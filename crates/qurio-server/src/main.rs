@@ -138,6 +138,7 @@ async fn main() {
         .route("/main-client.js", get(js))
         .route("/main-host.js", get(js_host))
         .route("/blocks.js", get(js_blocks))
+        .route("/blocks2.js", get(js_blocks2))
         .route("/particles.min.js", get(js_particles))
         .route("/nosleep.js", get(js_nosleep))
         .route("/assets/{file}", get(assets))
@@ -234,6 +235,13 @@ async fn js_blocks() -> impl IntoResponse {
     )
 }
 
+async fn js_blocks2() -> impl IntoResponse {
+    (
+        [(header::CONTENT_TYPE, "text/javascript")],
+        include_str!("../../../html/js/bloczki2.js"),
+    )
+}
+
 async fn js_particles() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/javascript")],
@@ -295,6 +303,16 @@ async fn assets(Path(path): Path<String>) -> impl IntoResponse {
         "sound-background-music3" => (
             [(header::CONTENT_TYPE, "audio/mpeg")],
             include_bytes!("../../../html/assets/sound/background-music3.mp3"),
+        )
+            .into_response(),
+        "sound-player-join" => (
+            [(header::CONTENT_TYPE, "audio/mpeg")],
+            include_bytes!("../../../html/assets/sound/player-join.mp3"),
+        )
+            .into_response(),
+        "sound-winner" => (
+            [(header::CONTENT_TYPE, "audio/mpeg")],
+            include_bytes!("../../../html/assets/sound/winner.mp3"),
         )
             .into_response(),
         "tips" => (

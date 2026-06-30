@@ -10,7 +10,22 @@
     font-family: InterVariable, sans-serif;
   }
 }
+/*
+#7eb56f
 
+#e4633d
+
+#f4d35e
+
+#7ac1bd
+
+zielony
+#4a9e81
+
+41816b
+325e4e
+
+*/
 * {
   font-family: Inter;
 }
@@ -24,7 +39,7 @@ body {
   width: 100%;
   height: 100%;
   margin: 0;
-  background-color: #2c2e43;
+  background-color: #e4e4e4;
 }
 
 canvas {
@@ -42,13 +57,22 @@ canvas {
   grid-template-rows: 1fr;
   grid-template-areas: "a";
 }
+.container2 {
+  background: transparent;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  height: 100vh;
+  width: 100vw;
+}
 
 .page {
   width: 100%;
   height: 100%;
   grid-area: a;
   z-index: 2;
-  color: white;
+  color: rgb(23, 21, 27);
 }
 
 .compactTitle {
@@ -108,8 +132,8 @@ canvas {
 }
 
 #startGame {
-  border: 1rem solid #223a31;
-  background-color: #2a4c40;
+  border: 1rem solid #325e4e;
+  background-color: #41816b;
 }
 
 #settings {
@@ -199,10 +223,10 @@ canvas {
   animation: 10s linear both progress;
   background: linear-gradient(
     to right,
-    #2a4c40,
-    #2a4c40 calc(var(--percentage) - 3%),
-    #2c2e43 var(--percentage),
-    #2c2e43
+    #41816b,
+    #41816b calc(var(--percentage) - 3%),
+    #e4e4e4 var(--percentage),
+    #e4e4e4
   );
 }
 
@@ -225,19 +249,19 @@ canvas {
 }
 
 #stats0 .column {
-  background-color: #b93f3f;
+  background-color: #7eb56f;
 }
 
 #stats1 .column {
-  background-color: #7019e9;
+  background-color: #e4633d;
 }
 
 #stats2 .column {
-  background-color: #81e819;
+  background-color: #f4d35e;
 }
 
 #stats3 .column {
-  background-color: #e9ce19;
+  background-color: #7ac1bd;
 }
 
 #stats0,
@@ -412,22 +436,22 @@ canvas {
 
 .answer0Text {
   grid-area: a;
-  background-color: #b93f3f;
+  background-color: #7eb56f;
 }
 
 .answer1Text {
   grid-area: b;
-  background-color: #7019e9;
+  background-color: #e4633d;
 }
 
 .answer2Text {
   grid-area: c;
-  background-color: #81e819;
+  background-color: #f4d35e;
 }
 
 .answer3Text {
   grid-area: d;
-  background-color: #e9ce19;
+  background-color: #7ac1bd;
 }
 
 .answerText h2 {
@@ -679,12 +703,44 @@ canvas {
   border-radius: 2rem;
   margin: auto;
   margin-bottom: 1rem;
+  animation: wiggle 3s linear infinite;
+  transform-origin: 50% 8em;
+}
+@keyframes wiggle{
+  0%,
+  5%{
+    transform: rotateZ(0);
+  }
+  15%{
+    transform: rotateZ(-15deg);
+  }
+  20%{
+    transform: rotateZ(10deg);
+  }
+  25%{
+    transform: rotateZ(-10deg);
+  }
+  30%{
+    transform: rotateZ(6deg);
+  }
+  35%{
+    transform: rotateZ(-4deg);
+  }
+  40%,
+  100%{
+    transform: rotateZ(0);
+  }
+
 }
 
 #podiumPage {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .podium {
@@ -692,11 +748,87 @@ canvas {
   align-items: flex-end;
   justify-content: center;
   gap: 0.5rem;
+
 }
 
 #podiumPage .username {
   text-align: center;
   font-size: 1.5rem;
+}
+
+.spotlight {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  pointer-events: none; /* Prevents blocking clicks on elements below */
+  
+  /* A subtle white inner glow to look like a real bulb cone */
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%);
+  
+  /* Enormous shadow that covers the whole screen in darkness */
+  box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.596); 
+  
+  /* Hidden by default until JS confirms page load */
+  opacity: 0; 
+}
+
+/* Class triggered by JavaScript on load */
+.spotlight.start-shine {
+  opacity: 0.94;
+  animation: revealSequence 5s ease-in-out forwards;
+}
+
+/* --- THE ANIMATION TIMELINE --- */
+@keyframes revealSequence {
+  /* 0% - 25%: Focus entirely on 3rd Place (Right side) */
+
+  0% {
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(10);
+    box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0);
+  }
+
+  10%, 25% {
+    left: 64%;
+    top: 53%;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.98);
+  }
+  
+  /* 25% - 35%: Smoothly pan across the screen */
+  
+  /* 35% - 60%: Focus entirely on 2nd Place (Left side) */
+  35%, 50% {
+    left: 36%;
+    top: 44%;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.98);
+  }
+  
+  /* 60% - 70%: Smoothly pan to the center */
+  
+  /* 70% - 90%: Dramatic pause on 1st Place (Center)! */
+  60%, 90% {
+    left: 50%;
+    top: 30%;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.98);
+    opacity: 0.94;
+  }
+  
+  /* 90% - 100%: Blow up the spotlight size and drop the dark shadow to reveal everything */
+  100% {
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(10);
+    box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0);
+    opacity: 0;
+    visibility: hidden;
+    
+    
+  }
 }
 
 #toEndStatistics {

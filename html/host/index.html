@@ -10,6 +10,7 @@
 	</head>
 
 	<body>
+		<div class="container2" id="background2"></div>
 		<div class="container" id="background">
 			<div class="page" id="lobby">
 				<div class="compactTitle">
@@ -165,6 +166,7 @@
 				<div class="leaderboardSide">
 					<h2>Leaderboard</h2>
 					<div class="classicLeaderboard" id="leaderboard">
+						<div class="spotlight"></div>
 						<div class="player">
 							<div class="miniAvatar">
 								<canvas class="avatarCanvas"></canvas>
@@ -189,6 +191,7 @@
 							<p class="username">Yoqvi</p>
 							<p class="points">500</p>
 						</div>
+						
 					</div>
 				</div>
 				<div class="achievements">
@@ -221,11 +224,16 @@
 				<button id="nextQuestion">Next Question</button>
 			</div>
 			<div class="page" id="podiumPage" style="display: none;">
+				<script>
+					
+				</script>
+				
 				<div class="compactTitle">
 					<h1 translate="no">Qurio</h1>
 					<h6>definitely not kahoot!</h6>
 				</div>
 				<div class="podium">
+					
 					<div class="secondPlace place">
 						<p class="username">Szymzal</p>
 						<div class="avatar">
@@ -259,6 +267,7 @@
 							<path d="M156.726 50.3416L131.93 91.2797L123.138 86.9568C125.636 85.8013 128.422 85.2265 131.499 85.2265C135.053 85.1326 138.514 85.5403 141.878 86.4524C145.242 87.3645 148.268 88.9276 150.961 91.136C153.65 93.3472 155.788 96.3034 157.374 100.002C158.961 103.703 159.753 108.29 159.753 113.768C159.753 120.496 158.216 126.308 155.14 131.209C152.063 136.112 147.978 139.884 142.887 142.526C137.793 145.169 132.17 146.488 126.021 146.488C121.407 146.488 116.771 145.529 112.111 143.606C107.448 141.685 103.629 139.189 100.652 136.112L108.292 123.713C110.02 125.83 112.471 127.728 115.642 129.408C118.815 131.092 122.176 131.93 125.733 131.93C130.728 131.93 135.053 130.226 138.708 126.813C142.359 123.402 144.183 118.765 144.183 112.903C144.183 107.618 142.646 103.439 139.573 100.362C136.493 97.2888 132.267 95.7492 126.886 95.7492C124.097 95.7492 121.792 95.9427 119.967 96.3269C118.14 96.7111 116.457 97.1891 114.923 97.7669L114.345 97.1891L135.968 62.8819L140.582 64.8997H106.562V50.3416H156.726Z" fill="#1D1D1B" stroke="#1D1D1B" stroke-width="0.25" stroke-miterlimit="10"/>
 						</svg>
 					</div>
+					<div class="spotlight start-shine"></div>
 				</div>
 				<button id="toEndStatistics">Next</button>
 			</div>
@@ -352,5 +361,6 @@
 
 		<script src="particles.min.js"></script>
 		<script src="blocks.js"></script>
+		<script src="blocks2.js"></script>
 	</body>
 </html>

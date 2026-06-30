@@ -247,6 +247,8 @@ const overallRatioAvatarElement = document.querySelector(
 const backgroundMusic1 = new Audio("../assets/sound-background-music1");
 const backgroundMusic2 = new Audio("../assets/sound-background-music2");
 const backgroundMusic3 = new Audio("../assets/sound-background-music3");
+const joinEffect = new Audio("../assets/sound-player-join");
+const winnerEffect = new Audio("../assets/sound-winner");
 
 // ====== VARIABLES ======
 
@@ -291,10 +293,10 @@ const pages = [
 let users = [];
 
 const maxColor = 9;
-const maxBody = 5;
-const maxHead = 5;
-const maxEyes = 9;
-const maxLips = 9;
+const maxBody = 7;
+const maxHead = 7;
+const maxEyes = 16;
+const maxLips = 16;
 const avatarAtlas = new Image();
 avatarAtlas.src = "../assets/avatars";
 
@@ -345,11 +347,12 @@ if (playerBoard !== null) {
         startGameBtn.disabled = true;
         toTheLobbyBtn.disabled = false;
         websocket.send(startGamePacket());
-        stopBackgroundMusic();
+        startBackgroundMusic();
       } else {
         console.error("You need at least 1 player!");
       }
     });
+
 
     toTheLobbyBtn.addEventListener("click", (event) => {
       event.preventDefault();
@@ -358,8 +361,9 @@ if (playerBoard !== null) {
       toTheLobbyBtn.disabled = true;
       websocket.send(returnToLobbyPacket());
       switchPages(PagesID.LOBBY);
-      startBackgroundMusic();
+      stopBackgroundMusic();
     });
+    
 
     advanceBtn.addEventListener("click", (event) => {
       event.preventDefault();
@@ -482,7 +486,9 @@ function handlePackets(data, ws) {
           packet.value
         );
       console.log(`User ${userJoinedPacket.user.username} joined!`);
-
+      joinEffect.volume = 0.1;
+      // dasddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+      joinEffect.play();
       users.push(userJoinedPacket.user);
       updatePlayerBoard();
       break;
@@ -1143,6 +1149,21 @@ function handlePackets(data, ws) {
 
       switchPages(PagesID.PODIUM);
 
+      for (let backgroundMusic of backgroundMusicList) {
+        backgroundMusic.volume = 0.05;
+      }
+
+      setTimeout(() => {
+        winnerEffect.volume = 0.2;
+        winnerEffect.play();
+      }, 600);
+
+      winnerEffect.onended = () => {
+        for (let backgroundMusic of backgroundMusicList) {
+          backgroundMusic.volume = 0.1;
+        }
+      };
+      
       const timeChangeMilis = 1000;
 
       const firstPlaceFun = () => {
@@ -1574,7 +1595,9 @@ function startBackgroundMusic() {
     backgroundMusicList[0].currentTime = 0;
   }
 
-  backgroundMusicList[0].play();
+  backgroundMusicList[0].play().catch(err => {
+    console.log("music no no, czekam na interakcję użytkownika...");
+  });
 }
 
 function stopBackgroundMusic() {

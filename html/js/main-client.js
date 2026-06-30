@@ -181,13 +181,13 @@ let serverTimeOffset = 0;
 
 const maxColor = 9;
 let color = 1;
-const maxBody = 5;
+const maxBody = 7;
 let body = 1;
-const maxHead = 5;
+const maxHead = 7;
 let head = 1;
-const maxEyes = 9;
+const maxEyes = 16;
 let eyes = 1;
-const maxLips = 9;
+const maxLips = 16;
 let lips = 1;
 
 const avatarAtlas = new Image();

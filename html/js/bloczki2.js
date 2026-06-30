@@ -1,4 +1,4 @@
-particlesJS("background", {
+particlesJS("background2", {
   particles: {
     number: { value: 3, density: { enable: true, value_area: 800 } },
     color: { value: "#1b1e34" },
@@ -8,8 +8,8 @@ particlesJS("background", {
       polygon: { nb_sides: 4 },
       image: 
 
-        { src: "quiz/assets/logotyp.png", width: 1300, height: 222 },
-   
+        { src: "quiz/assets/logotyp2.png", width: 824, height: 1006 },
+
     },
     opacity: {
       value: 0.3,
@@ -17,9 +17,9 @@ particlesJS("background", {
       anim: { enable: false, speed: 1, opacity_min: 0.1, sync: false },
     },
     size: {
-      value: 70,
+      value: 40,
       random: false,
-      anim: { enable: true, speed: 10, size_min: 70, sync: false },
+      anim: { enable: true, speed: 10, size_min: 40, sync: false },
     },
     line_linked: {
       enable: false,
