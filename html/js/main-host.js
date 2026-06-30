@@ -288,7 +288,7 @@ const pages = [
 /**
  * @type {import("./modules/protocol.mjs").User[]}
  */
-const users = [];
+let users = [];
 
 const maxColor = 9;
 const maxBody = 5;
@@ -322,6 +322,11 @@ if (playerBoard !== null) {
   websocket.onclose = function () {
     console.log("connection closed");
     showError("Connection closed");
+
+    users = [];
+    updatePlayerBoard();
+
+    switchPages(PagesID.LOBBY);
   };
 
   websocket.onmessage = function (e) {

@@ -1432,6 +1432,7 @@ export const gameStateID = {
   Answering: 2,
   Stats: 3,
   End: 4,
+  Blank: 5,
 };
 
 const gameStateInfoPacket =

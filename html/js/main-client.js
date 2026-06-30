@@ -215,6 +215,7 @@ if (join_btn && usernameInput && error_box) {
       console.log("connection closed");
       showError("Connection closed");
       btn.disabled = false;
+      switchPages(PagesID.LOGIN);
     };
 
     websocket.onmessage = function (e) {
@@ -850,8 +851,6 @@ function handlePackets(data, websocket) {
           packet.value
         );
 
-      console.dir(gameStateInfoPacket);
-
       switch (gameStateInfoPacket.id) {
         case gameStateID.Lobby:
           switchPages(PagesID.WAIT);
@@ -1041,6 +1040,9 @@ function handlePackets(data, websocket) {
           }
 
           switchPages(PagesID.GAME_RESULTS);
+          break;
+        case gameStateID.Blank:
+          switchPages(PagesID.WAIT_FOR_QUESTION);
           break;
         default:
           console.error("Unkown game state ID! Disconnecting...");
