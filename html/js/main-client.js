@@ -654,12 +654,21 @@ function handlePackets(data, websocket) {
           packet.value
         );
 
+      console.dir(startAnsweringPacket);
+
       let now = Date.now();
-      const whenStart =
-        startAnsweringPacket.whenTimestamp - now + serverTimeOffset;
-      setTimeout(() => {
-        switchPages(PagesID.ANSWER);
-      }, whenStart);
+      const whenStart = startAnsweringPacket.whenTimestamp;
+
+      function whenStartFn() {
+        const serverTime = Date.now() + serverTimeOffset;
+        if (serverTime >= whenStart) {
+          switchPages(PagesID.ANSWER);
+        } else {
+          requestAnimationFrame(whenStartFn);
+        }
+      }
+
+      whenStartFn();
       break;
     case S2CPacketID.PlayerStats:
       const playerStatsPacket =
