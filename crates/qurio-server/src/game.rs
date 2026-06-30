@@ -376,7 +376,8 @@ impl Game {
                 }
             }
             GameCommand::RegisterAnswer(answer_data) => {
-                if self.game_state != GameState::Answering {
+                if self.game_state != GameState::Answering || self.game_state != GameState::Question
+                {
                     tracing::warn!("Answer too late");
                     return actions;
                 }

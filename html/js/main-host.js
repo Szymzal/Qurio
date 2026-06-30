@@ -306,6 +306,7 @@ let hideProgressBar = false;
 const CALIBRATION_TRIES = 5;
 let calibration_num = 0;
 let calibrationTimes = [];
+let bestRtt = Infinity;
 let serverTimeOffset = 0;
 
 // ====== WEBSOCKET CONNECTION ======
@@ -916,21 +917,23 @@ function handlePackets(data, ws) {
         /** @type {import("./modules/protocol.mjs").StartAnsweringPacket} */ (
           packet.value
         );
-      let now = Date.now();
-      console.log("what");
 
-      const whenStart =
-        startAnsweringPacket.whenTimestamp - now + serverTimeOffset;
-      setTimeout(() => {
-        console.log("ehh");
-        progressBars.forEach((progressBar) =>
-          progressBar.animate(progressbarKeyframes(), {
-            duration: nextAnswerProgressBarDuration,
-          }),
-        );
-        switchPages(PagesID.ANSWERS);
-      }, whenStart);
+      const whenStart = startAnsweringPacket.whenTimestamp;
+      function whenStartFn() {
+        const serverTime = Date.now() + serverTimeOffset;
+        if (serverTime >= whenStart) {
+          progressBars.forEach((progressBar) =>
+            progressBar.animate(progressbarKeyframes(), {
+              duration: nextAnswerProgressBarDuration,
+            }),
+          );
+          switchPages(PagesID.ANSWERS);
+        } else {
+          requestAnimationFrame(whenStartFn);
+        }
+      }
 
+      whenStartFn();
       break;
     case S2CPacketID.GameStats:
       const gameStatsPacket =
@@ -1262,8 +1265,6 @@ function handlePackets(data, ws) {
           packet.value
         );
 
-      console.dir(pongPacket);
-
       const currentTime = Date.now();
       const rtt = currentTime - calibrationTimes[calibration_num];
       const latency = rtt / 2;
@@ -1273,19 +1274,16 @@ function handlePackets(data, ws) {
       calibration_num++;
       console.log(`Time offset: ${timeOffset}`);
 
+      if (rtt < bestRtt) {
+        bestRtt = rtt;
+        serverTimeOffset = timeOffset;
+      }
+
       if (calibration_num < CALIBRATION_TRIES) {
         setTimeout(() => {
           ws.send(pingPacket());
           calibrationTimes[calibration_num] = Date.now();
         }, 500);
-      } else {
-        let sum = 0;
-        for (let offset of calibrationTimes) {
-          sum += offset;
-        }
-
-        serverTimeOffset = sum / CALIBRATION_TRIES;
-        console.log(`Server time offset: ${serverTimeOffset}`);
       }
     default:
       break;

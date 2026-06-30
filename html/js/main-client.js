@@ -176,6 +176,7 @@ let numberOfAnswers = 0;
 let user_id = -1;
 let username = "";
 let calibrationTimes = [];
+let bestRtt = Infinity;
 let serverTimeOffset = 0;
 
 const maxColor = 9;
@@ -656,9 +657,7 @@ function handlePackets(data, websocket) {
 
       console.dir(startAnsweringPacket);
 
-      let now = Date.now();
       const whenStart = startAnsweringPacket.whenTimestamp;
-
       function whenStartFn() {
         const serverTime = Date.now() + serverTimeOffset;
         if (serverTime >= whenStart) {
@@ -1064,19 +1063,16 @@ function handlePackets(data, websocket) {
       calibration_num++;
       console.log(`Time offset: ${timeOffset}`);
 
+      if (rtt < bestRtt) {
+        bestRtt = rtt;
+        serverTimeOffset = timeOffset;
+      }
+
       if (calibration_num < CALIBRATION_TRIES) {
         setTimeout(() => {
           websocket.send(pingPacket());
           calibrationTimes[calibration_num] = Date.now();
         }, 500);
-      } else {
-        let sum = 0;
-        for (let offset of calibrationTimes) {
-          sum += offset;
-        }
-
-        serverTimeOffset = sum / CALIBRATION_TRIES;
-        console.log(`Server time offset: ${serverTimeOffset}`);
       }
     default:
   }
