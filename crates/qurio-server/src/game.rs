@@ -354,10 +354,6 @@ impl Game {
 
                 self.game_state = GameState::Answering;
 
-                for user in self.users.values_mut() {
-                    user.answered = UserAnswered::NotAnswered;
-                }
-
                 self.answering_timestamp = Instant::now();
 
                 let question = &self.quiz_state.quiz.pages[self.quiz_state.question_index as usize];
@@ -1291,6 +1287,10 @@ impl Game {
                 question_index: self.quiz_state.question_index,
             }),
         });
+
+        for user in self.users.values_mut() {
+            user.answered = UserAnswered::NotAnswered;
+        }
 
         let next_time = SystemTime::now()
             .checked_add(Duration::from_millis(duration))

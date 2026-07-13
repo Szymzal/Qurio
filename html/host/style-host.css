@@ -651,6 +651,10 @@ canvas {
   height: 3em;
 }
 
+#overallQuickestAchievement .row {
+  color: white;
+}
+
 .achievements #quickestAchievement .row,
 .achievements #overallQuickestAchievement .row {
   background-color: #2a4c40;
@@ -706,31 +710,30 @@ canvas {
   animation: wiggle 3s linear infinite;
   transform-origin: 50% 8em;
 }
-@keyframes wiggle{
+@keyframes wiggle {
   0%,
-  5%{
+  5% {
     transform: rotateZ(0);
   }
-  15%{
+  15% {
     transform: rotateZ(-15deg);
   }
-  20%{
+  20% {
     transform: rotateZ(10deg);
   }
-  25%{
+  25% {
     transform: rotateZ(-10deg);
   }
-  30%{
+  30% {
     transform: rotateZ(6deg);
   }
-  35%{
+  35% {
     transform: rotateZ(-4deg);
   }
   40%,
-  100%{
+  100% {
     transform: rotateZ(0);
   }
-
 }
 
 #podiumPage {
@@ -748,7 +751,6 @@ canvas {
   align-items: flex-end;
   justify-content: center;
   gap: 0.5rem;
-
 }
 
 #podiumPage .username {
@@ -762,15 +764,19 @@ canvas {
   height: 300px;
   border-radius: 50%;
   pointer-events: none; /* Prevents blocking clicks on elements below */
-  
+
   /* A subtle white inner glow to look like a real bulb cone */
-  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%);
-  
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0) 70%
+  );
+
   /* Enormous shadow that covers the whole screen in darkness */
-  box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.596); 
-  
+  box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.596);
+
   /* Hidden by default until JS confirms page load */
-  opacity: 0; 
+  opacity: 0;
 }
 
 /* Class triggered by JavaScript on load */
@@ -790,34 +796,37 @@ canvas {
     box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0);
   }
 
-  10%, 25% {
+  10%,
+  25% {
     left: 64%;
     top: 53%;
     transform: translate(-50%, -50%) scale(1);
     box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.98);
   }
-  
+
   /* 25% - 35%: Smoothly pan across the screen */
-  
+
   /* 35% - 60%: Focus entirely on 2nd Place (Left side) */
-  35%, 50% {
+  35%,
+  50% {
     left: 36%;
     top: 44%;
     transform: translate(-50%, -50%) scale(1);
     box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.98);
   }
-  
+
   /* 60% - 70%: Smoothly pan to the center */
-  
+
   /* 70% - 90%: Dramatic pause on 1st Place (Center)! */
-  60%, 90% {
+  60%,
+  90% {
     left: 50%;
     top: 30%;
     transform: translate(-50%, -50%) scale(1);
     box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.98);
     opacity: 0.94;
   }
-  
+
   /* 90% - 100%: Blow up the spotlight size and drop the dark shadow to reveal everything */
   100% {
     left: 50%;
@@ -826,8 +835,6 @@ canvas {
     box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0);
     opacity: 0;
     visibility: hidden;
-    
-    
   }
 }
 
@@ -882,10 +889,11 @@ canvas {
 
 .questionInProgress .quizSection .question {
   max-width: 40%;
+  max-height: 80%;
 }
 
 .questionImage {
-  max-height: 75%;
+  max-height: 50%;
   max-width: 50%;
   object-fit: contain;
   margin-right: 5rem;
