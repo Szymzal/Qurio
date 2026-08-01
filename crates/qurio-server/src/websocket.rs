@@ -15,16 +15,15 @@ use axum::{
 };
 use futures_util::{SinkExt, StreamExt};
 use qurio_protocol::{
-    packets::{
-        c2s::C2SPackets,
-        s2c::{HandshakeRejectedPacket, S2CPackets},
-    },
+    packets::{c2s::C2SPackets, s2c::HandshakeRejectedPacket},
     structs::HandshakeRejectionReason,
 };
 use tokio::sync::mpsc;
+use tracing::info;
 
 use crate::game::{
-    AnswerData, AvatarData, ConnectionId, ConnectionRemovalData, GameCommand, HostData, PlayerData,
+    AnswerData, AvatarData, ClientAction, ConnectionId, ConnectionRemovalData, GameCommand,
+    HostData, PlayerData,
 };
 
 pub struct TokioState {
@@ -41,14 +40,21 @@ pub async fn new_websocket_handler(
 
 async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
     let (mut sender, mut receiver) = stream.split();
-    let (tx, mut rx) = mpsc::channel::<S2CPackets>(32);
+    let (tx, mut rx) = mpsc::channel::<ClientAction>(32);
 
     tokio::spawn(async move {
-        while let Some(packet) = rx.recv().await {
-            if let Ok(binary) = packet.write_as_binary()
-                && sender.send(Message::Binary(binary.into())).await.is_err()
-            {
-                break; // Klient się rozłączył
+        while let Some(action) = rx.recv().await {
+            match action {
+                ClientAction::SendPacket(packet) => {
+                    if let Ok(binary) = packet.write_as_binary()
+                        && sender.send(Message::Binary(binary.into())).await.is_err()
+                    {
+                        break; // Klient się rozłączył
+                    }
+                }
+                ClientAction::Disconnect => {
+                    let _ = sender.send(Message::Close(None)).await;
+                }
             }
         }
 
@@ -73,12 +79,12 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
 
                     if let Some(reply_tx) = local_tx.take() {
                         let _ = reply_tx
-                            .send(
+                            .send(ClientAction::SendPacket(
                                 HandshakeRejectedPacket {
                                     reason: HandshakeRejectionReason::InvalidHandshake,
                                 }
                                 .as_packet(),
-                            )
+                            ))
                             .await;
                     }
 
@@ -152,6 +158,7 @@ async fn websocket(stream: WebSocket, state: Arc<TokioState>) {
         .command_tx
         .send(GameCommand::RemoveConnection(ConnectionRemovalData {
             connection_id,
+            reason: None,
         }))
         .await;
 }

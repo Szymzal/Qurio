@@ -603,6 +603,10 @@ function handlePackets(data, websocket) {
       let msg = "";
       if (handshakeRejectedPacket.reason === 2) {
         msg = "Username is taken";
+      } else if (handshakeRejectedPacket.reason === 3) {
+        msg = "Username is too short";
+      } else if (handshakeRejectedPacket.reason === 4) {
+        msg = "Username is too long";
       } else {
         msg = `Internal server error: ${handshakeRejectedPacket.reason}`;
       }
