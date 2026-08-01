@@ -353,7 +353,6 @@ if (playerBoard !== null) {
       }
     });
 
-
     toTheLobbyBtn.addEventListener("click", (event) => {
       event.preventDefault();
 
@@ -363,7 +362,6 @@ if (playerBoard !== null) {
       switchPages(PagesID.LOBBY);
       stopBackgroundMusic();
     });
-    
 
     advanceBtn.addEventListener("click", (event) => {
       event.preventDefault();
@@ -1163,7 +1161,7 @@ function handlePackets(data, ws) {
           backgroundMusic.volume = 0.1;
         }
       };
-      
+
       const timeChangeMilis = 1000;
 
       const firstPlaceFun = () => {
@@ -1595,7 +1593,7 @@ function startBackgroundMusic() {
     backgroundMusicList[0].currentTime = 0;
   }
 
-  backgroundMusicList[0].play().catch(err => {
+  backgroundMusicList[0].play().catch((err) => {
     console.log("music no no, czekam na interakcję użytkownika...");
   });
 }
@@ -1701,7 +1699,7 @@ function addFakeUsers(num) {
     users.push({
       userID: i,
       username: `User${i}`,
-      avatar: { body: 1, head: 1, eyes: 1, lips: 1 },
+      avatar: { body: 1, head: 1, eyes: 1, lips: 1, color: 1 },
     });
   }
 }
