@@ -485,7 +485,6 @@ function handlePackets(data, ws) {
         );
       console.log(`User ${userJoinedPacket.user.username} joined!`);
       joinEffect.volume = 0.1;
-      // dasddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
       joinEffect.play();
       users.push(userJoinedPacket.user);
       updatePlayerBoard();

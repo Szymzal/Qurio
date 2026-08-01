@@ -21,7 +21,7 @@ use qurio_protocol::{
     },
 };
 use tokio::sync::mpsc;
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 
 use crate::{
     GameState, HandshakeInitializationError,
@@ -137,19 +137,20 @@ pub struct PlayerData {
     pub protocol_version: u16,
     pub username: UncheckedUserName,
     pub connection_id: ConnectionId,
-    pub reply_tx: mpsc::Sender<S2CPackets>,
+    pub reply_tx: mpsc::Sender<ClientAction>,
 }
 
 #[derive(Clone, Debug)]
 pub struct HostData {
     pub protocol_version: u16,
     pub connection_id: ConnectionId,
-    pub reply_tx: mpsc::Sender<S2CPackets>,
+    pub reply_tx: mpsc::Sender<ClientAction>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ConnectionRemovalData {
     pub connection_id: ConnectionId,
+    pub reason: Option<HandshakeInitializationError>,
 }
 
 #[derive(Clone, Debug)]
@@ -176,6 +177,7 @@ pub enum ServerAction {
     },
     DisconnectConnection {
         connection_id: ConnectionId,
+        reason: Option<HandshakeInitializationError>,
     },
     StartTimer {
         duration_ms: u64,
@@ -184,6 +186,12 @@ pub enum ServerAction {
     InterruptAnswering {
         question_index: u8,
     },
+}
+
+#[derive(Clone, Debug)]
+pub enum ClientAction {
+    SendPacket(S2CPackets),
+    Disconnect,
 }
 
 #[derive(Clone, Debug)]
@@ -252,11 +260,14 @@ impl Game {
                     Ok(value) => value,
                     Err(error) => {
                         tracing::warn!("Failed to parse handshake: {error}");
-                        self.process_game_command(GameCommand::RemoveConnection(
-                            ConnectionRemovalData {
+                        let mut new_actions = self.process_game_command(
+                            GameCommand::RemoveConnection(ConnectionRemovalData {
                                 connection_id: player_handshake_data.connection_id,
-                            },
-                        ));
+                                reason: Some(error),
+                            }),
+                        );
+
+                        actions.append(&mut new_actions);
                         return actions;
                     }
                 };
@@ -270,11 +281,12 @@ impl Game {
                     tracing::warn!("Failed to add host: {error}");
                     actions.push(ServerAction::SendPacket(OutgoingPacket {
                         replicant: Replicant::PendingConnection(host_data.connection_id.clone()),
-                        packet: error.into(),
+                        packet: error.clone().into(),
                     }));
                     self.process_game_command(GameCommand::RemoveConnection(
                         ConnectionRemovalData {
                             connection_id: host_data.connection_id,
+                            reason: Some(error),
                         },
                     ));
                     return actions;
@@ -297,6 +309,11 @@ impl Game {
                         packet: S2CPackets::HostLeft,
                     }));
                     self.host_connection = None;
+                } else {
+                    actions.push(ServerAction::DisconnectConnection {
+                        connection_id: removal_player_data.connection_id,
+                        reason: removal_player_data.reason,
+                    });
                 }
             }
             GameCommand::StartGame { sender } => {
@@ -839,9 +856,12 @@ impl Game {
                 tracing::warn!("Failed to add new player: {error}");
                 actions.push(ServerAction::SendPacket(OutgoingPacket {
                     replicant: Replicant::PendingConnection(connection_id.clone()),
-                    packet: error.into(),
+                    packet: error.clone().into(),
                 }));
-                actions.push(ServerAction::DisconnectConnection { connection_id });
+                actions.push(ServerAction::DisconnectConnection {
+                    connection_id,
+                    reason: Some(error),
+                });
                 return actions;
             }
         };
@@ -860,7 +880,10 @@ impl Game {
                     }
                     .as_packet(),
                 }));
-                actions.push(ServerAction::DisconnectConnection { connection_id });
+                actions.push(ServerAction::DisconnectConnection {
+                    connection_id,
+                    reason: Some(HandshakeInitializationError::InvalidHandshake),
+                });
                 return actions;
             }
         };
@@ -1332,9 +1355,9 @@ pub async fn game_manager(
 
     let mut game = Game::new(quiz);
 
-    let mut pending_connections: HashMap<ConnectionId, mpsc::Sender<S2CPackets>> = HashMap::new();
-    let mut player_channels: HashMap<UserId, mpsc::Sender<S2CPackets>> = HashMap::new();
-    let mut host_channel: Option<mpsc::Sender<S2CPackets>> = None;
+    let mut pending_connections: HashMap<ConnectionId, mpsc::Sender<ClientAction>> = HashMap::new();
+    let mut player_channels: HashMap<UserId, mpsc::Sender<ClientAction>> = HashMap::new();
+    let mut host_channel: Option<mpsc::Sender<ClientAction>> = None;
 
     while let Some(command) = command_rx.recv().await {
         match &command {
@@ -1358,22 +1381,30 @@ pub async fn game_manager(
                 ServerAction::SendPacket(outgoing_packet) => match outgoing_packet.replicant {
                     Replicant::Host => {
                         if let Some(ref tx) = host_channel {
-                            let _ = tx.send(outgoing_packet.packet).await;
+                            let _ = tx
+                                .send(ClientAction::SendPacket(outgoing_packet.packet))
+                                .await;
                         }
                     }
                     Replicant::AllPlayers => {
                         for tx in player_channels.values() {
-                            let _ = tx.send(outgoing_packet.packet.clone()).await;
+                            let _ = tx
+                                .send(ClientAction::SendPacket(outgoing_packet.packet.clone()))
+                                .await;
                         }
                     }
                     Replicant::Player(user_id) => {
                         if let Some(tx) = player_channels.get(&user_id) {
-                            let _ = tx.send(outgoing_packet.packet).await;
+                            let _ = tx
+                                .send(ClientAction::SendPacket(outgoing_packet.packet))
+                                .await;
                         }
                     }
                     Replicant::PendingConnection(connection_id) => {
                         if let Some(tx) = pending_connections.get(&connection_id) {
-                            let _ = tx.send(outgoing_packet.packet).await;
+                            let _ = tx
+                                .send(ClientAction::SendPacket(outgoing_packet.packet))
+                                .await;
                         }
                     }
                 },
@@ -1390,8 +1421,17 @@ pub async fn game_manager(
                         host_channel = Some(tx);
                     }
                 }
-                ServerAction::DisconnectConnection { connection_id } => {
-                    let _ = pending_connections.remove(&connection_id);
+                ServerAction::DisconnectConnection {
+                    connection_id,
+                    reason,
+                } => {
+                    if let Some(tx) = pending_connections.remove(&connection_id) {
+                        if let Some(reason) = reason {
+                            let _ = tx.send(ClientAction::SendPacket(reason.into())).await;
+                        }
+
+                        let _ = tx.send(ClientAction::Disconnect).await;
+                    }
                 }
                 ServerAction::StartTimer {
                     duration_ms,
@@ -1448,7 +1488,7 @@ mod tests {
         };
 
         let mut game = Game::new(quiz);
-        let (tx, _rx) = mpsc::channel::<S2CPackets>(32);
+        let (tx, _rx) = mpsc::channel::<ClientAction>(32);
 
         game.process_game_command(GameCommand::AddHost(HostData {
             protocol_version: PROTOCOL_VERSION,
