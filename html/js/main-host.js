@@ -246,16 +246,20 @@ const overallRatioAvatarElement = document.querySelector(
 
 const backgroundMusic1 = new Audio("../assets/sound-background-music1");
 const backgroundMusic2 = new Audio("../assets/sound-background-music2");
-const backgroundMusic3 = new Audio("../assets/sound-background-music3");
+const questionMusic = new Audio("../assets/sound-question-music");
+const timeTicking = new Audio("../assets/sound-time-ticking");
+const timeTickingLess = new Audio("../assets/sound-time-ticking-less");
+const timeTickingLesser = new Audio("../assets/sound-time-ticking-lesser");
+
 const joinEffect = new Audio("../assets/sound-player-join");
 const winnerEffect = new Audio("../assets/sound-winner");
+let answeringDuration = 0;
 
 // ====== VARIABLES ======
 
 const backgroundMusicList = [
   backgroundMusic1,
-  backgroundMusic2,
-  backgroundMusic3,
+  backgroundMusic2
 ];
 
 /**
@@ -598,6 +602,8 @@ function handlePackets(data, ws) {
         /** @type {import("./modules/protocol.mjs").QuestionInfoPacket} */ (
           packet.value
         );
+      answeringDuration = questionInfoPacket.answerMilis;
+      
 
       progressBarsBlankPage.forEach((x) => {
         x.classList.remove("hidden");
@@ -939,6 +945,24 @@ function handlePackets(data, ws) {
             }),
           );
           switchPages(PagesID.ANSWERS);
+          questionMusic.volume = 0.2;
+          timeTicking.volume = 1;
+          timeTickingLess.volume = 1;
+          timeTickingLesser.volume = 1;
+          questionMusic.play();
+          if (answeringDuration>10000){
+            setTimeout(() => {
+              timeTicking.play();
+            }, answeringDuration-10938);
+          }else if (answeringDuration<=10000 && answeringDuration >5000){
+            setTimeout(() => {
+              timeTickingLess.play();
+            }, answeringDuration-6181);
+          }else if (answeringDuration<=5000){
+            setTimeout(() => {
+              timeTickingLesser.play();
+            }, answeringDuration-2087);
+          }
         } else {
           requestAnimationFrame(whenStartFn);
         }
@@ -1586,6 +1610,11 @@ function calculateAtlas(index) {
   };
 }
 
+questionMusic.addEventListener("ended", () => {
+  questionMusic.currentTime = 0;
+  questionMusic.play();
+})
+
 function startBackgroundMusic() {
   for (let backgroundMusic of backgroundMusicList) {
     backgroundMusic.volume = 0.1;
@@ -1617,12 +1646,6 @@ backgroundMusicList[0].addEventListener("ended", (_) => {
 });
 
 backgroundMusicList[1].addEventListener("ended", (_) => {
-  stopBackgroundMusic();
-  backgroundMusicList[2].play();
-  backgroundMusicList[2].currentTime = 0;
-});
-
-backgroundMusicList[2].addEventListener("ended", (_) => {
   stopBackgroundMusic();
   backgroundMusicList[0].play();
   backgroundMusicList[0].currentTime = 0;
@@ -1697,13 +1720,27 @@ function showError(message, duration = 3000) {
 
 /** @param {Number} num  */
 function addFakeUsers(num) {
+
+  const nameList = [
+  "ShadowNinja", "PixelQueen", "CyberWolf", "ThunderBolt", "VortexX",
+  "DragonSlayer", "NeonRider", "FrostByte", "PhantomKing", "SolarFlare",
+  "AlphaCentauri", "GhostRacer", "IronClaw", "StarGazer", "MysticElf",
+  "BlazeIt", "QuantumLeap", "Viper23", "StormBreaker", "NightHawk"
+  ];
+
   for (let i = 0; i < num; i++) {
+    const nazwa = nameList[Math.floor(Math.random() * nameList.length)];
     users.push({
       userID: i,
-      username: `User${i}`,
-      avatar: { body: 1, head: 1, eyes: 1, lips: 1 },
+      username: `${nazwa}${i}`,
+      avatar: { body:Math.random() * (maxBody - 1) + 1, 
+                head: Math.random() * (maxHead - 1) + 1, 
+                eyes: Math.random() * (maxEyes - 1) + 1, 
+                lips: Math.random() * (maxLips - 1) + 1, 
+                color: Math.random() * (maxColor - 1) + 1
+              },
     });
   }
 }
 
-// addFakeUsers(50);
+//addFakeUsers(50);

@@ -154,15 +154,13 @@ canvas {
   align-items: flex-start;
   align-content: flex-start;
   flex-wrap: wrap;
-  gap: 0.1rem;
+  gap: 0.5rem;
 }
 
 #playerBoard .player {
   display: flex;
   align-items: center;
   background-color: white;
-  color: black;
-  padding: 0.5rem;
   border-radius: 1rem;
 }
 
@@ -170,13 +168,14 @@ canvas {
   font-size: 2rem;
   margin: 0;
   margin-left: 0.5rem;
+  margin-right: 0.5rem;
+
 }
 
 #playerBoard .player .avatar {
-  width: 64px;
+  width: 96px;
   aspect-ratio: 1;
   border-radius: 8px;
-  border: 0.1rem solid black;
 }
 
 .wellIDontReallyKnowHowToNameThis {
@@ -563,7 +562,6 @@ canvas {
 .player {
   display: grid;
   grid-template-columns: 68px 1.5em 12em 4em;
-  padding: 0.25rem;
   margin: 0.1rem;
 }
 
@@ -866,12 +864,11 @@ canvas {
   grid-template-rows: 1fr;
 }
 
-.avatar > *,
+.avatar > *{
+  width: 96px;
+  height: 96px;
+}
 .miniAvatar > * {
-  grid-row-start: 1;
-  grid-row-end: 2;
-  grid-column-start: 1;
-  grid-column-end: 2;
   width: 64px;
   height: 64px;
 }

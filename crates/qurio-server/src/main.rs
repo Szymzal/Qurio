@@ -300,9 +300,9 @@ async fn assets(Path(path): Path<String>) -> impl IntoResponse {
             include_bytes!("../../../html/assets/sound/background-music2.mp3"),
         )
             .into_response(),
-        "sound-background-music3" => (
+        "sound-question-music" => (
             [(header::CONTENT_TYPE, "audio/mpeg")],
-            include_bytes!("../../../html/assets/sound/background-music3.mp3"),
+            include_bytes!("../../../html/assets/sound/question-music.mp3"),
         )
             .into_response(),
         "sound-player-join" => (
@@ -315,6 +315,27 @@ async fn assets(Path(path): Path<String>) -> impl IntoResponse {
             include_bytes!("../../../html/assets/sound/winner.mp3"),
         )
             .into_response(),
+        "sound-awards" => (
+            [(header::CONTENT_TYPE, "audio/mpeg")],
+            include_bytes!("../../../html/assets/sound/awards.mp3"),
+        )
+            .into_response(),
+        "sound-time-ticking" => (
+            [(header::CONTENT_TYPE, "audio/ogg")],
+            include_bytes!("../../../html/assets/sound/time-ticking.ogg"),
+        )
+            .into_response(),
+        "sound-time-ticking-less" => (
+            [(header::CONTENT_TYPE, "audio/ogg")],
+            include_bytes!("../../../html/assets/sound/time-ticking-less.ogg"),
+        )
+            .into_response(),
+        "sound-time-ticking-lesser" => (
+            [(header::CONTENT_TYPE, "audio/ogg")],
+            include_bytes!("../../../html/assets/sound/time-ticking-lesser.ogg"),
+        )
+            .into_response(),
+
         "tips" => (
             [(header::CONTENT_TYPE, "application/json")],
             include_str!("../../../html/assets/tips.json"),

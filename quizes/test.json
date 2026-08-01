@@ -15,32 +15,72 @@
     },
     {
       "question": {
-        "question": "Is this better than Kahoot?",
+        "question": "wa is dis 16x10",
         "showImageDuringAnswers": false,
-        "image": "test.png",
+        "image": "forest16x10.jpg",
         "readQuestionMilis": 3000,
         "answerMilis": 10000,
         "answers": [
-          {"text": "Yes", "correct": true},
-          {"text": "No", "correct": false}
+          {"text": "forest", "correct": true},
+          {"text": "river", "correct": false}
         ]
       }
     },
     {
       "blank": {
-        "text": "Test blank page 3"
+        "text": "prepare yourself"
       }
     },
     {
       "question": {
-        "question": "Is this worse than Kahoot?",
+        "question": "is da animal live in forest my brother? 1x1",
+        "readQuestionMilis": 3000,
+        "answerMilis": 15000,
+        "image": "bober1x1.png",
+        "answers": [
+          {"text": "Maybe", "correct": false},
+          {"text": "NAh they live in rivers innit", "correct": true},
+          {"text": "Well, can we play something else?", "correct": false},
+          {"text": "idk", "correct": true}
+        ]
+      }
+    },
+    {
+      "question": {
+        "question": "minecraft animal 16x9",
+        "image": "axelotl16x9.png",
+        "readQuestionMilis": 3000,
+        "answerMilis": 5000,
+        "answers": [
+          {"text": "axelotl", "correct": true},
+          {"text": "axe", "correct": false},
+          {"text": "panda", "correct": false}
+        ]
+      }
+    },
+    {
+      "question": {
+        "question": "cute 1x1",
+        "image": "panda1x1.png",
         "readQuestionMilis": 3000,
         "answerMilis": 10000,
         "answers": [
-          {"text": "Maybe", "correct": false},
-          {"text": "No", "correct": true},
-          {"text": "Well, can we play something else?", "correct": false},
-          {"text": "Yes", "correct": true}
+          {"text": "clumsy panda", "correct": false},
+          {"text": "sick panda", "correct": false},
+          {"text": "cute panda", "correct": true}
+        ]
+      }
+    },
+    {
+      "question": {
+        "question": "tuttolini",
+        "image": "zolw3x4.png",
+        "readQuestionMilis": 3000,
+        "answerMilis": 10000,
+        "answers": [
+          {"text": "tiki", "correct": false},
+          {"text": "riva", "correct": false},
+          {"text": "turtle", "correct": true}
         ]
       }
     }
