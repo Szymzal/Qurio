@@ -169,7 +169,6 @@ canvas {
   margin: 0;
   margin-left: 0.5rem;
   margin-right: 0.5rem;
-
 }
 
 #playerBoard .player .avatar {
@@ -555,6 +554,10 @@ canvas {
   overflow-y: scroll;
 }
 
+.leaderboards .classicLeaderboard .player {
+  padding: 0.25rem;
+}
+
 .leaderboards .achievements {
   grid-area: achievements;
 }
@@ -601,6 +604,7 @@ canvas {
 
 .player:nth-child(3) {
   background-color: #6c4a23;
+  color: white;
 }
 
 .achievements {
@@ -649,13 +653,10 @@ canvas {
   height: 3em;
 }
 
-#overallQuickestAchievement .row {
-  color: white;
-}
-
 .achievements #quickestAchievement .row,
 .achievements #overallQuickestAchievement .row {
   background-color: #2a4c40;
+  color: white;
 }
 
 .achievements #quickestAchievement > img,
@@ -864,7 +865,7 @@ canvas {
   grid-template-rows: 1fr;
 }
 
-.avatar > *{
+.avatar > * {
   width: 96px;
   height: 96px;
 }
