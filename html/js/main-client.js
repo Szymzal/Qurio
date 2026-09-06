@@ -164,7 +164,7 @@ const pages = [
   waitForQuestion,
 ];
 
-/** @type {import("./NoSleep.js/dist/NoSleep.min.js").NoSleep} */
+/** @type {import("./NoSleep.js/dist/NoSleep.js").NoSleep} */
 const noSleep = new NoSleep();
 
 const CALIBRATION_TRIES = 5;
@@ -214,6 +214,14 @@ if (join_btn && usernameInput && error_box) {
     websocket.onclose = function () {
       console.log("connection closed");
       showError("Connection closed");
+
+      // TODO: reset background color
+      const backgroundColorElement = document.body;
+      if (backgroundColorElement) {
+        backgroundColorElement.classList.remove("wrongAnswer");
+        backgroundColorElement.classList.remove("correctAnswer");
+      }
+
       btn.disabled = false;
       switchPages(PagesID.LOGIN);
     };

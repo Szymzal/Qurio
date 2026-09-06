@@ -34,9 +34,7 @@ pub enum Page {
 }
 
 trait FileReader {
-    fn read_quiz(_json: Value) -> anyhow::Result<Quiz> {
-        todo!()
-    }
+    fn read_quiz(_json: Value) -> anyhow::Result<Quiz>;
 }
 
 pub struct QuizFileReader<const VERSION: u8> {
@@ -59,7 +57,7 @@ where
     let value = json.clone();
 
     if let Value::Object(map) = json {
-        let version = map.get("qurioFileVersion");
+        let version = map.get(&String::from("qurioFileVersion"));
 
         if let Some(Value::Number(number)) = version
             && let Some(number) = number.as_u64()

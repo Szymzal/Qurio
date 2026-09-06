@@ -7,7 +7,7 @@ pub mod s2c {
     };
     use binrw::BinWrite;
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     #[bw(big, magic = b"Qiz")]
     pub enum S2CPackets {
         #[bw(magic = 0u8)]
@@ -87,34 +87,34 @@ pub mod s2c {
         Pong(PongPacket),
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct HandshakeAcceptedPacket {
         pub id: UserId,
         pub random_avatar: AvatarInfo,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct HandshakeRejectedPacket {
         pub reason: HandshakeRejectionReason,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct HostHandshakeAcceptedPacket {
         pub users_count: u8,
         pub users: Vec<User>,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct UserJoinedPacket {
         pub user: User,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct UserLeftPacket {
         pub user_id: UserId,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct QuestionInfoPacket {
         pub read_question_milis: u32,
         pub answer_milis: u32,
@@ -126,7 +126,7 @@ pub mod s2c {
         pub image: Option<BinString>,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct QuestionStatsPacket {
         pub num_of_answers: u8,
         pub answers_answered: Vec<u8>,
@@ -135,18 +135,18 @@ pub mod s2c {
         pub advancements: QuestionAdvancements,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct GameStatsPacket {
         pub leaderboard: Leaderboard,
         pub advancements: GameAdvancements,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct AnswerDetailsPacket {
         pub num_of_answers: u8,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct PlayerStatsPacket {
         pub correct: BinBool,
         pub player: KnownPlayerStats,
@@ -154,7 +154,7 @@ pub mod s2c {
         pub below_player: Option<PlayerLeaderboardStats>,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct PlayerOverallStatsPacket {
         pub position: u8,
         pub points: u16,
@@ -175,10 +175,10 @@ pub mod s2c {
         }
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct GameStateInfoPacket(pub GameStateInfoClient);
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub enum GameStateInfoClient {
         #[bw(magic = 0u8)]
         LobbyState,
@@ -199,31 +199,31 @@ pub mod s2c {
         BlankPageState,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct GameDetailsPacket {
         pub title_screen_wait: u16,
         pub title: BinString,
         pub num_of_questions: u8,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct UpdateClientAvatarPacket {
         pub user_id: UserId,
         pub avatar: AvatarInfo,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct BlankPageInfoPacket {
         pub page_index: u8,
         pub text: BinString,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct PongPacket {
         pub timestamp: u64,
     }
 
-    #[derive(BinWrite, Clone, Debug)]
+    #[derive(BinWrite, Clone, Debug, PartialEq)]
     pub struct StartAnsweringPacket {
         pub when_timestamp: u64,
     }

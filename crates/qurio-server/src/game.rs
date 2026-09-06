@@ -140,6 +140,15 @@ pub struct PlayerData {
     pub reply_tx: mpsc::Sender<ClientAction>,
 }
 
+impl PartialEq for PlayerData {
+    fn eq(&self, other: &Self) -> bool {
+        self.protocol_version == other.protocol_version
+            && self.username == other.username
+            && self.connection_id == other.connection_id
+            && self.reply_tx.same_channel(&other.reply_tx)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct HostData {
     pub protocol_version: u16,
@@ -147,25 +156,33 @@ pub struct HostData {
     pub reply_tx: mpsc::Sender<ClientAction>,
 }
 
-#[derive(Clone, Debug)]
+impl PartialEq for HostData {
+    fn eq(&self, other: &Self) -> bool {
+        self.protocol_version == other.protocol_version
+            && self.connection_id == other.connection_id
+            && self.reply_tx.same_channel(&other.reply_tx)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct ConnectionRemovalData {
     pub connection_id: ConnectionId,
     pub reason: Option<HandshakeInitializationError>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AnswerData {
     pub connection_id: ConnectionId,
     pub answer_index: u8,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AvatarData {
     pub connection_id: ConnectionId,
     pub data: UncheckedAvatarInfo,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ServerAction {
     SendPacket(OutgoingPacket),
     PlayerAccepted {
@@ -194,17 +211,17 @@ pub enum ClientAction {
     Disconnect,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct StopAnsweringData {
     pub question_index: u8,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct StartAnsweringData {
     pub question_index: u8,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum GameCommand {
     AddPlayer(PlayerData),
     AddHost(HostData),
@@ -221,7 +238,7 @@ pub enum GameCommand {
     TimeCalibration { sender: ConnectionId },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Replicant {
     Host,
     AllPlayers,
@@ -232,7 +249,7 @@ pub enum Replicant {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct ConnectionId(pub usize);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct OutgoingPacket {
     pub replicant: Replicant,
     pub packet: S2CPackets,
@@ -1458,9 +1475,74 @@ pub async fn game_manager(
 
 #[cfg(test)]
 mod tests {
+    use tracing::info;
+
     use crate::quiz_file::Question;
 
     use super::*;
+
+    #[test]
+    fn test_ending_early() -> Result<(), String> {
+        let quiz = Quiz {
+            title_screen_wait: 1000,
+            title: "Test Quiz"
+                .try_into()
+                .expect("'Test quiz' to pass BinString"),
+            pages: vec![Page::Question(Question {
+                question: "Test question"
+                    .try_into()
+                    .expect("'Test question' to pass BinString"),
+                read_question_milis: 1000,
+                answer_milis: 1000,
+                answers: vec![
+                    "Correct".try_into().expect("'Correct' to pass BinString"),
+                    "Incorrect"
+                        .try_into()
+                        .expect("'Incorrect' to pass BinString"),
+                ],
+                correct_answer_mask: 2u8,
+                image: None,
+                show_image_during_answers: false,
+            })],
+        };
+
+        let mut game = Game::new(quiz);
+        let (tx, _rx) = mpsc::channel::<ClientAction>(32);
+
+        game.process_game_command(GameCommand::AddHost(HostData {
+            protocol_version: PROTOCOL_VERSION,
+            connection_id: ConnectionId(1),
+            reply_tx: tx.clone(),
+        }));
+
+        game.process_game_command(GameCommand::AddPlayer(PlayerData {
+            protocol_version: PROTOCOL_VERSION,
+            username: UncheckedUserName::new("Player 1"),
+            connection_id: ConnectionId(2),
+            reply_tx: tx.clone(),
+        }));
+
+        game.process_game_command(GameCommand::StartGame {
+            sender: ConnectionId(1),
+        });
+
+        let actions = game.process_game_command(GameCommand::RegisterAnswer(AnswerData {
+            connection_id: ConnectionId(2),
+            answer_index: 0,
+        }));
+
+        if !actions.contains(&ServerAction::InterruptAnswering { question_index: 0 }) {
+            return Err("Gra nie zakończyła się po tym jak odpowiedzieli wszyscy? (Chyba, że został naprawiony przypadkowo błąd)".to_string());
+        }
+
+        let actions = game.process_game_command(GameCommand::StartAnswering(StartAnsweringData {
+            question_index: 0,
+        }));
+
+        info!("Actions: {:?}", actions);
+
+        Ok(())
+    }
 
     #[test]
     fn test_question_stats() -> Result<(), String> {

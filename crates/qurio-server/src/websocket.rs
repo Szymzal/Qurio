@@ -19,7 +19,6 @@ use qurio_protocol::{
     structs::HandshakeRejectionReason,
 };
 use tokio::sync::mpsc;
-use tracing::info;
 
 use crate::game::{
     AnswerData, AvatarData, ClientAction, ConnectionId, ConnectionRemovalData, GameCommand,

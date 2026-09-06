@@ -257,10 +257,7 @@ let answeringDuration = 0;
 
 // ====== VARIABLES ======
 
-const backgroundMusicList = [
-  backgroundMusic1,
-  backgroundMusic2
-];
+const backgroundMusicList = [backgroundMusic1, backgroundMusic2];
 
 /**
  * Provides easy to use enum to decode reason ID
@@ -311,6 +308,9 @@ let hideProgressBar = false;
 
 const CALIBRATION_TRIES = 5;
 let calibration_num = 0;
+/**
+ * @type {Array<number>}
+ */
 let calibrationTimes = [];
 let bestRtt = Infinity;
 let serverTimeOffset = 0;
@@ -600,7 +600,6 @@ function handlePackets(data, ws) {
           packet.value
         );
       answeringDuration = questionInfoPacket.answerMilis;
-      
 
       progressBarsBlankPage.forEach((x) => {
         x.classList.remove("hidden");
@@ -934,6 +933,11 @@ function handlePackets(data, ws) {
 
       const whenStart = startAnsweringPacket.whenTimestamp;
       function whenStartFn() {
+        if (currentPage != PagesID.QUESTION || currentPage != PagesID.ANSWERS) {
+          console.warn("Finished before start");
+          return;
+        }
+
         const serverTime = Date.now() + serverTimeOffset;
         if (serverTime >= whenStart) {
           progressBars.forEach((progressBar) =>
@@ -947,18 +951,18 @@ function handlePackets(data, ws) {
           timeTickingLess.volume = 1;
           timeTickingLesser.volume = 1;
           questionMusic.play();
-          if (answeringDuration>10000){
+          if (answeringDuration > 10000) {
             setTimeout(() => {
               timeTicking.play();
-            }, answeringDuration-10938);
-          }else if (answeringDuration<=10000 && answeringDuration >5000){
+            }, answeringDuration - 10938);
+          } else if (answeringDuration <= 10000 && answeringDuration > 5000) {
             setTimeout(() => {
               timeTickingLess.play();
-            }, answeringDuration-6181);
-          }else if (answeringDuration<=5000){
+            }, answeringDuration - 6181);
+          } else if (answeringDuration <= 5000) {
             setTimeout(() => {
               timeTickingLesser.play();
-            }, answeringDuration-2087);
+            }, answeringDuration - 2087);
           }
         } else {
           requestAnimationFrame(whenStartFn);
@@ -1043,7 +1047,7 @@ function handlePackets(data, ws) {
             thirdRealUser = {
               userID: 0,
               username: "_ERROR_",
-              avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+              avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
             };
           }
 
@@ -1113,7 +1117,7 @@ function handlePackets(data, ws) {
           streakUser = {
             userID: 0,
             username: "Nobody",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0 },
+            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
           };
         }
 
@@ -1493,7 +1497,11 @@ function saveDataInCanvas(avatar, canvas) {
  */
 function updateUserAvatar(element, avatar) {
   const canvas = element.querySelector("canvas");
-  updateCanvas(canvas, avatar);
+  if (canvas) {
+    updateCanvas(canvas, avatar);
+  } else {
+    console.error("Could not find canvas!");
+  }
 }
 
 /**
@@ -1510,11 +1518,11 @@ function updateCanvas(canvas, avatar) {
  */
 function refreshCanvas(canvas) {
   // TODO: What if there is no indexes?
-  const canvasBody = Number.parseInt(canvas.getAttribute("bodyIndex"));
-  const canvasHead = Number.parseInt(canvas.getAttribute("headIndex"));
-  const canvasEyes = Number.parseInt(canvas.getAttribute("eyesIndex"));
-  const canvasLips = Number.parseInt(canvas.getAttribute("lipsIndex"));
-  const canvasColor = Number.parseInt(canvas.getAttribute("colorIndex"));
+  const canvasBody = Number.parseInt(canvas.getAttribute("bodyIndex") ?? "0");
+  const canvasHead = Number.parseInt(canvas.getAttribute("headIndex") ?? "0");
+  const canvasEyes = Number.parseInt(canvas.getAttribute("eyesIndex") ?? "0");
+  const canvasLips = Number.parseInt(canvas.getAttribute("lipsIndex") ?? "0");
+  const canvasColor = Number.parseInt(canvas.getAttribute("colorIndex") ?? "0");
 
   const ctx = canvas.getContext("2d");
   if (ctx === null) {
@@ -1588,8 +1596,16 @@ function refreshCanvas(canvas) {
   );
 }
 
+/**
+ * @typedef {Object} ImageInfo
+ * @property {number} x - X position of image
+ * @property {number} y - Y position of image
+ * @property {number} width - width of image
+ * @property {number} height - height of image
+ */
+
 /** @argument {Number} index
- * @returns {Object} */
+ * @returns {ImageInfo} */
 function calculateAtlas(index) {
   const pieceWidth = 256;
   const pieceHeight = 256;
@@ -1610,7 +1626,7 @@ function calculateAtlas(index) {
 questionMusic.addEventListener("ended", () => {
   questionMusic.currentTime = 0;
   questionMusic.play();
-})
+});
 
 function startBackgroundMusic() {
   for (let backgroundMusic of backgroundMusicList) {
@@ -1621,7 +1637,7 @@ function startBackgroundMusic() {
     backgroundMusicList[0].currentTime = 0;
   }
 
-  backgroundMusicList[0].play().catch((err) => {
+  backgroundMusicList[0].play().catch((_) => {
     console.log("music no no, czekam na interakcję użytkownika...");
   });
 }
@@ -1717,12 +1733,27 @@ function showError(message, duration = 3000) {
 
 /** @param {Number} num  */
 function addFakeUsers(num) {
-
   const nameList = [
-  "ShadowNinja", "PixelQueen", "CyberWolf", "ThunderBolt", "VortexX",
-  "DragonSlayer", "NeonRider", "FrostByte", "PhantomKing", "SolarFlare",
-  "AlphaCentauri", "GhostRacer", "IronClaw", "StarGazer", "MysticElf",
-  "BlazeIt", "QuantumLeap", "Viper23", "StormBreaker", "NightHawk"
+    "ShadowNinja",
+    "PixelQueen",
+    "CyberWolf",
+    "ThunderBolt",
+    "VortexX",
+    "DragonSlayer",
+    "NeonRider",
+    "FrostByte",
+    "PhantomKing",
+    "SolarFlare",
+    "AlphaCentauri",
+    "GhostRacer",
+    "IronClaw",
+    "StarGazer",
+    "MysticElf",
+    "BlazeIt",
+    "QuantumLeap",
+    "Viper23",
+    "StormBreaker",
+    "NightHawk",
   ];
 
   for (let i = 0; i < num; i++) {
@@ -1730,12 +1761,13 @@ function addFakeUsers(num) {
     users.push({
       userID: i,
       username: `${nazwa}${i}`,
-      avatar: { body:Math.random() * (maxBody - 1) + 1, 
-                head: Math.random() * (maxHead - 1) + 1, 
-                eyes: Math.random() * (maxEyes - 1) + 1, 
-                lips: Math.random() * (maxLips - 1) + 1, 
-                color: Math.random() * (maxColor - 1) + 1
-              },
+      avatar: {
+        body: Math.random() * (maxBody - 1) + 1,
+        head: Math.random() * (maxHead - 1) + 1,
+        eyes: Math.random() * (maxEyes - 1) + 1,
+        lips: Math.random() * (maxLips - 1) + 1,
+        color: Math.random() * (maxColor - 1) + 1,
+      },
     });
   }
 }
