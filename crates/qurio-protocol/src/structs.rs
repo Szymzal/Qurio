@@ -163,11 +163,12 @@ impl UserName {
     pub const MAX_CHARS: u8 = 16;
 
     pub fn new(username: &str) -> Result<Self, UserNameConstructError> {
-        if username.len() < Self::MIN_CHARS as usize {
+        let chars_count = username.chars().count();
+        if chars_count < Self::MIN_CHARS as usize {
             return Err(UserNameConstructError::TooShort(username.len() as u32));
         }
 
-        if username.len() > Self::MAX_CHARS as usize {
+        if chars_count > Self::MAX_CHARS as usize {
             return Err(UserNameConstructError::TooLong(username.len() as u32));
         }
 

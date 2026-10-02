@@ -68,7 +68,11 @@ impl RatioMetric {
     }
 
     pub const fn percent(&self) -> f32 {
-        self.correct as f32 / (self.correct + self.wrong) as f32
+        let total = self.correct + self.wrong;
+        if total == 0 {
+            return 0.0;
+        }
+        self.correct as f32 / total as f32
     }
 
     pub const fn percent_int(&self) -> u8 {
@@ -207,6 +211,15 @@ async fn index_host() -> Html<&'static str> {
     Html(include_str!("../../../html/host/index.html"))
 }
 
+#[cfg(debug_assertions)]
+async fn css() -> impl IntoResponse {
+    let file = tokio::fs::read_to_string("../../../html/client/style-client.css")
+        .await
+        .expect("JS file not found");
+    ([(header::CONTENT_TYPE, "text/css")], file)
+}
+
+#[cfg(not(debug_assertions))]
 async fn css() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/css")],
@@ -214,6 +227,15 @@ async fn css() -> impl IntoResponse {
     )
 }
 
+#[cfg(debug_assertions)]
+async fn css_host() -> impl IntoResponse {
+    let file = tokio::fs::read_to_string("../../../html/host/style-host.css")
+        .await
+        .expect("JS file not found");
+    ([(header::CONTENT_TYPE, "text/css")], file)
+}
+
+#[cfg(not(debug_assertions))]
 async fn css_host() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/css")],
@@ -221,6 +243,15 @@ async fn css_host() -> impl IntoResponse {
     )
 }
 
+#[cfg(debug_assertions)]
+async fn js() -> impl IntoResponse {
+    let file = tokio::fs::read_to_string("../../../html/js/main-client.js")
+        .await
+        .expect("JS file not found");
+    ([(header::CONTENT_TYPE, "text/javascript")], file)
+}
+
+#[cfg(not(debug_assertions))]
 async fn js() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/javascript")],
@@ -256,6 +287,15 @@ async fn js_nosleep() -> impl IntoResponse {
     )
 }
 
+#[cfg(debug_assertions)]
+async fn js_host() -> impl IntoResponse {
+    let file = tokio::fs::read_to_string("../../../html/js/main-host.js")
+        .await
+        .expect("JS file not found");
+    ([(header::CONTENT_TYPE, "text/javascript")], file)
+}
+
+#[cfg(not(debug_assertions))]
 async fn js_host() -> impl IntoResponse {
     (
         [(header::CONTENT_TYPE, "text/javascript")],

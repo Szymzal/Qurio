@@ -430,6 +430,155 @@ function resizeButtons() {
   });
 }
 
+const handlers = {
+  [S2CPacketID.HostHandshakeAccepted]: handleHostHandshakeAcceptedPacket,
+  [S2CPacketID.HandshakeRejected]: handleHandshakeRejected,
+  [S2CPacketID.UserJoined]: handleUserJoined,
+  [S2CPacketID.UserLeft]: handleUserLeft,
+  [S2CPacketID.GameDetails]: handleGameDetails,
+};
+
+/**
+ * @param {import("./modules/protocol.mjs").HostHandshakeAcceptedPacket} packet
+ * @param {WebSocket} ws
+ */
+function handleHostHandshakeAcceptedPacket(packet, ws) {
+  packet.users.forEach((user) => {
+    users.push(user);
+  });
+
+  ws.send(pingPacket());
+  calibrationTimes[calibration_num] = Date.now();
+
+  updatePlayerBoard();
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").HandshakeRejectedPacket} packet
+ * @param {WebSocket} _ws
+ */
+function handleHandshakeRejected(packet, _ws) {
+  console.error("Handshake was rejected! {}", packet.reason);
+
+  let msg = "";
+  if (packet.reason === 6) {
+    msg = "Host is taken";
+  } else {
+    msg = `Internal server error: ${packet.reason}`;
+  }
+
+  showError(msg);
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").UserJoinedPacket} packet
+ * @param {WebSocket} _ws
+ */
+function handleUserJoined(packet, _ws) {
+  console.log(`User ${packet.user.username} joined!`);
+  joinEffect.volume = 0.1;
+  joinEffect.play();
+  users.push(packet.user);
+  updatePlayerBoard();
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").UserLeftPacket} packet
+ * @param {WebSocket} _ws
+ */
+function handleUserLeft(packet, _ws) {
+  const userIndex = users.findIndex((value) => value.userID === packet.userID);
+
+  if (userIndex < 0) {
+    console.warn(`User ${packet.userID} left, but it didn't joined anyways!`);
+    return;
+  }
+
+  const user = users[userIndex];
+  console.log(`User ${user.username} left!`);
+
+  users.splice(userIndex, 1);
+
+  updatePlayerBoard();
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").GameDetailsPacket} packet
+ * @param {WebSocket} _ws
+ */
+function handleGameDetails(packet, _ws) {
+  if (wellIDontReallyKnowHowToNameThis) {
+    wellIDontReallyKnowHowToNameThis.forEach((x) => {
+      x.style.display = "none";
+    });
+  } else {
+    console.error(
+      "HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?",
+    );
+  }
+
+  if (quizTitle) {
+    quizTitle.textContent = packet.title;
+    quizTitle.style.display = "";
+  } else {
+    console.error("No quiz title!");
+  }
+
+  if (numOfQuestions) {
+    numOfQuestions.forEach((x) => {
+      x.textContent = packet.numOfQuestions.toString();
+    });
+  } else {
+    console.error("No number of questions!");
+  }
+
+  questionSection.forEach((q) => {
+    q.style.display = "none";
+  });
+
+  progressBars.forEach((progressBar) =>
+    progressBar.animate(progressbarKeyframes(), {
+      duration: packet.titleScreenWait,
+    }),
+  );
+
+  // TODO: Come up with better idea to control this thing...
+  setTimeout(() => {
+    if (quizTitle && questionSection && question.length > 0) {
+      if (hideProgressBar) {
+        progressBarsBlankPage.forEach((x) => {
+          x.classList.add("hidden");
+        });
+      }
+
+      progressBars.forEach((progressBar) =>
+        progressBar.animate(progressbarKeyframes(), {
+          duration: nextProgressBarDuration,
+        }),
+      );
+
+      quizTitle.style.display = "none";
+      questionSection.forEach((q) => {
+        q.style.display = "";
+      });
+
+      if (wellIDontReallyKnowHowToNameThis) {
+        wellIDontReallyKnowHowToNameThis.forEach((x) => {
+          x.style.display = "";
+        });
+      } else {
+        console.error(
+          "HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?",
+        );
+      }
+    } else {
+      console.error("No quiz title or question!");
+    }
+  }, packet.titleScreenWait);
+
+  switchPages(PagesID.QUESTION);
+}
+
 /**
  * @param {WebSocket} ws
  * @param {ArrayBuffer} data
@@ -442,158 +591,10 @@ function handlePackets(data, ws) {
     return;
   }
 
-  console.debug("Received packet ID: ", packet.packetID);
-  console.log(`Blank page id: ${S2CPacketID.BlankPageInfo}`);
-  console.log(`Pong id: ${S2CPacketID.Pong}`);
+  const handler = handlers[packet.packetID];
+  if (handler) handler(/** @type {any} */ (packet.value), ws);
 
   switch (packet.packetID) {
-    case S2CPacketID.HostHandshakeAccepted:
-      const hostHandshakeAcceptedPacket =
-        /** @type {import("./modules/protocol.mjs").HostHandshakeAcceptedPacket} */ (
-          packet.value
-        );
-
-      hostHandshakeAcceptedPacket.users.forEach((user) => {
-        users.push(user);
-      });
-
-      ws.send(pingPacket());
-      calibrationTimes[calibration_num] = Date.now();
-
-      updatePlayerBoard();
-      break;
-    case S2CPacketID.HandshakeRejected:
-      const handshakeRejectedPacket =
-        /** @type {import("./modules/protocol.mjs").HandshakeRejectedPacket} */ (
-          packet.value
-        );
-      console.error(
-        "Handshake was rejected! {}",
-        handshakeRejectedPacket.reason,
-      );
-
-      let msg = "";
-      if (handshakeRejectedPacket.reason === 6) {
-        msg = "Host is taken";
-      } else {
-        msg = `Internal server error: ${handshakeRejectedPacket.reason}`;
-      }
-
-      showError(msg);
-
-      break;
-    case S2CPacketID.UserJoined:
-      const userJoinedPacket =
-        /** @type {import("./modules/protocol.mjs").UserJoinedPacket} */ (
-          packet.value
-        );
-      console.log(`User ${userJoinedPacket.user.username} joined!`);
-      joinEffect.volume = 0.1;
-      joinEffect.play();
-      users.push(userJoinedPacket.user);
-      updatePlayerBoard();
-      break;
-    case S2CPacketID.UserLeft:
-      const userLeftPacket =
-        /** @type {import("./modules/protocol.mjs").UserLeftPacket} */ (
-          packet.value
-        );
-      const userIndex = users.findIndex(
-        (value) => value.userID === userLeftPacket.userID,
-      );
-
-      if (userIndex < 0) {
-        console.warn(
-          `User ${userLeftPacket.userID} left, but it didn't joined anyways!`,
-        );
-        return;
-      }
-
-      const user = users[userIndex];
-      console.log(`User ${user.username} left!`);
-
-      users.splice(userIndex, 1);
-
-      updatePlayerBoard();
-      break;
-    case S2CPacketID.GameDetails:
-      const gameDetailsPacket =
-        /** @type {import("./modules/protocol.mjs").GameDetailsPacket} */ (
-          packet.value
-        );
-
-      if (wellIDontReallyKnowHowToNameThis) {
-        wellIDontReallyKnowHowToNameThis.forEach((x) => {
-          x.style.display = "none";
-        });
-      } else {
-        console.error(
-          "HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?",
-        );
-      }
-
-      if (quizTitle) {
-        quizTitle.textContent = gameDetailsPacket.title;
-        quizTitle.style.display = "";
-      } else {
-        console.error("No quiz title!");
-      }
-
-      if (numOfQuestions) {
-        numOfQuestions.forEach((x) => {
-          x.textContent = gameDetailsPacket.numOfQuestions.toString();
-        });
-      } else {
-        console.error("No number of questions!");
-      }
-
-      questionSection.forEach((q) => {
-        q.style.display = "none";
-      });
-
-      progressBars.forEach((progressBar) =>
-        progressBar.animate(progressbarKeyframes(), {
-          duration: gameDetailsPacket.titleScreenWait,
-        }),
-      );
-
-      // TODO: Come up with better idea to control this thing...
-      setTimeout(() => {
-        if (quizTitle && questionSection && question.length > 0) {
-          if (hideProgressBar) {
-            progressBarsBlankPage.forEach((x) => {
-              x.classList.add("hidden");
-            });
-          }
-
-          progressBars.forEach((progressBar) =>
-            progressBar.animate(progressbarKeyframes(), {
-              duration: nextProgressBarDuration,
-            }),
-          );
-
-          quizTitle.style.display = "none";
-          questionSection.forEach((q) => {
-            q.style.display = "";
-          });
-
-          if (wellIDontReallyKnowHowToNameThis) {
-            wellIDontReallyKnowHowToNameThis.forEach((x) => {
-              x.style.display = "";
-            });
-          } else {
-            console.error(
-              "HOW DID YOU FORGET ABOUT THE MOST IMPORTANT THING WHICH I DONT KNOW HOW TO NAME IT?",
-            );
-          }
-        } else {
-          console.error("No quiz title or question!");
-        }
-      }, gameDetailsPacket.titleScreenWait);
-
-      switchPages(PagesID.QUESTION);
-
-      break;
     case S2CPacketID.QuestionInfo:
       const questionInfoPacket =
         /** @type {import("./modules/protocol.mjs").QuestionInfoPacket} */ (
