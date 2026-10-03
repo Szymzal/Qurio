@@ -213,9 +213,9 @@ async fn index_host() -> Html<&'static str> {
 
 #[cfg(debug_assertions)]
 async fn css() -> impl IntoResponse {
-    let file = tokio::fs::read_to_string("../../../html/client/style-client.css")
+    let file = tokio::fs::read_to_string("html/client/style-client.css")
         .await
-        .expect("JS file not found");
+        .expect("CSS client file not found");
     ([(header::CONTENT_TYPE, "text/css")], file)
 }
 
@@ -229,9 +229,9 @@ async fn css() -> impl IntoResponse {
 
 #[cfg(debug_assertions)]
 async fn css_host() -> impl IntoResponse {
-    let file = tokio::fs::read_to_string("../../../html/host/style-host.css")
+    let file = tokio::fs::read_to_string("html/host/style-host.css")
         .await
-        .expect("JS file not found");
+        .expect("CSS host file not found");
     ([(header::CONTENT_TYPE, "text/css")], file)
 }
 
@@ -245,9 +245,9 @@ async fn css_host() -> impl IntoResponse {
 
 #[cfg(debug_assertions)]
 async fn js() -> impl IntoResponse {
-    let file = tokio::fs::read_to_string("../../../html/js/main-client.js")
+    let file = tokio::fs::read_to_string("html/js/main-client.js")
         .await
-        .expect("JS file not found");
+        .expect("JS client file not found");
     ([(header::CONTENT_TYPE, "text/javascript")], file)
 }
 
@@ -289,9 +289,9 @@ async fn js_nosleep() -> impl IntoResponse {
 
 #[cfg(debug_assertions)]
 async fn js_host() -> impl IntoResponse {
-    let file = tokio::fs::read_to_string("../../../html/js/main-host.js")
+    let file = tokio::fs::read_to_string("html/js/main-host.js")
         .await
-        .expect("JS file not found");
+        .expect("JS host file not found");
     ([(header::CONTENT_TYPE, "text/javascript")], file)
 }
 

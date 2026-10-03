@@ -658,7 +658,7 @@ impl Game {
                     return actions;
                 }
 
-                let num_of_questions = self.quiz_state.quiz.pages.len();
+                let num_of_questions = self.quiz_state.quiz.num_of_questions();
                 for user in self.users.values() {
                     actions.push(ServerAction::SendPacket(OutgoingPacket {
                         replicant: Replicant::Player(user.id),
@@ -1234,7 +1234,7 @@ impl Game {
                 streak: 0,
             });
 
-        let num_of_questions = self.quiz_state.quiz.pages.len();
+        let num_of_questions = self.quiz_state.quiz.num_of_questions();
         let biggest_ratio_user = self
             .users
             .values()

@@ -436,6 +436,15 @@ const handlers = {
   [S2CPacketID.UserJoined]: handleUserJoined,
   [S2CPacketID.UserLeft]: handleUserLeft,
   [S2CPacketID.GameDetails]: handleGameDetails,
+  [S2CPacketID.QuestionInfo]: handleQuestionInfo,
+  [S2CPacketID.QuestionStats]: handleQuestionStats,
+  [S2CPacketID.StartAnswering]: handleStartAnswering,
+  [S2CPacketID.GameDetails]: handleGameDetails,
+  [S2CPacketID.GameStats]: handleGameStats,
+  [S2CPacketID.GoAhead]: handleGoAhead,
+  [S2CPacketID.UpdateClientAvatar]: handleUpdateClientAvatar,
+  [S2CPacketID.BlankPageInfo]: handleBlankPageInfo,
+  [S2CPacketID.Pong]: handlePong,
 };
 
 /**
@@ -580,6 +589,740 @@ function handleGameDetails(packet, _ws) {
 }
 
 /**
+ * @param {import("./modules/protocol.mjs").QuestionInfoPacket} packet
+ * @param {WebSocket} _ws
+ */
+function handleQuestionInfo(packet, _ws) {
+  answeringDuration = packet.answerMilis;
+
+  progressBarsBlankPage.forEach((x) => {
+    x.classList.remove("hidden");
+  });
+
+  if (advanceBtn) {
+    advanceBtn.classList.add("hidden");
+  } else {
+    console.error("No advanceBtn?");
+  }
+
+  if (packet.image) {
+    if (answersPage && questionWithoutImage) {
+      if (packet.showImageDuringAnswers) {
+        answersPage.classList.add("answersWithImage");
+        questionWithoutImage.style.display = "none";
+      } else {
+        answersPage.classList.remove("answersWithImage");
+        questionWithoutImage.style.display = "";
+      }
+    }
+    questionImage.forEach((x) => {
+      x.src = `/quiz/assets/${packet.image}`;
+      x.classList.remove("hidden");
+    });
+    if (!packet.showImageDuringAnswers && answersQuestionImage) {
+      answersQuestionImage.classList.add("hidden");
+    }
+  } else {
+    if (answersPage && questionWithoutImage) {
+      answersPage.classList.remove("answersWithImage");
+      questionWithoutImage.style.display = "";
+    }
+    questionImage.forEach((x) => {
+      x.classList.add("hidden");
+    });
+  }
+
+  if (quizTitle) {
+    if (quizTitle.style.display !== "none") {
+      nextProgressBarDuration = packet.readQuestionMilis;
+      nextAnswerProgressBarDuration = packet.answerMilis;
+    } else {
+      nextAnswerProgressBarDuration = packet.answerMilis;
+      progressBars.forEach((progressBar) =>
+        progressBar.animate(progressbarKeyframes(), {
+          duration: packet.readQuestionMilis,
+        }),
+      );
+    }
+  } else {
+    console.error("No quiz title?");
+  }
+
+  if (questionNum) {
+    questionNum.forEach((x) => {
+      x.textContent = (packet.questionIndex + 1).toString();
+    });
+  } else {
+    console.error("No question number!");
+  }
+
+  if (question.length > 0) {
+    question.forEach((q) => {
+      q.textContent = packet.question;
+      const textLength = packet.question.length;
+      q.style.setProperty("--chars", `${textLength}`);
+    });
+  } else {
+    console.error("No questions!");
+  }
+
+  const numOfAnswers = packet.answers.length;
+  if (
+    answer0 &&
+    answer1 &&
+    answer2 &&
+    answer3 &&
+    stats0 &&
+    stats1 &&
+    stats2 &&
+    stats3 &&
+    stats0Correct &&
+    stats1Correct &&
+    stats2Correct &&
+    stats3Correct &&
+    numOfAnswers0 &&
+    numOfAnswers1 &&
+    numOfAnswers2 &&
+    numOfAnswers3
+  ) {
+    const answers = [answer0, answer1, answer2, answer3];
+
+    for (let i = 0; i < numOfAnswers; i++) {
+      for (let answer of answers[i]) {
+        answer.textContent = packet.answers[i];
+        const textLength = packet.answers[i].length;
+        answer.style.setProperty("--chars", `${textLength}`);
+      }
+    }
+
+    switch (numOfAnswers) {
+      case 1:
+        answer0Text.forEach((answer) => answer.classList.remove("hidden"));
+        stats0.style.display = "";
+        answer1Text.forEach((answer) => answer.classList.add("hidden"));
+        stats1.style.display = "none";
+        answer2Text.forEach((answer) => answer.classList.add("hidden"));
+        stats2.style.display = "none";
+        answer3Text.forEach((answer) => answer.classList.add("hidden"));
+        stats3.style.display = "none";
+        break;
+      case 2:
+        answer0Text.forEach((answer) => answer.classList.remove("hidden"));
+        stats0.style.display = "";
+        answer1Text.forEach((answer) => answer.classList.remove("hidden"));
+        stats1.style.display = "";
+        answer2Text.forEach((answer) => answer.classList.add("hidden"));
+        stats2.style.display = "none";
+        answer3Text.forEach((answer) => answer.classList.add("hidden"));
+        stats3.style.display = "none";
+        break;
+      case 3:
+        answer0Text.forEach((answer) => answer.classList.remove("hidden"));
+        stats0.style.display = "";
+        answer1Text.forEach((answer) => answer.classList.remove("hidden"));
+        stats1.style.display = "";
+        answer2Text.forEach((answer) => answer.classList.remove("hidden"));
+        stats2.style.display = "";
+        answer3Text.forEach((answer) => answer.classList.add("hidden"));
+        stats3.style.display = "none";
+        break;
+      case 4:
+        answer0Text.forEach((answer) => answer.classList.remove("hidden"));
+        stats0.style.display = "";
+        answer1Text.forEach((answer) => answer.classList.remove("hidden"));
+        stats1.style.display = "";
+        answer2Text.forEach((answer) => answer.classList.remove("hidden"));
+        stats2.style.display = "";
+        answer3Text.forEach((answer) => answer.classList.remove("hidden"));
+        stats3.style.display = "";
+        break;
+      default:
+        console.error("More than 4?");
+        break;
+    }
+  } else {
+    console.error("No answers!");
+  }
+
+  switchPages(PagesID.QUESTION);
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").QuestionStatsPacket} packet
+ * @param {WebSocket} _ws
+ */
+function handleQuestionStats(packet, _ws) {
+  const correctAnswer = packet.correctAnswer;
+  if (stats0Correct && stats1Correct && stats2Correct && stats3Correct) {
+    if ((correctAnswer & 1) != 0) {
+      stats0Correct.style.display = "";
+      stats0?.classList.remove("incorrectAnswer");
+      answer0Stats?.classList.remove("incorrectAnswer");
+    } else {
+      stats0Correct.style.display = "none";
+      stats0?.classList.add("incorrectAnswer");
+      answer0Stats?.classList.add("incorrectAnswer");
+    }
+
+    if ((correctAnswer & 2) != 0) {
+      stats1Correct.style.display = "";
+      stats1?.classList.remove("incorrectAnswer");
+      answer1Stats?.classList.remove("incorrectAnswer");
+    } else {
+      stats1Correct.style.display = "none";
+      stats1?.classList.add("incorrectAnswer");
+      answer1Stats?.classList.add("incorrectAnswer");
+    }
+
+    if ((correctAnswer & 4) != 0) {
+      stats2Correct.style.display = "";
+      stats2?.classList.remove("incorrectAnswer");
+      answer2Stats?.classList.remove("incorrectAnswer");
+    } else {
+      stats2Correct.style.display = "none";
+      stats2?.classList.add("incorrectAnswer");
+      answer2Stats?.classList.add("incorrectAnswer");
+    }
+
+    if ((correctAnswer & 8) != 0) {
+      stats3Correct.style.display = "";
+      stats3?.classList.remove("incorrectAnswer");
+      answer3Stats?.classList.remove("incorrectAnswer");
+    } else {
+      stats3Correct.style.display = "none";
+      stats3?.classList.add("incorrectAnswer");
+      answer3Stats?.classList.add("incorrectAnswer");
+    }
+  } else {
+    console.error("No indication of correct answer?");
+  }
+
+  if (
+    numOfAnswers0 &&
+    numOfAnswers1 &&
+    numOfAnswers2 &&
+    numOfAnswers3 &&
+    stats0 &&
+    stats1 &&
+    stats2 &&
+    stats3 &&
+    statsElement
+  ) {
+    const numOfAnswers = [
+      numOfAnswers0,
+      numOfAnswers1,
+      numOfAnswers2,
+      numOfAnswers3,
+    ];
+
+    const stats = [stats0, stats1, stats2, stats3];
+
+    let allAnswers = 0;
+
+    for (let i = 0; i < packet.numOfAnswers.length; i++) {
+      const numOfAnswer = packet.numOfAnswers[i];
+      allAnswers += numOfAnswer;
+      numOfAnswers[i].textContent = numOfAnswer.toString();
+      stats[i].style.setProperty("--answers", numOfAnswer.toString());
+    }
+
+    statsElement.style.setProperty("--allAnswers", allAnswers.toString());
+  } else {
+    console.error("No statistics about question?");
+  }
+
+  /** @type {import("./modules/protocol.mjs").UserStat[]} */
+  const leaderboardUsers = packet.leaderboard.users;
+
+  if (leaderboard) {
+    setLeaderboard(leaderboard, leaderboardUsers);
+  } else {
+    console.error("No leaderboards!");
+  }
+
+  if (
+    quickPositionElement &&
+    quickUsernameElement &&
+    quickTimeElement &&
+    quickAvatarElement
+  ) {
+    const quickUserId = packet.advancements.quick.userId;
+    const quickTime = (packet.advancements.quick.time / 1000.0).toPrecision(3);
+    let quickUser = users.find((x) => x.userID === quickUserId);
+
+    if (quickUser == undefined) {
+      quickUser = {
+        userID: 0,
+        username: "Nobody",
+        avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
+      };
+    }
+
+    // NOTE: Should I care when not found?
+    let quickPosition =
+      leaderboardUsers.findIndex((x) => x.userID === quickUserId) + 1;
+
+    quickPositionElement.textContent = `${quickPosition}.`;
+    quickUsernameElement.textContent = quickUser.username;
+
+    updateUserAvatar(quickAvatarElement, quickUser.avatar);
+
+    let textContent = "Too slow!";
+    if (packet.advancements.quick.time !== 4294967295) {
+      textContent = `${quickTime}s`;
+    }
+
+    quickTimeElement.textContent = `${textContent}`;
+  } else {
+    console.error("No quickest advancement in question stats?");
+  }
+
+  if (
+    streakPositionElement &&
+    streakUsernameElement &&
+    streakTimeElement &&
+    streakAvatarElement
+  ) {
+    const streakUserId = packet.advancements.streak.userId;
+    let streakNumber = packet.advancements.streak.streak;
+    let streakUser = users.find((x) => x.userID === streakUserId);
+
+    if (streakNumber === 255) {
+      streakNumber = 0;
+    }
+
+    if (streakUser == undefined) {
+      streakUser = {
+        userID: 0,
+        username: "Nobody",
+        avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
+      };
+    }
+
+    // NOTE: Should I care when not found?
+    let streakPosition =
+      leaderboardUsers.findIndex((x) => x.userID === streakUserId) + 1;
+
+    streakPositionElement.textContent = `${streakPosition}.`;
+    streakUsernameElement.textContent = streakUser.username;
+    streakTimeElement.textContent = streakNumber.toString();
+
+    updateUserAvatar(streakAvatarElement, streakUser.avatar);
+  } else {
+    console.error("No streak advancement in question stats?");
+  }
+
+  switchPages(PagesID.QUESTION_STATS);
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").StartAnsweringPacket} packet
+ * @param {WebSocket} _ws
+ */
+function handleStartAnswering(packet, _ws) {
+  const whenStart = packet.whenTimestamp;
+  function whenStartFn() {
+    if (currentPage != PagesID.QUESTION && currentPage != PagesID.ANSWERS) {
+      console.warn("Finished before start");
+      return;
+    }
+
+    const serverTime = Date.now() + serverTimeOffset;
+    if (serverTime >= whenStart) {
+      progressBars.forEach((progressBar) =>
+        progressBar.animate(progressbarKeyframes(), {
+          duration: nextAnswerProgressBarDuration,
+        }),
+      );
+      switchPages(PagesID.ANSWERS);
+      questionMusic.volume = 0.2;
+      timeTicking.volume = 1;
+      timeTickingLess.volume = 1;
+      timeTickingLesser.volume = 1;
+      questionMusic.play();
+      if (answeringDuration > 10000) {
+        setTimeout(() => {
+          timeTicking.play();
+        }, answeringDuration - 10938);
+      } else if (answeringDuration <= 10000 && answeringDuration > 5000) {
+        setTimeout(() => {
+          timeTickingLess.play();
+        }, answeringDuration - 6181);
+      } else if (answeringDuration <= 5000) {
+        setTimeout(() => {
+          timeTickingLesser.play();
+        }, answeringDuration - 2087);
+      }
+    } else {
+      requestAnimationFrame(whenStartFn);
+    }
+  }
+
+  whenStartFn();
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").GameStatsPacket} packet
+ * @param {WebSocket} _ws
+ */
+function handleGameStats(packet, _ws) {
+  /** @type {import("./modules/protocol.mjs").UserStat[]} */
+  const gameLeaderboardUsers = packet.leaderboard.users;
+
+  if (gameLeaderboard) {
+    setLeaderboard(gameLeaderboard, gameLeaderboardUsers);
+  } else {
+    console.error("No leaderboards!");
+  }
+
+  if (firstPlaceUsername && firstPlacePodium && firstPlaceAvatar) {
+    const firstUser = gameLeaderboardUsers[0];
+    let firstRealUser = users.find((x) => x.userID === firstUser.userID);
+
+    if (firstRealUser === undefined) {
+      firstRealUser = {
+        userID: 0,
+        username: "_ERROR_",
+        avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
+      };
+    }
+
+    firstPlaceUsername.textContent = firstRealUser.username;
+    firstPlaceUsername.style.visibility = "hidden";
+
+    updateUserAvatar(firstPlaceAvatar, firstRealUser.avatar);
+
+    firstPlaceAvatar.style.visibility = "hidden";
+  } else {
+    console.error("No first place podium?");
+  }
+
+  if (secondPlaceUsername && secondPlacePodium && secondPlaceAvatar) {
+    if (gameLeaderboardUsers.length > 1) {
+      secondPlacePodium.style.display = "";
+      const secondUser = gameLeaderboardUsers[1];
+      let secondRealUser = users.find((x) => x.userID === secondUser.userID);
+
+      if (secondRealUser === undefined) {
+        secondRealUser = {
+          userID: 0,
+          username: "_ERROR_",
+          avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
+        };
+      }
+
+      secondPlaceUsername.textContent = secondRealUser.username;
+      secondPlaceUsername.style.visibility = "hidden";
+
+      updateUserAvatar(secondPlaceAvatar, secondRealUser.avatar);
+
+      secondPlaceAvatar.style.visibility = "hidden";
+    } else {
+      secondPlacePodium.style.display = "none";
+    }
+  } else {
+    console.error("No second place podium?");
+  }
+
+  if (thirdPlaceUsername && thirdPlacePodium && thirdPlaceAvatar) {
+    if (gameLeaderboardUsers.length > 2) {
+      thirdPlacePodium.style.display = "";
+      const thirdUser = gameLeaderboardUsers[2];
+      let thirdRealUser = users.find((x) => x.userID === thirdUser.userID);
+
+      if (thirdRealUser === undefined) {
+        thirdRealUser = {
+          userID: 0,
+          username: "_ERROR_",
+          avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
+        };
+      }
+
+      thirdPlaceUsername.textContent = thirdRealUser.username;
+      thirdPlaceUsername.style.visibility = "hidden";
+
+      updateUserAvatar(thirdPlaceAvatar, thirdRealUser.avatar);
+
+      thirdPlaceAvatar.style.visibility = "hidden";
+    } else {
+      thirdPlacePodium.style.display = "none";
+    }
+  } else {
+    console.error("No second place podium?");
+  }
+
+  if (
+    overallQuickPositionElement &&
+    overallQuickUsernameElement &&
+    overallQuickTimeElement &&
+    overallQuickAvatarElement
+  ) {
+    const quickUserId = packet.advancements.quick.userId;
+    let quickTime = (packet.advancements.quick.time / 1000.0).toPrecision(3);
+    let quickUser = users.find((x) => x.userID === quickUserId);
+
+    if (quickUser == undefined) {
+      quickUser = {
+        userID: 0,
+        username: "Nobody",
+        avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
+      };
+    }
+
+    if (packet.advancements.quick.time === 4294967295) {
+      quickTime = "None";
+      overallQuickTimeElement.textContent = `${quickTime}`;
+    } else {
+      overallQuickTimeElement.textContent = `${quickTime}s`;
+    }
+
+    // NOTE: Should I care when not found?
+    let quickPosition =
+      gameLeaderboardUsers.findIndex((x) => x.userID === quickUserId) + 1;
+
+    overallQuickPositionElement.textContent = `${quickPosition}.`;
+    overallQuickUsernameElement.textContent = quickUser.username;
+
+    updateUserAvatar(overallQuickAvatarElement, quickUser.avatar);
+  } else {
+    console.error("No overall quickest advancement in game stats?");
+  }
+
+  if (
+    overallStreakPositionElement &&
+    overallStreakUsernameElement &&
+    overallStreakTimeElement &&
+    overallStreakAvatarElement
+  ) {
+    const streakUserId = packet.advancements.streak.userId;
+    const streakNumber = packet.advancements.streak.streak;
+    let streakUser = users.find((x) => x.userID === streakUserId);
+
+    if (streakUser == undefined) {
+      streakUser = {
+        userID: 0,
+        username: "Nobody",
+        avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
+      };
+    }
+
+    // NOTE: Should I care when not found?
+    let streakPosition =
+      gameLeaderboardUsers.findIndex((x) => x.userID === streakUserId) + 1;
+
+    overallStreakPositionElement.textContent = `${streakPosition}.`;
+    overallStreakUsernameElement.textContent = streakUser.username;
+    overallStreakTimeElement.textContent = streakNumber.toString();
+
+    updateUserAvatar(overallStreakAvatarElement, streakUser.avatar);
+  } else {
+    console.error("No overall streak advancement in game stats?");
+  }
+
+  if (
+    overallRatioPositionElement &&
+    overallRatioUsernameElement &&
+    overallRatioNumberElement &&
+    overallRatioAvatarElement
+  ) {
+    const ratioUserId = packet.advancements.ratio.userId;
+    const ratioNumber = packet.advancements.ratio.ratio;
+    let ratioUser = users.find((x) => x.userID === ratioUserId);
+
+    if (ratioUser == undefined) {
+      ratioUser = {
+        userID: 0,
+        username: "Nobody",
+        avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
+      };
+    }
+
+    // NOTE: Should I care when not found?
+    let ratioPosition =
+      gameLeaderboardUsers.findIndex((x) => x.userID === ratioUserId) + 1;
+
+    overallRatioPositionElement.textContent = `${ratioPosition}.`;
+    overallRatioUsernameElement.textContent = ratioUser.username;
+    overallRatioNumberElement.textContent = `${ratioNumber}%`;
+
+    updateUserAvatar(overallRatioAvatarElement, ratioUser.avatar);
+  } else {
+    console.error("No overall ratio advancement in game stats?");
+  }
+
+  if (toEndStatisticsButton) {
+    toEndStatisticsButton.style.display = "none";
+    toEndStatisticsButton.disabled = true;
+  } else {
+    console.error("No to end statistics button?");
+  }
+
+  switchPages(PagesID.PODIUM);
+
+  for (let backgroundMusic of backgroundMusicList) {
+    backgroundMusic.volume = 0.05;
+  }
+
+  setTimeout(() => {
+    winnerEffect.volume = 0.2;
+    winnerEffect.play();
+  }, 600);
+
+  winnerEffect.onended = () => {
+    for (let backgroundMusic of backgroundMusicList) {
+      backgroundMusic.volume = 0.1;
+    }
+  };
+
+  const timeChangeMilis = 1000;
+
+  const firstPlaceFun = () => {
+    if (firstPlaceUsername && firstPlaceAvatar) {
+      firstPlaceUsername.style.visibility = "";
+      firstPlaceAvatar.style.visibility = "";
+    } else {
+      console.error("No first place username and avatar?");
+    }
+  };
+  const secondPlaceFun = () => {
+    if (secondPlaceUsername && secondPlaceAvatar) {
+      secondPlaceUsername.style.visibility = "";
+      secondPlaceAvatar.style.visibility = "";
+    } else {
+      console.error("No second place username and avatar?");
+    }
+  };
+  const thirdPlaceFun = () => {
+    if (thirdPlaceUsername && thirdPlaceAvatar) {
+      thirdPlaceUsername.style.visibility = "";
+      thirdPlaceAvatar.style.visibility = "";
+    } else {
+      console.error("No third place username and avatar?");
+    }
+  };
+  const finishIt = () => {
+    if (toEndStatisticsButton) {
+      toEndStatisticsButton.style.display = "";
+      toEndStatisticsButton.disabled = false;
+    } else {
+      console.error("No end statistics button?");
+    }
+  };
+
+  if (gameLeaderboardUsers.length > 2) {
+    setTimeout(thirdPlaceFun, timeChangeMilis);
+    setTimeout(secondPlaceFun, timeChangeMilis * 2);
+    setTimeout(firstPlaceFun, timeChangeMilis * 3);
+    setTimeout(finishIt, timeChangeMilis * 4);
+  } else if (gameLeaderboardUsers.length > 1) {
+    setTimeout(secondPlaceFun, timeChangeMilis);
+    setTimeout(firstPlaceFun, timeChangeMilis * 2);
+    setTimeout(finishIt, timeChangeMilis * 3);
+  } else {
+    setTimeout(firstPlaceFun, timeChangeMilis);
+    setTimeout(finishIt, timeChangeMilis * 2);
+  }
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").GoAheadPacket} _packet
+ * @param {WebSocket} _ws
+ */
+function handleGoAhead(_packet, _ws) {
+  switchPages(PagesID.LEADERBOARD);
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").UpdateClientAvatar} packet
+ * @param {WebSocket} _ws
+ */
+function handleUpdateClientAvatar(packet, _ws) {
+  const userAvatarIndex = users.findIndex((x) => x.userID === packet.userID);
+
+  if (userAvatarIndex === -1) {
+    console.warn("User does not exist");
+    return;
+  }
+
+  const userOfAvatar = users[userAvatarIndex];
+  userOfAvatar.avatar = packet.avatar;
+  users[userAvatarIndex] = userOfAvatar;
+
+  updatePlayerBoard();
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").BlankPageInfoPacket} packet
+ * @param {WebSocket} _ws
+ */
+function handleBlankPageInfo(packet, _ws) {
+  if (packet.pageIndex !== 0) {
+    progressBarsBlankPage.forEach((x) => {
+      x.classList.add("hidden");
+    });
+  } else {
+    hideProgressBar = true;
+  }
+
+  if (questionNum) {
+    questionNum.forEach((x) => {
+      x.textContent = (packet.pageIndex + 1).toString();
+    });
+  } else {
+    console.error("No question number!");
+  }
+
+  if (question.length > 0) {
+    question.forEach((q) => {
+      q.textContent = packet.text;
+      const textLength = packet.text.length;
+      q.style.setProperty("--chars", `${textLength}`);
+    });
+  } else {
+    console.error("No questions!");
+  }
+
+  questionImage.forEach((x) => {
+    x.classList.add("hidden");
+  });
+
+  if (advanceBtn) {
+    advanceBtn.classList.remove("hidden");
+  } else {
+    console.error("No advanceBtn?");
+  }
+
+  switchPages(PagesID.QUESTION);
+}
+
+/**
+ * @param {import("./modules/protocol.mjs").PongPacket} packet
+ * @param {WebSocket} ws
+ */
+function handlePong(packet, ws) {
+  const currentTime = Date.now();
+  const rtt = currentTime - calibrationTimes[calibration_num];
+  const latency = rtt / 2;
+  const serverTime = Number(packet.timestamp);
+  const timeOffset = serverTime - (currentTime - latency);
+  calibrationTimes[calibration_num] = timeOffset;
+  calibration_num++;
+  console.log(`Time offset: ${timeOffset}`);
+
+  if (rtt < bestRtt) {
+    bestRtt = rtt;
+    serverTimeOffset = timeOffset;
+  }
+
+  if (calibration_num < CALIBRATION_TRIES) {
+    setTimeout(() => {
+      ws.send(pingPacket());
+      calibrationTimes[calibration_num] = Date.now();
+    }, 500);
+  }
+}
+
+/**
  * @param {WebSocket} ws
  * @param {ArrayBuffer} data
  */
@@ -593,753 +1336,8 @@ function handlePackets(data, ws) {
 
   const handler = handlers[packet.packetID];
   if (handler) handler(/** @type {any} */ (packet.value), ws);
-
-  switch (packet.packetID) {
-    case S2CPacketID.QuestionInfo:
-      const questionInfoPacket =
-        /** @type {import("./modules/protocol.mjs").QuestionInfoPacket} */ (
-          packet.value
-        );
-      answeringDuration = questionInfoPacket.answerMilis;
-
-      progressBarsBlankPage.forEach((x) => {
-        x.classList.remove("hidden");
-      });
-
-      if (advanceBtn) {
-        advanceBtn.classList.add("hidden");
-      } else {
-        console.error("No advanceBtn?");
-      }
-
-      if (questionInfoPacket.image) {
-        if (answersPage && questionWithoutImage) {
-          if (questionInfoPacket.showImageDuringAnswers) {
-            answersPage.classList.add("answersWithImage");
-            questionWithoutImage.style.display = "none";
-          } else {
-            answersPage.classList.remove("answersWithImage");
-            questionWithoutImage.style.display = "";
-          }
-        }
-        questionImage.forEach((x) => {
-          x.src = `/quiz/assets/${questionInfoPacket.image}`;
-          x.classList.remove("hidden");
-        });
-        if (
-          !questionInfoPacket.showImageDuringAnswers &&
-          answersQuestionImage
-        ) {
-          answersQuestionImage.classList.add("hidden");
-        }
-      } else {
-        if (answersPage && questionWithoutImage) {
-          answersPage.classList.remove("answersWithImage");
-          questionWithoutImage.style.display = "";
-        }
-        questionImage.forEach((x) => {
-          x.classList.add("hidden");
-        });
-      }
-
-      if (quizTitle) {
-        if (quizTitle.style.display !== "none") {
-          nextProgressBarDuration = questionInfoPacket.readQuestionMilis;
-          nextAnswerProgressBarDuration = questionInfoPacket.answerMilis;
-        } else {
-          nextAnswerProgressBarDuration = questionInfoPacket.answerMilis;
-          progressBars.forEach((progressBar) =>
-            progressBar.animate(progressbarKeyframes(), {
-              duration: questionInfoPacket.readQuestionMilis,
-            }),
-          );
-        }
-      } else {
-        console.error("No quiz title?");
-      }
-
-      if (questionNum) {
-        questionNum.forEach((x) => {
-          x.textContent = (questionInfoPacket.questionIndex + 1).toString();
-        });
-      } else {
-        console.error("No question number!");
-      }
-
-      if (question.length > 0) {
-        question.forEach((q) => {
-          q.textContent = questionInfoPacket.question;
-          const textLength = questionInfoPacket.question.length;
-          q.style.setProperty("--chars", `${textLength}`);
-        });
-      } else {
-        console.error("No questions!");
-      }
-
-      const numOfAnswers = questionInfoPacket.answers.length;
-      if (
-        answer0 &&
-        answer1 &&
-        answer2 &&
-        answer3 &&
-        stats0 &&
-        stats1 &&
-        stats2 &&
-        stats3 &&
-        stats0Correct &&
-        stats1Correct &&
-        stats2Correct &&
-        stats3Correct &&
-        numOfAnswers0 &&
-        numOfAnswers1 &&
-        numOfAnswers2 &&
-        numOfAnswers3
-      ) {
-        const answers = [answer0, answer1, answer2, answer3];
-
-        for (let i = 0; i < numOfAnswers; i++) {
-          for (let answer of answers[i]) {
-            answer.textContent = questionInfoPacket.answers[i];
-            const textLength = questionInfoPacket.answers[i].length;
-            answer.style.setProperty("--chars", `${textLength}`);
-          }
-        }
-
-        switch (numOfAnswers) {
-          case 1:
-            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
-            stats0.style.display = "";
-            answer1Text.forEach((answer) => answer.classList.add("hidden"));
-            stats1.style.display = "none";
-            answer2Text.forEach((answer) => answer.classList.add("hidden"));
-            stats2.style.display = "none";
-            answer3Text.forEach((answer) => answer.classList.add("hidden"));
-            stats3.style.display = "none";
-            break;
-          case 2:
-            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
-            stats0.style.display = "";
-            answer1Text.forEach((answer) => answer.classList.remove("hidden"));
-            stats1.style.display = "";
-            answer2Text.forEach((answer) => answer.classList.add("hidden"));
-            stats2.style.display = "none";
-            answer3Text.forEach((answer) => answer.classList.add("hidden"));
-            stats3.style.display = "none";
-            break;
-          case 3:
-            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
-            stats0.style.display = "";
-            answer1Text.forEach((answer) => answer.classList.remove("hidden"));
-            stats1.style.display = "";
-            answer2Text.forEach((answer) => answer.classList.remove("hidden"));
-            stats2.style.display = "";
-            answer3Text.forEach((answer) => answer.classList.add("hidden"));
-            stats3.style.display = "none";
-            break;
-          case 4:
-            answer0Text.forEach((answer) => answer.classList.remove("hidden"));
-            stats0.style.display = "";
-            answer1Text.forEach((answer) => answer.classList.remove("hidden"));
-            stats1.style.display = "";
-            answer2Text.forEach((answer) => answer.classList.remove("hidden"));
-            stats2.style.display = "";
-            answer3Text.forEach((answer) => answer.classList.remove("hidden"));
-            stats3.style.display = "";
-            break;
-          default:
-            console.error("More than 4?");
-            break;
-        }
-      } else {
-        console.error("No answers!");
-      }
-
-      switchPages(PagesID.QUESTION);
-      break;
-    case S2CPacketID.QuestionStats:
-      const questionStatsPacket =
-        /** @type {import("./modules/protocol.mjs").QuestionStatsPacket} */ (
-          packet.value
-        );
-
-      const correctAnswer = questionStatsPacket.correctAnswer;
-      if (stats0Correct && stats1Correct && stats2Correct && stats3Correct) {
-        if ((correctAnswer & 1) != 0) {
-          stats0Correct.style.display = "";
-          stats0?.classList.remove("incorrectAnswer");
-          answer0Stats?.classList.remove("incorrectAnswer");
-        } else {
-          stats0Correct.style.display = "none";
-          stats0?.classList.add("incorrectAnswer");
-          answer0Stats?.classList.add("incorrectAnswer");
-        }
-
-        if ((correctAnswer & 2) != 0) {
-          stats1Correct.style.display = "";
-          stats1?.classList.remove("incorrectAnswer");
-          answer1Stats?.classList.remove("incorrectAnswer");
-        } else {
-          stats1Correct.style.display = "none";
-          stats1?.classList.add("incorrectAnswer");
-          answer1Stats?.classList.add("incorrectAnswer");
-        }
-
-        if ((correctAnswer & 4) != 0) {
-          stats2Correct.style.display = "";
-          stats2?.classList.remove("incorrectAnswer");
-          answer2Stats?.classList.remove("incorrectAnswer");
-        } else {
-          stats2Correct.style.display = "none";
-          stats2?.classList.add("incorrectAnswer");
-          answer2Stats?.classList.add("incorrectAnswer");
-        }
-
-        if ((correctAnswer & 8) != 0) {
-          stats3Correct.style.display = "";
-          stats3?.classList.remove("incorrectAnswer");
-          answer3Stats?.classList.remove("incorrectAnswer");
-        } else {
-          stats3Correct.style.display = "none";
-          stats3?.classList.add("incorrectAnswer");
-          answer3Stats?.classList.add("incorrectAnswer");
-        }
-      } else {
-        console.error("No indication of correct answer?");
-      }
-
-      if (
-        numOfAnswers0 &&
-        numOfAnswers1 &&
-        numOfAnswers2 &&
-        numOfAnswers3 &&
-        stats0 &&
-        stats1 &&
-        stats2 &&
-        stats3 &&
-        statsElement
-      ) {
-        const numOfAnswers = [
-          numOfAnswers0,
-          numOfAnswers1,
-          numOfAnswers2,
-          numOfAnswers3,
-        ];
-
-        const stats = [stats0, stats1, stats2, stats3];
-
-        let allAnswers = 0;
-
-        for (let i = 0; i < questionStatsPacket.numOfAnswers.length; i++) {
-          const numOfAnswer = questionStatsPacket.numOfAnswers[i];
-          allAnswers += numOfAnswer;
-          numOfAnswers[i].textContent = numOfAnswer.toString();
-          stats[i].style.setProperty("--answers", numOfAnswer.toString());
-        }
-
-        statsElement.style.setProperty("--allAnswers", allAnswers.toString());
-      } else {
-        console.error("No statistics about question?");
-      }
-
-      /** @type {import("./modules/protocol.mjs").UserStat[]} */
-      const leaderboardUsers = questionStatsPacket.leaderboard.users;
-
-      if (leaderboard) {
-        setLeaderboard(leaderboard, leaderboardUsers);
-      } else {
-        console.error("No leaderboards!");
-      }
-
-      if (
-        quickPositionElement &&
-        quickUsernameElement &&
-        quickTimeElement &&
-        quickAvatarElement
-      ) {
-        const quickUserId = questionStatsPacket.advancements.quick.userId;
-        const quickTime = (
-          questionStatsPacket.advancements.quick.time / 1000.0
-        ).toPrecision(3);
-        let quickUser = users.find((x) => x.userID === quickUserId);
-
-        if (quickUser == undefined) {
-          quickUser = {
-            userID: 0,
-            username: "Nobody",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
-          };
-        }
-
-        // NOTE: Should I care when not found?
-        let quickPosition =
-          leaderboardUsers.findIndex((x) => x.userID === quickUserId) + 1;
-
-        quickPositionElement.textContent = `${quickPosition}.`;
-        quickUsernameElement.textContent = quickUser.username;
-
-        updateUserAvatar(quickAvatarElement, quickUser.avatar);
-
-        let textContent = "Too slow!";
-        if (questionStatsPacket.advancements.quick.time !== 4294967295) {
-          textContent = `${quickTime}s`;
-        }
-
-        quickTimeElement.textContent = `${textContent}`;
-      } else {
-        console.error("No quickest advancement in question stats?");
-      }
-
-      if (
-        streakPositionElement &&
-        streakUsernameElement &&
-        streakTimeElement &&
-        streakAvatarElement
-      ) {
-        const streakUserId = questionStatsPacket.advancements.streak.userId;
-        let streakNumber = questionStatsPacket.advancements.streak.streak;
-        let streakUser = users.find((x) => x.userID === streakUserId);
-
-        if (streakNumber === 255) {
-          streakNumber = 0;
-        }
-
-        if (streakUser == undefined) {
-          streakUser = {
-            userID: 0,
-            username: "Nobody",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
-          };
-        }
-
-        // NOTE: Should I care when not found?
-        let streakPosition =
-          leaderboardUsers.findIndex((x) => x.userID === streakUserId) + 1;
-
-        streakPositionElement.textContent = `${streakPosition}.`;
-        streakUsernameElement.textContent = streakUser.username;
-        streakTimeElement.textContent = streakNumber.toString();
-
-        updateUserAvatar(streakAvatarElement, streakUser.avatar);
-      } else {
-        console.error("No streak advancement in question stats?");
-      }
-
-      switchPages(PagesID.QUESTION_STATS);
-      break;
-    case S2CPacketID.StartAnswering:
-      const startAnsweringPacket =
-        /** @type {import("./modules/protocol.mjs").StartAnsweringPacket} */ (
-          packet.value
-        );
-
-      const whenStart = startAnsweringPacket.whenTimestamp;
-      function whenStartFn() {
-        if (currentPage != PagesID.QUESTION || currentPage != PagesID.ANSWERS) {
-          console.warn("Finished before start");
-          return;
-        }
-
-        const serverTime = Date.now() + serverTimeOffset;
-        if (serverTime >= whenStart) {
-          progressBars.forEach((progressBar) =>
-            progressBar.animate(progressbarKeyframes(), {
-              duration: nextAnswerProgressBarDuration,
-            }),
-          );
-          switchPages(PagesID.ANSWERS);
-          questionMusic.volume = 0.2;
-          timeTicking.volume = 1;
-          timeTickingLess.volume = 1;
-          timeTickingLesser.volume = 1;
-          questionMusic.play();
-          if (answeringDuration > 10000) {
-            setTimeout(() => {
-              timeTicking.play();
-            }, answeringDuration - 10938);
-          } else if (answeringDuration <= 10000 && answeringDuration > 5000) {
-            setTimeout(() => {
-              timeTickingLess.play();
-            }, answeringDuration - 6181);
-          } else if (answeringDuration <= 5000) {
-            setTimeout(() => {
-              timeTickingLesser.play();
-            }, answeringDuration - 2087);
-          }
-        } else {
-          requestAnimationFrame(whenStartFn);
-        }
-      }
-
-      whenStartFn();
-      break;
-    case S2CPacketID.GameStats:
-      const gameStatsPacket =
-        /** @type {import("./modules/protocol.mjs").GameStatsPacket} */ (
-          packet.value
-        );
-
-      /** @type {import("./modules/protocol.mjs").UserStat[]} */
-      const gameLeaderboardUsers = gameStatsPacket.leaderboard.users;
-
-      if (gameLeaderboard) {
-        setLeaderboard(gameLeaderboard, gameLeaderboardUsers);
-      } else {
-        console.error("No leaderboards!");
-      }
-
-      if (firstPlaceUsername && firstPlacePodium && firstPlaceAvatar) {
-        const firstUser = gameLeaderboardUsers[0];
-        let firstRealUser = users.find((x) => x.userID === firstUser.userID);
-
-        if (firstRealUser === undefined) {
-          firstRealUser = {
-            userID: 0,
-            username: "_ERROR_",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
-          };
-        }
-
-        firstPlaceUsername.textContent = firstRealUser.username;
-        firstPlaceUsername.style.visibility = "hidden";
-
-        updateUserAvatar(firstPlaceAvatar, firstRealUser.avatar);
-
-        firstPlaceAvatar.style.visibility = "hidden";
-      } else {
-        console.error("No first place podium?");
-      }
-
-      if (secondPlaceUsername && secondPlacePodium && secondPlaceAvatar) {
-        if (gameLeaderboardUsers.length > 1) {
-          secondPlacePodium.style.display = "";
-          const secondUser = gameLeaderboardUsers[1];
-          let secondRealUser = users.find(
-            (x) => x.userID === secondUser.userID,
-          );
-
-          if (secondRealUser === undefined) {
-            secondRealUser = {
-              userID: 0,
-              username: "_ERROR_",
-              avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
-            };
-          }
-
-          secondPlaceUsername.textContent = secondRealUser.username;
-          secondPlaceUsername.style.visibility = "hidden";
-
-          updateUserAvatar(secondPlaceAvatar, secondRealUser.avatar);
-
-          secondPlaceAvatar.style.visibility = "hidden";
-        } else {
-          secondPlacePodium.style.display = "none";
-        }
-      } else {
-        console.error("No second place podium?");
-      }
-
-      if (thirdPlaceUsername && thirdPlacePodium && thirdPlaceAvatar) {
-        if (gameLeaderboardUsers.length > 2) {
-          thirdPlacePodium.style.display = "";
-          const thirdUser = gameLeaderboardUsers[2];
-          let thirdRealUser = users.find((x) => x.userID === thirdUser.userID);
-
-          if (thirdRealUser === undefined) {
-            thirdRealUser = {
-              userID: 0,
-              username: "_ERROR_",
-              avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
-            };
-          }
-
-          thirdPlaceUsername.textContent = thirdRealUser.username;
-          thirdPlaceUsername.style.visibility = "hidden";
-
-          updateUserAvatar(thirdPlaceAvatar, thirdRealUser.avatar);
-
-          thirdPlaceAvatar.style.visibility = "hidden";
-        } else {
-          thirdPlacePodium.style.display = "none";
-        }
-      } else {
-        console.error("No second place podium?");
-      }
-
-      if (
-        overallQuickPositionElement &&
-        overallQuickUsernameElement &&
-        overallQuickTimeElement &&
-        overallQuickAvatarElement
-      ) {
-        const quickUserId = gameStatsPacket.advancements.quick.userId;
-        let quickTime = (
-          gameStatsPacket.advancements.quick.time / 1000.0
-        ).toPrecision(3);
-        let quickUser = users.find((x) => x.userID === quickUserId);
-
-        if (quickUser == undefined) {
-          quickUser = {
-            userID: 0,
-            username: "Nobody",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
-          };
-        }
-
-        if (gameStatsPacket.advancements.quick.time === 4294967295) {
-          quickTime = "None";
-          overallQuickTimeElement.textContent = `${quickTime}`;
-        } else {
-          overallQuickTimeElement.textContent = `${quickTime}s`;
-        }
-
-        // NOTE: Should I care when not found?
-        let quickPosition =
-          gameLeaderboardUsers.findIndex((x) => x.userID === quickUserId) + 1;
-
-        overallQuickPositionElement.textContent = `${quickPosition}.`;
-        overallQuickUsernameElement.textContent = quickUser.username;
-
-        updateUserAvatar(overallQuickAvatarElement, quickUser.avatar);
-      } else {
-        console.error("No overall quickest advancement in game stats?");
-      }
-
-      if (
-        overallStreakPositionElement &&
-        overallStreakUsernameElement &&
-        overallStreakTimeElement &&
-        overallStreakAvatarElement
-      ) {
-        const streakUserId = gameStatsPacket.advancements.streak.userId;
-        const streakNumber = gameStatsPacket.advancements.streak.streak;
-        let streakUser = users.find((x) => x.userID === streakUserId);
-
-        if (streakUser == undefined) {
-          streakUser = {
-            userID: 0,
-            username: "Nobody",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
-          };
-        }
-
-        // NOTE: Should I care when not found?
-        let streakPosition =
-          gameLeaderboardUsers.findIndex((x) => x.userID === streakUserId) + 1;
-
-        overallStreakPositionElement.textContent = `${streakPosition}.`;
-        overallStreakUsernameElement.textContent = streakUser.username;
-        overallStreakTimeElement.textContent = streakNumber.toString();
-
-        updateUserAvatar(overallStreakAvatarElement, streakUser.avatar);
-      } else {
-        console.error("No overall streak advancement in game stats?");
-      }
-
-      if (
-        overallRatioPositionElement &&
-        overallRatioUsernameElement &&
-        overallRatioNumberElement &&
-        overallRatioAvatarElement
-      ) {
-        const ratioUserId = gameStatsPacket.advancements.ratio.userId;
-        const ratioNumber = gameStatsPacket.advancements.ratio.ratio;
-        let ratioUser = users.find((x) => x.userID === ratioUserId);
-
-        if (ratioUser == undefined) {
-          ratioUser = {
-            userID: 0,
-            username: "Nobody",
-            avatar: { body: 0, head: 0, eyes: 0, lips: 0, color: 0 },
-          };
-        }
-
-        // NOTE: Should I care when not found?
-        let ratioPosition =
-          gameLeaderboardUsers.findIndex((x) => x.userID === ratioUserId) + 1;
-
-        overallRatioPositionElement.textContent = `${ratioPosition}.`;
-        overallRatioUsernameElement.textContent = ratioUser.username;
-        overallRatioNumberElement.textContent = `${ratioNumber}%`;
-
-        updateUserAvatar(overallRatioAvatarElement, ratioUser.avatar);
-      } else {
-        console.error("No overall ratio advancement in game stats?");
-      }
-
-      if (toEndStatisticsButton) {
-        toEndStatisticsButton.style.display = "none";
-        toEndStatisticsButton.disabled = true;
-      } else {
-        console.error("No to end statistics button?");
-      }
-
-      switchPages(PagesID.PODIUM);
-
-      for (let backgroundMusic of backgroundMusicList) {
-        backgroundMusic.volume = 0.05;
-      }
-
-      setTimeout(() => {
-        winnerEffect.volume = 0.2;
-        winnerEffect.play();
-      }, 600);
-
-      winnerEffect.onended = () => {
-        for (let backgroundMusic of backgroundMusicList) {
-          backgroundMusic.volume = 0.1;
-        }
-      };
-
-      const timeChangeMilis = 1000;
-
-      const firstPlaceFun = () => {
-        if (firstPlaceUsername && firstPlaceAvatar) {
-          firstPlaceUsername.style.visibility = "";
-          firstPlaceAvatar.style.visibility = "";
-        } else {
-          console.error("No first place username and avatar?");
-        }
-      };
-      const secondPlaceFun = () => {
-        if (secondPlaceUsername && secondPlaceAvatar) {
-          secondPlaceUsername.style.visibility = "";
-          secondPlaceAvatar.style.visibility = "";
-        } else {
-          console.error("No second place username and avatar?");
-        }
-      };
-      const thirdPlaceFun = () => {
-        if (thirdPlaceUsername && thirdPlaceAvatar) {
-          thirdPlaceUsername.style.visibility = "";
-          thirdPlaceAvatar.style.visibility = "";
-        } else {
-          console.error("No third place username and avatar?");
-        }
-      };
-      const finishIt = () => {
-        if (toEndStatisticsButton) {
-          toEndStatisticsButton.style.display = "";
-          toEndStatisticsButton.disabled = false;
-        } else {
-          console.error("No end statistics button?");
-        }
-      };
-
-      if (gameLeaderboardUsers.length > 2) {
-        setTimeout(thirdPlaceFun, timeChangeMilis);
-        setTimeout(secondPlaceFun, timeChangeMilis * 2);
-        setTimeout(firstPlaceFun, timeChangeMilis * 3);
-        setTimeout(finishIt, timeChangeMilis * 4);
-      } else if (gameLeaderboardUsers.length > 1) {
-        setTimeout(secondPlaceFun, timeChangeMilis);
-        setTimeout(firstPlaceFun, timeChangeMilis * 2);
-        setTimeout(finishIt, timeChangeMilis * 3);
-      } else {
-        setTimeout(firstPlaceFun, timeChangeMilis);
-        setTimeout(finishIt, timeChangeMilis * 2);
-      }
-
-      break;
-    case S2CPacketID.GoAhead:
-      switchPages(PagesID.LEADERBOARD);
-      break;
-    case S2CPacketID.UpdateClientAvatar:
-      const updateClientAvatar =
-        /** @type {import("./modules/protocol.mjs").UpdateClientAvatar} */ (
-          packet.value
-        );
-
-      const userAvatarIndex = users.findIndex(
-        (x) => x.userID === updateClientAvatar.userID,
-      );
-
-      if (userAvatarIndex === -1) {
-        console.warn("User does not exist");
-        break;
-      }
-
-      const userOfAvatar = users[userAvatarIndex];
-      userOfAvatar.avatar = updateClientAvatar.avatar;
-      users[userAvatarIndex] = userOfAvatar;
-
-      updatePlayerBoard();
-
-      break;
-    case S2CPacketID.BlankPageInfo:
-      const blankPageInfo =
-        /** @type {import("./modules/protocol.mjs").BlankPageInfoPacket} */ (
-          packet.value
-        );
-
-      console.dir(blankPageInfo);
-
-      if (blankPageInfo.pageIndex !== 0) {
-        progressBarsBlankPage.forEach((x) => {
-          x.classList.add("hidden");
-        });
-      } else {
-        hideProgressBar = true;
-      }
-
-      if (questionNum) {
-        questionNum.forEach((x) => {
-          x.textContent = (blankPageInfo.pageIndex + 1).toString();
-        });
-      } else {
-        console.error("No question number!");
-      }
-
-      if (question.length > 0) {
-        question.forEach((q) => {
-          q.textContent = blankPageInfo.text;
-          const textLength = blankPageInfo.text.length;
-          q.style.setProperty("--chars", `${textLength}`);
-        });
-      } else {
-        console.error("No questions!");
-      }
-
-      questionImage.forEach((x) => {
-        x.classList.add("hidden");
-      });
-
-      if (advanceBtn) {
-        advanceBtn.classList.remove("hidden");
-      } else {
-        console.error("No advanceBtn?");
-      }
-
-      switchPages(PagesID.QUESTION);
-      break;
-    case S2CPacketID.Pong:
-      const pongPacket =
-        /** @type {import("./modules/protocol.mjs").PongPacket} */ (
-          packet.value
-        );
-
-      const currentTime = Date.now();
-      const rtt = currentTime - calibrationTimes[calibration_num];
-      const latency = rtt / 2;
-      const serverTime = Number(pongPacket.timestamp);
-      const timeOffset = serverTime - (currentTime - latency);
-      calibrationTimes[calibration_num] = timeOffset;
-      calibration_num++;
-      console.log(`Time offset: ${timeOffset}`);
-
-      if (rtt < bestRtt) {
-        bestRtt = rtt;
-        serverTimeOffset = timeOffset;
-      }
-
-      if (calibration_num < CALIBRATION_TRIES) {
-        setTimeout(() => {
-          ws.send(pingPacket());
-          calibrationTimes[calibration_num] = Date.now();
-        }, 500);
-      }
-    default:
-      break;
-  }
+  else
+    console.error(`Failed to find handler for packet ID: ${packet.packetID}!`);
 }
 
 /**

@@ -22,6 +22,18 @@ pub struct Quiz {
     pub pages: Vec<Page>,
 }
 
+impl Quiz {
+    pub fn num_of_questions(&self) -> usize {
+        self.pages
+            .iter()
+            .filter(|x| match x {
+                Page::Question(_) => true,
+                _ => false,
+            })
+            .count()
+    }
+}
+
 #[derive(Debug)]
 pub struct BlankPage {
     pub text: BinString,
